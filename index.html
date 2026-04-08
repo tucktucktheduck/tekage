@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tekage</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <!-- Part Selector Modal -->
+    <div class="mx-modal-bg" id="partModalBg" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="mx-modal">
+            <h2>SELECT PART</h2>
+            <select id="partSelect"></select>
+            <div class="mx-modal-actions">
+                <button class="mx-cancel" onclick="document.getElementById('partModalBg').classList.remove('open')">Cancel</button>
+                <button class="mx-ok" id="partConfirmBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Music Map Modal -->
+    <div class="map-modal-bg" id="mapModalBg" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="map-modal">
+            <h2>MUSIC MAP</h2>
+            <textarea id="mapTextarea" readonly></textarea>
+            <div class="map-modal-actions">
+                <button class="map-export" id="mapExportBtn">Export CSV</button>
+                <button class="map-close" onclick="document.getElementById('mapModalBg').classList.remove('open')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input — music files -->
+    <input type="file" id="mxFileInput" accept=".xml,.musicxml,.mxl,.mid,.midi">
+    <!-- Hidden file input — texture packs -->
+    <input type="file" id="tkpFileInput" accept=".tkg,.tkp">
+    <!-- Hidden file input — skin editor pattern/animation uploads -->
+    <input type="file" id="sePatternFileInput" accept="image/*">
+    <input type="file" id="seAnimFileInput" accept="image/*">
+
+    <!-- Volume Slider -->
+    <div class="slider-overlay" id="volSliderOverlay">
+        <label>VOLUME</label>
+        <input type="range" id="volSlider" min="0" max="100" value="60">
+        <span class="val" id="volVal">60%</span>
+    </div>
+
+    <!-- Speed Slider -->
+    <div class="slider-overlay" id="spdSliderOverlay">
+        <label>SPEED</label>
+        <input type="range" id="spdSlider" min="25" max="200" value="100">
+        <span class="val" id="spdVal">1.00×</span>
+    </div>
+
+    <!-- ═══ MORE OVERLAY ═══ -->
+    <div class="more-overlay" id="moreOverlay">
+        <div class="more-panel" style="width:min(680px,94vw);padding:0;overflow:hidden;display:flex;flex-direction:column;">
+
+            <!-- Header -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 28px 16px;flex-shrink:0;">
+                <h2 style="font-size:26px;color:#9333ea;letter-spacing:2px;margin:0;">MORE</h2>
+                <button class="more-close" id="moreCloseBtn" style="margin:0;padding:6px 14px;">✕</button>
+            </div>
+
+            <!-- Tab bar -->
+            <div class="more-tabs">
+                <button class="more-tab-btn active" data-tab="settings">Settings</button>
+                <button class="more-tab-btn" data-tab="instruments">Instruments</button>
+                <button class="more-tab-btn" data-tab="remap">Remap Keys</button>
+                <button class="more-tab-btn" data-tab="loop">Loop</button>
+                <button class="more-tab-btn" data-tab="skin">Skin</button>
+            </div>
+
+            <!-- Tab content -->
+            <div style="flex:1;overflow-y:auto;padding:20px 28px 24px;">
+
+                <!-- SETTINGS TAB -->
+                <div id="tab-settings" class="more-tab-pane active">
+                    <div class="more-section">
+                        <h3>DISPLAY</h3>
+                        <label class="toggle-row"><input type="checkbox" id="togglePianoViz" checked><span>Piano Visualizer</span></label>
+                        <label class="toggle-row"><input type="checkbox" id="toggleFallingBlocks" checked><span>Falling Blocks (off = Blind Mode)</span></label>
+                        <label class="toggle-row"><input type="checkbox" id="toggleStats"><span>Stats Panel</span></label>
+                        <label class="toggle-row"><input type="checkbox" id="toggleEarlyLate" checked><span>Early/Late Animation</span></label>
+                    </div>
+                    <div class="more-section">
+                        <h3>PLAYBACK</h3>
+                        <label class="toggle-row"><input type="checkbox" id="toggleFirstPress"><span>Start on First Press (vs 2s delay)</span></label>
+                        <label class="toggle-row"><input type="checkbox" id="toggleAutoShift"><span>Auto-Shift (shift blocks apply automatically)</span></label>
+                    </div>
+                    <div class="more-section">
+                        <h3>COLORS</h3>
+                        <div class="color-row">
+                            <span>Left Hand</span>
+                            <input type="color" id="colorLeft" value="#3b82f6">
+                        </div>
+                        <div class="color-row">
+                            <span>Right Hand</span>
+                            <input type="color" id="colorRight" value="#ec4899">
+                        </div>
+                    </div>
+                    <div class="more-section">
+                        <h3>LINKS</h3>
+                        <button class="more-btn" id="btnStukage">🔗 Open Stukage</button>
+                    </div>
+                </div>
+
+                <!-- INSTRUMENTS TAB -->
+                <div id="tab-instruments" class="more-tab-pane">
+                    <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:14px;margin-bottom:14px;">Choose your instrument. Affects all live and playback audio.</p>
+                    <div id="instrumentGrid" class="instrument-grid"></div>
+                </div>
+
+                <!-- REMAP TAB -->
+                <div id="tab-remap" class="more-tab-pane">
+                    <p class="remap-instructions" style="margin-bottom:10px;">Click a key below, then click a note name to rebind it.</p>
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                        <button class="more-btn" id="remapResetBtn" style="font-size:13px;padding:6px 14px;">Reset to Default</button>
+                    </div>
+                    <div id="remapGrid" class="remap-grid"></div>
+                </div>
+
+                <!-- LOOP TAB -->
+                <div id="tab-loop" class="more-tab-pane">
+                    <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:14px;margin-bottom:16px;">Set loop In/Out points to practice a section on repeat.</p>
+                    <button class="more-btn" id="btnInOut">🔁 Set In/Out Loop Points</button>
+                    <div id="inoutDisplay" style="margin-top:14px;font-family:Rajdhani,sans-serif;font-size:18px;color:#94a3b8;">-- → --</div>
+                </div>
+
+                <!-- SKIN TAB -->
+                <div id="tab-skin" class="more-tab-pane">
+                    <div class="more-section">
+                        <h3>ACTIVE SKIN</h3>
+                        <div id="skinNameDisplay" style="font-family:Rajdhani,sans-serif;font-size:18px;color:#fff;padding:8px 12px;background:#0a0a14;border-radius:8px;border:1px solid #1e293b;margin-bottom:8px;">Tekage Default</div>
+                    </div>
+                    <div class="more-section">
+                        <h3>TEXTURE PACK (.tkg)</h3>
+                        <button class="more-btn" id="btnUploadTkp" style="width:100%;margin-bottom:8px;">Upload Skin (.tkg)</button>
+                        <button class="more-btn" id="btnExportTkp" style="width:100%;border-color:#3b82f6;">Export Current Skin (.tkg)</button>
+                    </div>
+                    <div class="more-section">
+                        <h3>EDITOR</h3>
+                        <button class="more-btn" id="btnOpenSkinEditor" style="width:100%;border-color:#9333ea;">Open Skin Editor</button>
+                        <button class="more-btn" id="btnResetSkin" style="width:100%;margin-top:8px;border-color:#ef4444;color:#ef4444;">Reset to Default</button>
+                    </div>
+                    <div id="skinStatusMsg" style="font-family:Rajdhani,sans-serif;font-size:14px;color:#64748b;margin-top:12px;text-align:center;"></div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ IN/OUT LOOP OVERLAY ═══ -->
+    <div class="inout-overlay" id="inoutOverlay">
+        <div class="inout-bar">
+            <button class="inout-btn" id="inoutInBtn">IN (I)</button>
+            <span id="inoutDisplay">-- → --</span>
+            <button class="inout-btn" id="inoutOutBtn">OUT (O)</button>
+            <button class="inout-go" id="inoutGoBtn">GO</button>
+            <button class="inout-cancel" id="inoutCancelBtn">✕</button>
+        </div>
+    </div>
+
+    <!-- ═══ END-OF-SONG SUMMARY ═══ -->
+    <div class="summary-overlay" id="summaryOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+        <div class="summary-panel">
+            <h2>SONG COMPLETE</h2>
+            <div id="summaryContent"></div>
+            <button class="summary-close" onclick="document.getElementById('summaryOverlay').classList.remove('open')">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- ═══ SKIN EDITOR OVERLAY ═══ -->
+    <div class="skin-editor-overlay" id="skinEditorOverlay">
+        <div class="skin-editor-panel">
+
+            <!-- Header -->
+            <div class="skin-editor-header">
+                <h2>SKIN EDITOR</h2>
+                <div class="skin-editor-header-actions">
+                    <input type="text" id="seNameInput" class="se-name-input" placeholder="Skin name..." value="My Custom Skin">
+                    <button class="se-btn se-btn-blue" id="seImportBtn">Import .tkg</button>
+                    <button class="se-btn se-btn-export" id="seExportBtn">Export .tkg</button>
+                    <button class="se-btn se-btn-reset" id="seResetBtn">Reset All</button>
+                    <button class="se-btn se-btn-close" id="seCloseBtn">✕</button>
+                </div>
+            </div>
+
+            <!-- Tab nav -->
+            <div class="se-tabs">
+                <button class="se-tab-btn active" data-se-tab="colors">Colors</button>
+                <button class="se-tab-btn" data-se-tab="background">Background</button>
+                <button class="se-tab-btn" data-se-tab="notes">Notes</button>
+                <button class="se-tab-btn" data-se-tab="patterns">Patterns</button>
+                <button class="se-tab-btn" data-se-tab="glows">Glows</button>
+                <button class="se-tab-btn" data-se-tab="hitanims">Hit Animations</button>
+            </div>
+
+            <!-- Tab content -->
+            <div class="se-content">
+
+                <!-- COLORS TAB -->
+                <div id="se-tab-colors" class="se-pane active">
+                    <p class="se-desc">Set the left and right hand colors. All derived colors (glow, dim variants) are computed automatically.</p>
+                    <div class="se-color-grid">
+                        <div class="se-color-card">
+                            <div class="se-color-label">LEFT HAND</div>
+                            <div class="se-color-row">
+                                <input type="color" id="seColorLeft" value="#3b9eff">
+                                <input type="text" id="seColorLeftHex" class="se-hex-input" value="#3b9eff" maxlength="7">
+                            </div>
+                            <div class="se-derived-swatches" id="seLeftSwatches"></div>
+                        </div>
+                        <div class="se-color-card">
+                            <div class="se-color-label">RIGHT HAND</div>
+                            <div class="se-color-row">
+                                <input type="color" id="seColorRight" value="#ff8a2b">
+                                <input type="text" id="seColorRightHex" class="se-hex-input" value="#ff8a2b" maxlength="7">
+                            </div>
+                            <div class="se-derived-swatches" id="seRightSwatches"></div>
+                        </div>
+                        <div class="se-color-card">
+                            <div class="se-color-label">ACCENT</div>
+                            <div class="se-color-row">
+                                <input type="color" id="seColorAccent" value="#9333ea">
+                                <input type="text" id="seColorAccentHex" class="se-hex-input" value="#9333ea" maxlength="7">
+                            </div>
+                            <div class="se-derived-swatches" id="seAccentSwatches"></div>
+                        </div>
+                    </div>
+                    <p class="se-apply-note">Visual changes apply when you close the editor.</p>
+                </div>
+
+                <!-- BACKGROUND TAB -->
+                <div id="se-tab-background" class="se-pane">
+                    <p class="se-desc">Set a custom background image or video. Video loops automatically (muted).</p>
+                    <div class="se-bg-section">
+                        <div class="se-bg-preview" id="seBgPreview">
+                            <span style="color:#334155;font-size:13px;">Default starfield</span>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                            <button class="se-btn se-btn-blue" id="seBgUploadImgBtn">Upload Image</button>
+                            <button class="se-btn se-btn-blue" id="seBgUploadVidBtn">Upload Video</button>
+                            <button class="se-btn se-btn-reset" id="seBgClearBtn">Clear</button>
+                        </div>
+                        <input type="file" id="seBgImageInput" accept=".png,.jpg,.jpeg,.webp,.svg" style="display:none">
+                        <input type="file" id="seBgVideoInput" accept=".mp4,.webm,.mov" style="display:none">
+                    </div>
+                </div>
+
+                <!-- NOTES TAB -->
+                <div id="se-tab-notes" class="se-pane">
+                    <p class="se-desc">Customize how falling notes look. Set images per-hand or per-key.</p>
+
+                    <div class="se-notes-section">
+                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">DISPLAY MODE</h4>
+                        <div class="se-mode-radios" id="seNoteDisplayMode">
+                            <label><input type="radio" name="noteDisplayMode" value="stretch" checked> Stretch</label>
+                            <label><input type="radio" name="noteDisplayMode" value="tile"> Tile</label>
+                            <label><input type="radio" name="noteDisplayMode" value="mask-global"> Mask (Global)</label>
+                            <label><input type="radio" name="noteDisplayMode" value="mask-per-note"> Mask (Per-Note)</label>
+                        </div>
+                    </div>
+
+                    <div class="se-notes-section">
+                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">HAND DEFAULTS</h4>
+                        <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                            <div class="se-hand-card" id="seHandLeft">
+                                <div class="se-card-label" style="color:#3b9eff;">LEFT HAND</div>
+                                <div class="se-pattern-preview" id="seHandLeftPreview">
+                                    <span style="color:#334155;font-size:12px">No image</span>
+                                </div>
+                                <div style="display:flex;gap:6px;margin-top:8px;">
+                                    <button class="se-upload-btn" id="seHandLeftUpload">Upload</button>
+                                    <button class="se-clear-btn" id="seHandLeftClear">✕</button>
+                                </div>
+                            </div>
+                            <div class="se-hand-card" id="seHandRight">
+                                <div class="se-card-label" style="color:#ff8a2b;">RIGHT HAND</div>
+                                <div class="se-pattern-preview" id="seHandRightPreview">
+                                    <span style="color:#334155;font-size:12px">No image</span>
+                                </div>
+                                <div style="display:flex;gap:6px;margin-top:8px;">
+                                    <button class="se-upload-btn" id="seHandRightUpload">Upload</button>
+                                    <button class="se-clear-btn" id="seHandRightClear">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="se-notes-section" id="seMaskImageSection" style="display:none;">
+                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">MASK REVEAL IMAGE</h4>
+                        <div class="se-pattern-preview" id="seMaskImagePreview">
+                            <span style="color:#334155;font-size:12px">No image</span>
+                        </div>
+                        <div style="display:flex;gap:6px;margin-top:8px;">
+                            <button class="se-upload-btn" id="seMaskImageUpload">Upload</button>
+                            <button class="se-clear-btn" id="seMaskImageClear">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="se-notes-section">
+                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">PER-KEY OVERRIDES</h4>
+                        <p class="se-desc" style="margin-bottom:10px;">Click a key to upload a custom image for that key's notes only. Accepts PNG, JPG, GIF, WEBP.</p>
+                        <div class="se-perkey-grid" id="sePerKeyGrid">
+                            <!-- Built by skinEditor.js -->
+                        </div>
+                    </div>
+
+                    <input type="file" id="seNoteFileInput" accept=".png,.jpg,.jpeg,.gif,.webp,.apng,.svg" style="display:none">
+                </div>
+
+                <!-- PATTERNS TAB -->
+                <div id="se-tab-patterns" class="se-pane">
+                    <p class="se-desc">Upload custom images for falling notes, backgrounds, and key glow overlays.</p>
+                    <div class="se-pattern-grid" id="sePatternGrid">
+                        <!-- Built by skinEditor.js -->
+                    </div>
+                </div>
+
+                <!-- GLOWS TAB -->
+                <div id="se-tab-glows" class="se-pane">
+                    <p class="se-desc">Override glow colors per hand and per element.</p>
+                    <div class="se-glow-grid" id="seGlowGrid">
+                        <!-- Built by skinEditor.js -->
+                    </div>
+                </div>
+
+                <!-- HIT ANIMATIONS TAB -->
+                <div id="se-tab-hitanims" class="se-pane">
+                    <p class="se-desc">Upload spritesheet or static image for each timing tier. Frames are arranged horizontally in a single row.</p>
+                    <div class="se-anim-grid" id="seAnimGrid">
+                        <!-- Built by skinEditor.js -->
+                    </div>
+                </div>
+
+            </div><!-- /se-content -->
+
+        </div><!-- /skin-editor-panel -->
+    </div><!-- /skinEditorOverlay -->
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

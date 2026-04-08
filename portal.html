@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #080808;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+    color: #ccc;
+    overflow: hidden;
+  }
+
+  .scene {
+    position: relative;
+    width: 420px;
+    height: 900px;
+  }
+
+  .portal-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+  }
+
+  .portal-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .controls {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    z-index: 10;
+  }
+
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .slider-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.6;
+    width: 50px;
+    text-align: center;
+  }
+
+  .slider-label.blue { color: #4af; }
+  .slider-label.orange { color: #f93; }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 260px;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #0066cc, #333 40%, #333 60%, #cc6600);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ddd;
+    border: 2px solid #555;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ddd;
+    border: 2px solid #555;
+    cursor: pointer;
+  }
+
+  .buttons { display: flex; gap: 16px; }
+
+  .btn {
+    padding: 8px 24px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #ccc;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn:hover { background: #2a2a2a; border-color: #666; }
+  .btn.blue-btn:hover { border-color: #4af; color: #4af; }
+  .btn.orange-btn:hover { border-color: #f93; color: #f93; }
+</style>
+</head>
+<body>
+
+<div class="scene">
+  <div class="portal-container">
+    <svg class="portal-svg" viewBox="-65 0 425 900" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="neonGlow" x="-50%" y="-10%" width="200%" height="120%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur1"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="blur2"/>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur3"/>
+          <feMerge>
+            <feMergeNode in="blur3"/>
+            <feMergeNode in="blur2"/>
+            <feMergeNode in="blur1"/>
+            <feMergeNode in="SourceGraphic"/>
+          </feMerge>
+        </filter>
+
+        <linearGradient id="glowFeather" x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0%" stop-color="white" stop-opacity="1"/>
+          <stop offset="30%" stop-color="white" stop-opacity="0.55"/>
+          <stop offset="55%" stop-color="white" stop-opacity="0.2"/>
+          <stop offset="80%" stop-color="white" stop-opacity="0.05"/>
+          <stop offset="100%" stop-color="white" stop-opacity="0"/>
+        </linearGradient>
+
+        <mask id="glowMask">
+          <rect x="-65" y="0" width="195" height="900" fill="url(#glowFeather)"/>
+        </mask>
+
+        <filter id="glowSoften" x="-20%" y="-10%" width="140%" height="120%">
+          <feGaussianBlur stdDeviation="10"/>
+        </filter>
+
+        <clipPath id="upperClip">
+          <path d="
+            M 119,246
+            L 300,68
+            L 300,438
+            L 109,444
+            C 111,370 115,300 119,246
+            Z
+          "/>
+        </clipPath>
+        <clipPath id="lowerClip">
+          <path d="
+            M 109,462
+            L 300,470
+            L 300,832
+            L 119,654
+            C 115,600 111,530 109,462
+            Z
+          "/>
+        </clipPath>
+
+        <linearGradient id="metalGrad" x1="0" y1="0" x2="1" y2="0.12">
+          <stop offset="0%" stop-color="#35353b"/>
+          <stop offset="50%" stop-color="#2d2d33"/>
+          <stop offset="100%" stop-color="#2a2a30"/>
+        </linearGradient>
+
+        <linearGradient id="bracketGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3c3c42"/>
+          <stop offset="100%" stop-color="#2e2e34"/>
+        </linearGradient>
+
+        <linearGradient id="pillarGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#2a2a30"/>
+          <stop offset="50%" stop-color="#353539"/>
+          <stop offset="100%" stop-color="#2e2e33"/>
+        </linearGradient>
+
+        <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#19191e"/>
+          <stop offset="70%" stop-color="#212127"/>
+          <stop offset="100%" stop-color="#27272d"/>
+        </linearGradient>
+      </defs>
+
+      <!--
+        LINE LAYOUT:
+        Panel widest point: x=109 to x=291 = 182px
+        7 equal segments (4 metal margins + 3 dark strips): 182/7 = 26px each
+        
+        Lines at: 135, 161, 187, 213, 239, 265
+        
+        Segment 1: 109-135 = 26px (metal, left margin)
+        Segment 2: 135-161 = 26px (DARK between pair 1)
+        Segment 3: 161-187 = 26px (metal between pairs)
+        Segment 4: 187-213 = 26px (DARK between pair 2)
+        Segment 5: 213-239 = 26px (metal between pairs)
+        Segment 6: 239-265 = 26px (DARK between pair 3)
+        Segment 7: 265-291 = 26px (metal, right margin)
+        
+        ALL 7 segments = 26px
+      -->
+
+      <!-- === GLOW === previous × 1.3 -->
+      <g mask="url(#glowMask)">
+        <path id="glowShape" d="
+          M 120,230
+          Q 124,450 120,670
+          Q 104,686 82,707
+          Q 56,733 32,762
+          Q 19,450 32,138
+          Q 56,167 82,193
+          Q 104,214 120,230
+          Z
+        " fill="transparent" filter="url(#glowSoften)" opacity="0"/>
+      </g>
+
+      <!-- === WALL MOUNTING PILLAR === -->
+      <rect x="302" y="42" width="18" height="816" rx="2"
+            fill="url(#pillarGrad)" stroke="#151518" stroke-width="1.5"/>
+
+      <!-- === DARK RIM / LIP === -->
+      <path d="
+        M 120,226
+        L 118,234
+        C 112,290 108,370 106,450
+        C 108,530 112,610 118,666
+        L 120,674
+        C 114,610 110,530 108,450
+        C 110,370 114,290 120,226
+        Z
+      " fill="url(#rimGrad)" stroke="#131316" stroke-width="1"/>
+      <path d="
+        M 120,226
+        C 112,290 106,370 104,450
+        C 106,530 112,610 120,674
+      " fill="none" stroke="#333" stroke-width="0.6" opacity="0.3"/>
+
+      <!-- === OUTER FRAME === -->
+      <path d="
+        M 120,230
+        L 300,50
+        L 300,850
+        L 120,670
+        C 114,610 110,530 108,450
+        C 110,370 114,290 120,230
+        Z
+      " fill="#232328" stroke="#131316" stroke-width="2"/>
+
+      <!-- === TOP BRACKET === -->
+      <path d="
+        M 120,230
+        L 300,50
+        L 300,68
+        L 119,246
+        Z
+      " fill="url(#bracketGrad)" stroke="#131316" stroke-width="1.5"/>
+      <path d="M 121,232 L 300,52 L 300,58 L 120,237 Z" fill="#42424a" opacity="0.28"/>
+
+      <!-- === UPPER PANEL === -->
+      <path d="
+        M 119,246
+        L 300,68
+        L 300,438
+        L 109,444
+        C 111,370 115,300 119,246
+        Z
+      " fill="url(#metalGrad)" stroke="#18181c" stroke-width="0.8"/>
+
+      <!-- Upper dark strips (26px wide each), clipped -->
+      <g clip-path="url(#upperClip)">
+        <rect x="135" y="50" width="26" height="500" fill="#161620"/>
+        <rect x="187" y="50" width="26" height="500" fill="#161620"/>
+        <rect x="239" y="50" width="26" height="500" fill="#161620"/>
+      </g>
+
+      <!-- === MIDDLE BRACKET === -->
+      <path d="
+        M 109,438
+        L 300,430
+        L 300,470
+        L 109,462
+        Z
+      " fill="url(#bracketGrad)" stroke="#131316" stroke-width="1.5"/>
+      <path d="M 111,440 L 299,432 L 299,442 L 111,450 Z" fill="#42424a" opacity="0.26"/>
+
+      <!-- Indicator dots -->
+      <g id="indicatorDots">
+        <circle cx="135" cy="451" r="2" fill="#1a1a1a"/>
+        <circle cx="161" cy="451" r="2" fill="#1a1a1a"/>
+        <circle cx="187" cy="451" r="2" fill="#1a1a1a"/>
+        <circle cx="213" cy="451" r="2" fill="#1a1a1a"/>
+        <circle cx="239" cy="451" r="2" fill="#1a1a1a"/>
+        <circle cx="265" cy="451" r="2" fill="#1a1a1a"/>
+      </g>
+
+      <!-- === LOWER PANEL === -->
+      <path d="
+        M 109,462
+        L 300,470
+        L 300,832
+        L 119,654
+        C 115,600 111,530 109,462
+        Z
+      " fill="url(#metalGrad)" stroke="#18181c" stroke-width="0.8"/>
+
+      <!-- Lower dark strips, clipped -->
+      <g clip-path="url(#lowerClip)">
+        <rect x="135" y="400" width="26" height="500" fill="#161620"/>
+        <rect x="187" y="400" width="26" height="500" fill="#161620"/>
+        <rect x="239" y="400" width="26" height="500" fill="#161620"/>
+      </g>
+
+      <!-- === BOTTOM BRACKET === -->
+      <path d="
+        M 119,654
+        L 300,832
+        L 300,850
+        L 120,670
+        Z
+      " fill="url(#bracketGrad)" stroke="#131316" stroke-width="1.5"/>
+      <path d="M 120,663 L 300,843 L 300,849 L 120,669 Z" fill="#1a1a1f" opacity="0.3"/>
+
+      <!-- === NEON LINES === -->
+      <g filter="url(#neonGlow)" clip-path="url(#upperClip)">
+        <line class="neon" x1="135" y1="0" x2="135" y2="500" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="161" y1="0" x2="161" y2="500" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="187" y1="0" x2="187" y2="500" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="213" y1="0" x2="213" y2="500" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="239" y1="0" x2="239" y2="500" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="265" y1="0" x2="265" y2="500" stroke-width="2" stroke-linecap="round"/>
+      </g>
+
+      <g filter="url(#neonGlow)" clip-path="url(#lowerClip)">
+        <line class="neon" x1="135" y1="400" x2="135" y2="900" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="161" y1="400" x2="161" y2="900" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="187" y1="400" x2="187" y2="900" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="213" y1="400" x2="213" y2="900" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="239" y1="400" x2="239" y2="900" stroke-width="2" stroke-linecap="round"/>
+        <line class="neon" x1="265" y1="400" x2="265" y2="900" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="slider-container">
+    <span class="slider-label blue">Blue</span>
+    <input type="range" id="portalSlider" min="-100" max="100" value="0" step="1">
+    <span class="slider-label orange">Orange</span>
+  </div>
+  <div class="buttons">
+    <button class="btn blue-btn" id="blueBtn">Blue</button>
+    <button class="btn" id="offBtn">Off</button>
+    <button class="btn orange-btn" id="orangeBtn">Orange</button>
+  </div>
+</div>
+
+<script>
+  const slider = document.getElementById('portalSlider');
+  const glowShape = document.getElementById('glowShape');
+  const neonLines = document.querySelectorAll('.neon');
+  const indicatorDots = document.querySelectorAll('#indicatorDots circle');
+
+  let animationId = null;
+  let currentValue = 0;
+  let displayR = 30, displayG = 30, displayB = 30, displayIntensity = 0;
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function getColor(value) {
+    const intensity = Math.abs(value) / 100;
+    if (value <= 0) {
+      return { r: Math.round(lerp(30, 0, intensity)), g: Math.round(lerp(30, 150, intensity)), b: Math.round(lerp(30, 255, intensity)), intensity };
+    } else {
+      return { r: Math.round(lerp(30, 255, intensity)), g: Math.round(lerp(30, 140, intensity)), b: Math.round(lerp(30, 15, intensity)), intensity };
+    }
+  }
+
+  function applyVisuals(r, g, b, intensity) {
+    displayR = r; displayG = g; displayB = b; displayIntensity = intensity;
+    const col = `rgb(${r},${g},${b})`;
+    glowShape.setAttribute('fill', col);
+    glowShape.setAttribute('opacity', intensity * 0.75);
+    neonLines.forEach(line => {
+      if (intensity < 0.02) { line.setAttribute('stroke', '#2a2a30'); line.setAttribute('stroke-opacity', '0.3'); }
+      else { line.setAttribute('stroke', col); line.setAttribute('stroke-opacity', Math.min(1, intensity * 1.3)); }
+    });
+    indicatorDots.forEach(dot => {
+      if (intensity < 0.02) { dot.setAttribute('fill', '#1a1a1a'); }
+      else { dot.setAttribute('fill', col); dot.style.opacity = intensity; }
+    });
+  }
+
+  function updatePortal(value) {
+    currentValue = value;
+    const { r, g, b, intensity } = getColor(value);
+    applyVisuals(r, g, b, intensity);
+    slider.value = value;
+  }
+
+  slider.addEventListener('input', (e) => {
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    updatePortal(parseInt(e.target.value));
+  });
+
+  function animateTo(target) {
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    const start = currentValue, duration = 700, startTime = performance.now();
+    function step(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      updatePortal(Math.round(lerp(start, target, ease)));
+      if (t < 1) animationId = requestAnimationFrame(step);
+      else { updatePortal(target); animationId = null; }
+    }
+    animationId = requestAnimationFrame(step);
+  }
+
+  function animateColorDirect(targetValue) {
+    if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+    const sR = displayR, sG = displayG, sB = displayB, sI = displayIntensity;
+    const end = getColor(targetValue), sV = currentValue, duration = 900, startTime = performance.now();
+    function step(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      applyVisuals(Math.round(lerp(sR, end.r, ease)), Math.round(lerp(sG, end.g, ease)), Math.round(lerp(sB, end.b, ease)), lerp(sI, end.intensity, ease));
+      currentValue = lerp(sV, targetValue, ease);
+      slider.value = currentValue;
+      if (t < 1) animationId = requestAnimationFrame(step);
+      else { currentValue = targetValue; updatePortal(targetValue); animationId = null; }
+    }
+    animationId = requestAnimationFrame(step);
+  }
+
+  document.getElementById('blueBtn').addEventListener('click', () => { if (currentValue > 5) animateColorDirect(-100); else animateTo(-100); });
+  document.getElementById('orangeBtn').addEventListener('click', () => { if (currentValue < -5) animateColorDirect(100); else animateTo(100); });
+  document.getElementById('offBtn').addEventListener('click', () => animateTo(0));
+
+  updatePortal(0);
+</script>
+
+</body>
+</html>

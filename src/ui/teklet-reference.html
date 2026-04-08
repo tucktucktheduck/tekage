@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEKLET</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue:#1a8fff;--blue-dim:#0d4a8a;--blue-glow:#3ba5ff;
+    --orange:#ff8a2b;--orange-dim:#8a4a10;--orange-glow:#ffaa55;
+    --bg:#050810;--border:#1a2040;--dim:#3a5070;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden;font-family:'Share Tech Mono',monospace;color:var(--blue);}
+
+  .bezel{position:relative;width:640px;height:720px;background:linear-gradient(145deg,#2a2d35,#1c1e24 30%,#151820 70%,#101218);border-radius:24px;padding:18px;box-shadow:0 0 0 3px #0a0c12,0 0 0 6px #2a2d35,0 0 0 8px #0a0c12,inset 0 2px 4px rgba(255,255,255,.04),0 20px 60px rgba(0,0,0,.8);}
+  .bezel::before,.bezel::after{content:'';position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#3a3d48,#1c1e24);border:1px solid #444;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+  .bezel::before{top:8px;left:8px;}.bezel::after{top:8px;right:8px;}
+  .s-bl,.s-br{position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#3a3d48,#1c1e24);border:1px solid #444;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);bottom:8px;}
+  .s-bl{left:8px;}.s-br{right:8px;}
+
+  .screen{position:relative;width:100%;height:100%;background:var(--bg);border-radius:12px;border:2px solid #0d1020;overflow:hidden;box-shadow:inset 0 0 60px rgba(26,143,255,.03),inset 0 0 2px rgba(26,143,255,.08);}
+  .screen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.12) 2px,rgba(0,0,0,.12) 4px);pointer-events:none;z-index:100;}
+  .screen::after{content:'';position:absolute;inset:0;border-radius:12px;background:radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.4) 100%);pointer-events:none;z-index:101;}
+  .pgrid{position:absolute;inset:0;background-image:linear-gradient(rgba(26,143,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(26,143,255,.015) 1px,transparent 1px);background-size:3px 3px;pointer-events:none;z-index:50;}
+  .scanbar{position:absolute;width:100%;height:3px;background:linear-gradient(180deg,transparent,rgba(26,143,255,.03),transparent);z-index:99;pointer-events:none;animation:scanmove 6s linear infinite;}
+  @keyframes scanmove{0%{transform:translateY(-100%);}100%{transform:translateY(100vh);}}
+  @keyframes flicker{0%,100%{opacity:1;}92%{opacity:1;}93%{opacity:.88;}94%{opacity:1;}97%{opacity:.94;}98%{opacity:1;}}
+
+  .content{position:relative;width:100%;height:100%;padding:14px;z-index:10;animation:flicker 8s infinite;display:grid;grid-template-columns:1fr auto;grid-template-rows:40px 1fr 48px;gap:10px;}
+
+  /* HEADER */
+  .hdr{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:6px;}
+  .logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:24px;color:var(--orange);text-shadow:0 0 16px rgba(255,138,43,.35);letter-spacing:3px;position:relative;}
+  .logo::after{content:'';position:absolute;bottom:-2px;left:0;width:100%;height:2px;background:linear-gradient(90deg,var(--orange),transparent);}
+  .sysinfo{display:flex;align-items:center;gap:14px;font-size:10px;color:var(--dim);letter-spacing:1px;}
+  .online{color:#22cc66;text-shadow:0 0 6px rgba(34,204,102,.5);}.online::before{content:'● ';}
+  .clock{font-family:'Orbitron',sans-serif;font-size:14px;color:var(--blue);text-shadow:0 0 6px rgba(26,143,255,.25);border:1px solid var(--border);padding:3px 10px;border-radius:3px;background:rgba(26,143,255,.02);}
+  .batt{display:flex;gap:2px;align-items:center;padding:3px 6px;border:1px solid var(--border);border-radius:3px;}
+  .batt span{display:block;width:4px;height:8px;background:var(--blue);box-shadow:0 0 3px rgba(26,143,255,.3);}
+  .batt span:nth-child(4){background:var(--blue-dim);box-shadow:none;}
+  .batt::after{content:'';display:block;width:2px;height:5px;background:var(--border);border-radius:0 2px 2px 0;margin-left:1px;}
+
+  /* LEFT NAV */
+  .nav{display:flex;flex-direction:column;gap:5px;padding-right:14px;border-right:1px solid var(--border);min-width:220px;}
+  .nav-item{position:relative;display:flex;align-items:center;gap:8px;padding:11px 14px;border:1px solid var(--border);border-radius:5px;cursor:pointer;transition:all .2s;font-family:'Orbitron',sans-serif;font-weight:700;font-size:13px;letter-spacing:2px;color:var(--blue);background:rgba(26,143,255,.02);text-transform:uppercase;}
+  .nav-item::before{content:'›';font-size:16px;color:var(--blue-dim);transition:all .2s;}
+  .nav-item:hover,.nav-item.active{border-color:var(--orange);background:rgba(255,138,43,.06);color:var(--orange);text-shadow:0 0 10px rgba(255,138,43,.25);box-shadow:0 0 16px rgba(255,138,43,.04),inset 0 0 16px rgba(255,138,43,.02);}
+  .nav-item:hover::before,.nav-item.active::before{color:var(--orange);}
+  .nav-item.active{border-width:2px;}
+  .nav-exit{margin-top:auto;padding:9px 14px;border:2px solid var(--orange-dim);border-radius:5px;cursor:pointer;font-family:'Orbitron',sans-serif;font-weight:700;font-size:12px;letter-spacing:3px;color:var(--orange);text-align:center;background:rgba(255,138,43,.03);transition:all .2s;}
+  .nav-exit:hover{background:rgba(255,138,43,.1);border-color:var(--orange);text-shadow:0 0 8px rgba(255,138,43,.35);box-shadow:0 0 16px rgba(255,138,43,.06);}
+  .profile{margin-top:6px;font-size:9px;color:var(--dim);letter-spacing:1px;display:flex;align-items:center;gap:5px;}
+  .profile::before{content:'👤';font-size:10px;}
+
+  /* RIGHT AUDIO COLUMN */
+  .audio-col{display:flex;flex-direction:column;align-items:center;gap:10px;padding-left:14px;border-left:1px solid var(--border);width:110px;justify-content:center;}
+  .audio-label{font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:var(--blue);letter-spacing:2px;text-shadow:0 0 4px rgba(26,143,255,.2);}
+
+  /* Vertical bitmap block meters */
+  .meters{display:flex;gap:10px;align-items:flex-end;}
+  .meter{display:flex;flex-direction:column-reverse;gap:2px;align-items:center;}
+  .meter-label{font-size:8px;color:var(--dim);letter-spacing:1px;margin-bottom:4px;}
+  .meter-blocks{display:flex;flex-direction:column-reverse;gap:2px;}
+  .block{width:18px;height:6px;border-radius:1px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.03);transition:background .15s,box-shadow .15s,border-color .15s;}
+  .block.on-blue{background:var(--blue);border-color:var(--blue-dim);box-shadow:0 0 4px rgba(26,143,255,.4);}
+  .block.on-blue.hot{background:#5bb8ff;box-shadow:0 0 8px rgba(26,143,255,.6);}
+  .block.on-orange{background:var(--orange);border-color:var(--orange-dim);box-shadow:0 0 4px rgba(255,138,43,.4);}
+  .block.on-orange.hot{background:#ffaa55;box-shadow:0 0 8px rgba(255,138,43,.6);}
+
+  /* Dial */
+  .dial{position:relative;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2e3038,#1a1c22);border:2px solid #333640;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.5),inset 0 1px 3px rgba(255,255,255,.04);}
+  .dial-needle{position:absolute;top:50%;left:50%;width:3px;height:14px;background:var(--orange);border-radius:2px;transform-origin:bottom center;transform:translate(-50%,-100%) rotate(var(--angle,35deg));box-shadow:0 0 5px rgba(255,138,43,.4);transition:transform .15s;}
+  .dial-center{position:absolute;top:50%;left:50%;width:5px;height:5px;border-radius:50%;background:#444;transform:translate(-50%,-50%);border:1px solid #555;}
+  .dial-ticks{position:absolute;inset:0;}
+  .dial-tick{position:absolute;width:1px;height:4px;background:rgba(255,255,255,.12);top:2px;left:50%;transform-origin:0 20px;}
+  .vol-label{font-size:8px;color:var(--dim);letter-spacing:1px;}
+
+  /* Mini waveform */
+  .wave-bg{width:80px;height:50px;opacity:.35;}
+
+  /* FOOTER */
+  .ftr{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:6px;}
+  .qa-label{font-family:'Orbitron',sans-serif;font-size:8px;font-weight:700;color:var(--dim);letter-spacing:2px;}
+  .qa-btns{display:flex;gap:6px;flex-wrap:wrap;}
+  .qa-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border:1px solid var(--border);border-radius:3px;font-size:9px;letter-spacing:1px;color:var(--blue);cursor:pointer;transition:all .15s;background:rgba(26,143,255,.02);}
+  .qa-btn:hover{border-color:var(--blue);background:rgba(26,143,255,.05);text-shadow:0 0 5px rgba(26,143,255,.25);}
+  .qa-btn .dot-red{color:#ff4444;text-shadow:0 0 5px rgba(255,68,68,.4);}
+
+  .cd{position:absolute;width:16px;height:16px;border:1px solid var(--border);z-index:90;pointer-events:none;}
+  .cd.tl{top:6px;left:6px;border-right:none;border-bottom:none;}
+  .cd.tr{top:6px;right:6px;border-left:none;border-bottom:none;}
+  .cd.bl{bottom:6px;left:6px;border-right:none;border-top:none;}
+  .cd.br{bottom:6px;right:6px;border-left:none;border-top:none;}
+</style>
+</head>
+<body>
+
+<div class="bezel">
+  <div class="s-bl"></div><div class="s-br"></div>
+  <div class="screen">
+    <div class="pgrid"></div><div class="scanbar"></div>
+    <div class="cd tl"></div><div class="cd tr"></div><div class="cd bl"></div><div class="cd br"></div>
+
+    <div class="content">
+      <div class="hdr">
+        <div class="logo">TEKAGE</div>
+        <div class="sysinfo">
+          <span>SYS V1.03 //</span>
+          <span class="online">ONLINE</span>
+          <div class="clock" id="clock">--:--</div>
+          <div class="batt"><span></span><span></span><span></span><span></span></div>
+        </div>
+      </div>
+
+      <div class="nav">
+        <div class="nav-item active">BEGINNER MODE</div>
+        <div class="nav-item">PLAY</div>
+        <div class="nav-item">LIBRARY</div>
+        <div class="nav-item">OPTIONS</div>
+        <div class="nav-item">EDITOR</div>
+        <div class="nav-item">CHALLENGES</div>
+        <div class="nav-exit">EXIT</div>
+        <div class="profile">PROFILE: TEKAGE_USER_01</div>
+      </div>
+
+      <div class="audio-col">
+        <div class="audio-label">AUDIO</div>
+        <div class="meters">
+          <div class="meter">
+            <div class="meter-label">L</div>
+            <div class="meter-blocks" id="meterL"></div>
+          </div>
+          <div class="meter">
+            <div class="meter-label">R</div>
+            <div class="meter-blocks" id="meterR"></div>
+          </div>
+        </div>
+
+        <div class="dial" id="dial">
+          <div class="dial-ticks">
+            <div class="dial-tick" style="transform:rotate(-120deg)"></div>
+            <div class="dial-tick" style="transform:rotate(-80deg)"></div>
+            <div class="dial-tick" style="transform:rotate(-40deg)"></div>
+            <div class="dial-tick" style="transform:rotate(0deg)"></div>
+            <div class="dial-tick" style="transform:rotate(40deg)"></div>
+            <div class="dial-tick" style="transform:rotate(80deg)"></div>
+            <div class="dial-tick" style="transform:rotate(120deg)"></div>
+          </div>
+          <div class="dial-needle" id="needle"></div>
+          <div class="dial-center"></div>
+        </div>
+        <div class="vol-label">VOLUME</div>
+
+        <canvas class="wave-bg" id="waveBg" width="160" height="100"></canvas>
+      </div>
+
+      <div class="ftr">
+        <div class="qa-label">QUICK ACCESS</div>
+        <div class="qa-btns">
+          <div class="qa-btn"><span class="dot-red">●</span> RECORD</div>
+          <div class="qa-btn">⚙ SETTINGS</div>
+          <div class="qa-btn">🎵 METRONOME</div>
+          <div class="qa-btn">📖 TUTORIALS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Clock
+  function updateClock(){const n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+  updateClock();setInterval(updateClock,10000);
+
+  // Nav
+  document.querySelectorAll('.nav-item').forEach(item=>{
+    item.addEventListener('click',()=>{document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));item.classList.add('active');});
+  });
+
+  // Build bitmap meter blocks
+  const BLOCK_COUNT=16;
+  function buildMeter(id){
+    const el=document.getElementById(id);
+    for(let i=0;i<BLOCK_COUNT;i++){
+      const b=document.createElement('div');
+      b.className='block';
+      b.dataset.idx=i;
+      el.appendChild(b);
+    }
+  }
+  buildMeter('meterL');buildMeter('meterR');
+
+  // Animate meters
+  let levelL=0.7,levelR=0.55,targetL=0.7,targetR=0.55;
+  function animMeters(){
+    // Drift targets
+    if(Math.random()<.08)targetL=.3+Math.random()*.6;
+    if(Math.random()<.08)targetR=.3+Math.random()*.6;
+    levelL+=(targetL-levelL)*.08;
+    levelR+=(targetR-levelR)*.08;
+
+    const blocksL=document.getElementById('meterL').children;
+    const blocksR=document.getElementById('meterR').children;
+    const litL=Math.round(levelL*BLOCK_COUNT);
+    const litR=Math.round(levelR*BLOCK_COUNT);
+
+    for(let i=0;i<BLOCK_COUNT;i++){
+      const bL=blocksL[i],bR=blocksR[i];
+      if(i<litL){
+        bL.className='block on-blue'+(i>=BLOCK_COUNT-3?' hot':'');
+      }else{bL.className='block';}
+      if(i<litR){
+        bR.className='block on-orange'+(i>=BLOCK_COUNT-3?' hot':'');
+      }else{bR.className='block';}
+    }
+    requestAnimationFrame(animMeters);
+  }
+  animMeters();
+
+  // Dial
+  const dial=document.getElementById('dial');
+  const needle=document.getElementById('needle');
+  let angle=35,dragging=false;
+  dial.addEventListener('mousedown',()=>{dragging=true;});
+  window.addEventListener('mouseup',()=>{dragging=false;});
+  window.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const r=dial.getBoundingClientRect();
+    const a=Math.atan2(e.clientX-r.left-r.width/2,-(e.clientY-r.top-r.height/2))*(180/Math.PI);
+    angle=Math.max(-135,Math.min(135,a));
+    needle.style.transform=`translate(-50%,-100%) rotate(${angle}deg)`;
+  });
+
+  // Mini waveform
+  const wc=document.getElementById('waveBg');
+  const wx=wc.getContext('2d');
+  let wt=0;
+  function drawWave(){
+    wt+=.016;wx.clearRect(0,0,160,100);
+    wx.strokeStyle='rgba(26,143,255,.06)';wx.lineWidth=1;
+    for(let i=0;i<7;i++){wx.beginPath();wx.moveTo(0,i*15);wx.lineTo(160,i*15);wx.stroke();}
+    for(let i=0;i<8;i++){wx.beginPath();wx.moveTo(i*20,0);wx.lineTo(i*20,100);wx.stroke();}
+    wx.strokeStyle='rgba(26,143,255,.2)';wx.lineWidth=1.5;
+    wx.beginPath();for(let i=0;i<=80;i++){const x=i*2,y=50+Math.sin(i*.12+wt*1.8)*18+Math.sin(i*.04+wt*.6)*12;if(i===0)wx.moveTo(x,y);else wx.lineTo(x,y);}wx.stroke();
+    wx.strokeStyle='rgba(255,138,43,.12)';wx.lineWidth=1;
+    wx.beginPath();for(let i=0;i<=80;i++){const x=i*2,y=50+Math.sin(i*.1+wt*1.2+1)*15+Math.cos(i*.06+wt*.4)*10;if(i===0)wx.moveTo(x,y);else wx.lineTo(x,y);}wx.stroke();
+    requestAnimationFrame(drawWave);
+  }
+  drawWave();
+</script>
+</body>
+</html>
