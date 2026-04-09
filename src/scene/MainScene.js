@@ -28,11 +28,10 @@ import { mxUpdateFallingNotes } from '../musicxml/playback.js';
 import { mxUpdateKeyboardNotes, mxUpdateShiftBlocks } from '../solver/solverVisuals.js';
 import { updateGlowEffects } from '../scoring/glowEffect.js';
 import { judgeNote, GOOD_WINDOW } from '../scoring/timingJudge.js';
-import { spawnGlow } from '../scoring/glowEffect.js';
 import { midiToNoteName } from '../audio/engine.js';
 import { StarfieldBackground } from './StarfieldBackground.js';
 import { BackgroundManager } from './BackgroundManager.js';
-import { generateGlowTextures } from './GlowTextures.js';
+import { generateGlowTextures, createRowCropMasks } from './GlowTextures.js';
 import { KeyboardGlow } from './KeyboardGlow.js';
 import { loadNoteTextures } from '../skin/NoteRenderer.js';
 import { drawNeonPianoOverlay } from './NeonPiano.js';
@@ -49,6 +48,7 @@ export function create() {
 
   // ── GLOW TEXTURES (must be first — KeyboardGlow depends on them) ──
   generateGlowTextures(s);
+  state._rowCropMasks = createRowCropMasks(s);
 
   // ── BACKGROUND (starfield + custom bg manager) ──
   const starfield = new StarfieldBackground();
@@ -188,21 +188,36 @@ export function create() {
 
     // ── TIMING JUDGMENT + GLOW ──
     if (state.mxLoaded && state.mxPlaying) {
-      const hand = isLeftHand ? 'left' : 'right';
       let bestIdx = -1, bestOffset = Infinity;
-      for (let i = 0; i < state.mxNotes.length; i++) {
-        if (state.score.hitDetails.has(i)) continue; // already judged
-        const mn = state.mxNotes[i];
-        if (midiToNoteName(mn.midi) !== note) continue;
-        const offset = Math.abs(state.mxCurTime - mn.startSec);
-        if (offset <= GOOD_WINDOW && offset < bestOffset) {
-          bestOffset = offset;
-          bestIdx = i;
+
+      if (state.solverReady && state.mxKeyboardNotes.length > 0) {
+        // Use solver's key assignments — reliable regardless of current octave
+        for (const kn of state.mxKeyboardNotes) {
+          if (kn.key !== k) continue;
+          if (state.score.hitDetails.has(kn.noteIndex)) continue;
+          const offset = Math.abs(state.mxCurTime - kn.startSec);
+          if (offset <= GOOD_WINDOW && offset < bestOffset) {
+            bestOffset = offset;
+            bestIdx = kn.noteIndex;
+          }
+        }
+      } else {
+        // Fallback: match by note name
+        for (let i = 0; i < state.mxNotes.length; i++) {
+          if (state.score.hitDetails.has(i)) continue;
+          const mn = state.mxNotes[i];
+          if (midiToNoteName(mn.midi) !== note) continue;
+          const offset = Math.abs(state.mxCurTime - mn.startSec);
+          if (offset <= GOOD_WINDOW && offset < bestOffset) {
+            bestOffset = offset;
+            bestIdx = i;
+          }
         }
       }
+
       if (bestIdx >= 0) {
         const quality = judgeNote(bestIdx, state.mxCurTime);
-        spawnGlow(s, k, hand, quality, bestOffset);
+        if (state._kbGlow) state._kbGlow.flashAccuracy(k, quality);
       }
     }
   });

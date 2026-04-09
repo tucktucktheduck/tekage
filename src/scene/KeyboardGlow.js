@@ -194,8 +194,8 @@ export class KeyboardGlow {
           pressGlow.setVisible(false);
           objs.pressGlow = pressGlow;
 
-          // White core on press
-          const coreGlow = scene.add.image(centerX, keyY, '__glow_white__');
+          // Core glow on press — hand color, small scale
+          const coreGlow = scene.add.image(centerX, keyY, glowKey);
           coreGlow.setScale(0.3);
           coreGlow.setDepth(DEPTH_PRESS_GLOW + 1);
           coreGlow.setBlendMode(Phaser.BlendModes.ADD);
@@ -277,7 +277,7 @@ export class KeyboardGlow {
         };
 
         this._glowObjects[lk] = objs;
-        this._pressStates[lk] = { active: false, startTime: 0 };
+        this._pressStates[lk] = { active: false, startTime: 0, flashing: false, flashFadeRate: 2 };
 
         x += keyData.w + keyGap;
       });
@@ -355,7 +355,7 @@ export class KeyboardGlow {
   }
 
   /**
-   * Trigger keypress glow effect.
+   * Trigger keypress glow effect — core only (always fires on any press).
    */
   pressKey(key) {
     const objs = this._glowObjects[key];
@@ -365,14 +365,36 @@ export class KeyboardGlow {
     ps.active = true;
     ps.startTime = this._scene ? this._scene.time.now : 0;
 
-    if (objs.pressGlow) {
-      objs.pressGlow.setVisible(true);
-      objs.pressGlow.setAlpha(0.65);
-    }
     if (objs.coreGlow) {
       objs.coreGlow.setVisible(true);
-      objs.coreGlow.setAlpha(0.5);
+      objs.coreGlow.setAlpha(0.6);
     }
+  }
+
+  /**
+   * Fire outer glow flash scaled by hit quality. Only called during gameplay.
+   * @param {string} key
+   * @param {'perfect'|'great'|'good'} quality
+   */
+  flashAccuracy(key, quality) {
+    const objs = this._glowObjects[key];
+    const ps = this._pressStates[key];
+    if (!objs || !ps || !objs.pressGlow) return;
+    // [alpha, scale, fadeRate] — fadeRate controls how long the flash lasts
+    // perfect ~600ms, great ~350ms, good ~175ms
+    const configs = {
+      perfect: [0.95, 2.0, 1.6],
+      great:   [0.70, 1.5, 2.0],
+      good:    [0.45, 1.1, 2.6],
+    };
+    const cfg = configs[quality];
+    if (!cfg) return;
+    const [alpha, scale, fadeRate] = cfg;
+    ps.flashing = true;
+    ps.flashFadeRate = fadeRate;
+    objs.pressGlow.setScale(scale);
+    objs.pressGlow.setAlpha(alpha);
+    objs.pressGlow.setVisible(true);
   }
 
   /**
@@ -394,29 +416,14 @@ export class KeyboardGlow {
       const objs = this._glowObjects[key];
       if (!objs) continue;
 
+      // Core glow — sustains while key held, fades on release
       if (ps.active) {
-        // Ramp up quickly
-        if (objs.pressGlow) {
-          const target = 0.65;
-          const current = objs.pressGlow.alpha;
-          objs.pressGlow.setAlpha(Math.min(target, current + dt * 6));
-        }
         if (objs.coreGlow) {
-          const target = 0.5;
+          const target = 0.6;
           const current = objs.coreGlow.alpha;
           objs.coreGlow.setAlpha(Math.min(target, current + dt * 8));
         }
       } else {
-        // Fade out
-        if (objs.pressGlow && objs.pressGlow.alpha > 0) {
-          const newAlpha = objs.pressGlow.alpha - dt * 4;
-          if (newAlpha <= 0.01) {
-            objs.pressGlow.setAlpha(0);
-            objs.pressGlow.setVisible(false);
-          } else {
-            objs.pressGlow.setAlpha(newAlpha);
-          }
-        }
         if (objs.coreGlow && objs.coreGlow.alpha > 0) {
           const newAlpha = objs.coreGlow.alpha - dt * 6;
           if (newAlpha <= 0.01) {
@@ -425,6 +432,19 @@ export class KeyboardGlow {
           } else {
             objs.coreGlow.setAlpha(newAlpha);
           }
+        }
+      }
+
+      // Outer accuracy flash — one-shot, fades at quality-dependent rate
+      if (ps.flashing && objs.pressGlow) {
+        const newAlpha = objs.pressGlow.alpha - dt * (ps.flashFadeRate || 2);
+        if (newAlpha <= 0.01) {
+          objs.pressGlow.setAlpha(0);
+          objs.pressGlow.setVisible(false);
+          objs.pressGlow.setScale(1.25); // reset scale
+          ps.flashing = false;
+        } else {
+          objs.pressGlow.setAlpha(newAlpha);
         }
       }
 

@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import colors, { intToHex } from '../core/colors.js';
+import { rowYPositions, PORT_HEIGHT } from '../core/constants.js';
 
 /** Extract [r, g, b] from a 0xRRGGBB integer */
 function intToRGB(n) {
@@ -168,4 +169,54 @@ export function getNoteGlowKey(hand) {
 export function getAmbientKey(hand) {
   if (hand === 'grey') return '__ambient_grey_rect__';
   return hand === 'left' ? '__ambient_blue_rect__' : '__ambient_orange_rect__';
+}
+
+/**
+ * Create one BitmapMask per keyboard row that feathers notes out at the bar line.
+ * The mask is fully opaque above (centerY - FEATHER) and fades to transparent at centerY.
+ * Applied once to portBlocks; notes scroll through the static mask.
+ * @param {Phaser.Scene} scene
+ * @returns {Object} map of centerY → Phaser.Display.Masks.BitmapMask
+ */
+export const NOTE_CROP_OFFSET = 40; // px below centerY where the crop/feather ends
+
+export function createRowCropMasks(scene) {
+  const FEATHER = 18;
+  const W = 1920;
+  const result = {};
+
+  for (const centerY of rowYPositions) {
+    const portTop = centerY - PORT_HEIGHT / 2;
+    const cropY = centerY + NOTE_CROP_OFFSET; // where the note fully disappears
+    const maskH = cropY - portTop;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = maskH;
+    const ctx = canvas.getContext('2d');
+
+    // Fully opaque white for the top portion
+    const solidH = Math.max(0, maskH - FEATHER);
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, W, solidH);
+
+    // Gradient for the bottom FEATHER px: opaque → transparent
+    const grad = ctx.createLinearGradient(0, solidH, 0, maskH);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, solidH, W, FEATHER);
+
+    const texKey = `__row_crop_mask_${centerY}__`;
+    if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+    scene.textures.addCanvas(texKey, canvas);
+
+    // Position the mask image so its bottom edge sits at cropY
+    const maskImg = scene.add.image(W / 2, portTop + maskH / 2, texKey);
+    maskImg.setVisible(false);
+
+    result[centerY] = maskImg.createBitmapMask();
+  }
+
+  return result;
 }

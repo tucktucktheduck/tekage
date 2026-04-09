@@ -11,7 +11,7 @@ import colors from '../core/colors.js';
 import { ANTENNA_BLOCK_WIDTH, FALL_SPEED } from '../core/constants.js';
 import { updateOct } from '../ui/piano.js';
 import { createNoteBlock, updateNoteBlock, destroyNoteBlock } from '../skin/NoteRenderer.js';
-import { getNoteGlowKey } from '../scene/GlowTextures.js';
+import { getNoteGlowKey, NOTE_CROP_OFFSET } from '../scene/GlowTextures.js';
 
 
 export function solverBuildLookups(plan) {
@@ -30,7 +30,8 @@ export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName) {
   const color = hand === 'left' ? colors.left : colors.right;
   // UNIFIED: same height calc as piano lane
   const noteHeight = Math.max(noteData.durationSec * FALL_SPEED, 4);
-  const fallDist = keyObj.portBottom - keyObj.antennaTop;
+  // Bottom of note arrives at centerY (the bar line) exactly at startSec
+  const fallDist = keyObj.centerY - keyObj.antennaTop;
   const travelSec = fallDist / FALL_SPEED;
   const spawnTimeSec = noteData.startSec - travelSec;
 
@@ -40,7 +41,7 @@ export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName) {
     durationSec: noteData.durationSec,
     spawnTimeSec, noteHeight, color,
     currentY: keyObj.antennaTop - noteHeight / 2,
-    antennaBlock: null, portBlock: null,
+    antennaBlock: null, portBlock: null, tailBlock: null,
     antennaDeleted: false, spawned: false, deleted: false,
   });
 }
@@ -51,7 +52,7 @@ export function mxSpawnShiftBlock(scene, shiftEntry) {
 
   const color = shiftEntry.hand === 'left' ? colors.left : colors.right;
   const noteHeight = 20;
-  const fallDist = keyObj.portBottom - keyObj.antennaTop;
+  const fallDist = keyObj.centerY - keyObj.antennaTop;
   const travelSec = fallDist / FALL_SPEED;
   const spawnTimeSec = shiftEntry.timeSec - travelSec;
 
@@ -62,7 +63,7 @@ export function mxSpawnShiftBlock(scene, shiftEntry) {
     delta: shiftEntry.delta ?? null,     // numeric fallback
     spawnTimeSec, noteHeight, color,
     currentY: keyObj.antennaTop - noteHeight / 2,
-    antennaBlock: null, portBlock: null,
+    antennaBlock: null, portBlock: null, tailBlock: null,
     antennaDeleted: false, spawned: false, deleted: false, fired: false, isTap: true,
   });
 }
@@ -117,14 +118,16 @@ export function mxUpdateKeyboardNotes(scene, delta) {
     const keyObj = state.keyObjects[kn.key];
     if (!keyObj) { kn.deleted = true; continue; }
 
-    // UNIFIED: Time-based positioning — bottom edge arrives at portBottom at startSec
-    const bottomY = keyObj.portBottom + (state.mxCurTime - kn.startSec) * FALL_SPEED;
+    // Bottom edge arrives at centerY (bar line) exactly at startSec
+    const bottomY = keyObj.centerY + (state.mxCurTime - kn.startSec) * FALL_SPEED;
     const noteTop = bottomY - kn.noteHeight;
     const noteBottom = bottomY;
 
-    if (noteTop > keyObj.portBottom + 20) {
+    // Delete once the note has fully scrolled past the crop zone
+    if (noteTop >= keyObj.centerY + NOTE_CROP_OFFSET + 2) {
       if (kn.antennaBlock) kn.antennaBlock.destroy();
       destroyNoteBlock(kn.portBlock);
+      if (kn.tailBlock) { kn.tailBlock.destroy(); kn.tailBlock = null; }
       kn.deleted = true;
       continue;
     }
@@ -143,20 +146,30 @@ export function mxUpdateKeyboardNotes(scene, delta) {
       }
     }
 
-    // Port region — uses NoteRenderer for custom skinned blocks
+    // Port region — cropped at bar line with feather overlay at bottom edge
     if (noteBottom >= keyObj.portTop) {
-      const visTop = Math.max(noteTop, keyObj.portTop);
-      const visBot = Math.min(noteBottom, keyObj.portBottom);
-      const visH = visBot - visTop;
-      if (visH > 0 && visTop < keyObj.portBottom) {
-        const cx = keyObj.centerX;
-        const cy = (visTop + visBot) / 2;
-        const w = keyObj.width - 10;
+      const cx = keyObj.centerX;
+      const w = keyObj.width - 10;
+
+      // Crop note at centerY + NOTE_CROP_OFFSET (mask handles the feather)
+      const mainTop = Math.max(noteTop, keyObj.portTop);
+      const mainBot = Math.min(noteBottom, keyObj.centerY + NOTE_CROP_OFFSET);
+      const mainH = mainBot - mainTop;
+
+      if (mainH > 0) {
+        const cy = (mainTop + mainBot) / 2;
         if (!kn.portBlock) {
-          kn.portBlock = createNoteBlock(scene, cx, cy, w, visH, kn.key, kn.hand, kn.color, { depth: 3, strokeWidth: 3 });
+          kn.portBlock = createNoteBlock(scene, cx, cy, w, mainH, kn.key, kn.hand, kn.color, { depth: 3, strokeWidth: 3 });
+          // Apply the row's feather crop mask once at creation
+          const rowMask = state._rowCropMasks?.[keyObj.centerY];
+          if (rowMask && kn.portBlock?.setMask) kn.portBlock.setMask(rowMask);
         } else {
-          updateNoteBlock(kn.portBlock, cx, cy, w, visH);
+          updateNoteBlock(kn.portBlock, cx, cy, w, mainH);
+          if (kn.portBlock.setVisible) kn.portBlock.setVisible(true);
+          if (kn.portBlock.setAlpha) kn.portBlock.setAlpha(1);
         }
+      } else {
+        if (kn.portBlock && kn.portBlock.setVisible) kn.portBlock.setVisible(false);
       }
     }
   }
@@ -180,14 +193,15 @@ export function mxUpdateShiftBlocks(scene, delta) {
     const keyObj = state.keyObjects[sb.key];
     if (!keyObj) { sb.deleted = true; continue; }
 
-    // UNIFIED: Time-based positioning — bottom edge arrives at portBottom at timeSec
-    const bottomY = keyObj.portBottom + (state.mxCurTime - sb.timeSec) * FALL_SPEED;
+    // Bottom edge arrives at centerY (bar line) exactly at timeSec
+    const bottomY = keyObj.centerY + (state.mxCurTime - sb.timeSec) * FALL_SPEED;
     const noteTop = bottomY - sb.noteHeight;
     const noteBottom = bottomY;
 
-    if (noteTop > keyObj.portBottom + 20) {
+    if (noteTop >= keyObj.centerY + NOTE_CROP_OFFSET + 2) {
       if (sb.antennaBlock) sb.antennaBlock.destroy();
       if (sb.portBlock) sb.portBlock.destroy();
+      if (sb.tailBlock) { sb.tailBlock.destroy(); sb.tailBlock = null; }
       if (settings.autoShiftOn && !sb.fired) {
         sb.fired = true;
         applyShift(sb);
@@ -208,10 +222,25 @@ export function mxUpdateShiftBlocks(scene, delta) {
     }
 
     if (noteBottom >= keyObj.portTop) {
-      const visTop = Math.max(noteTop, keyObj.portTop);
-      const visBot = Math.min(noteBottom, keyObj.portBottom);
-      if (visBot > visTop && visTop < keyObj.portBottom) {
-        sb.portBlock = renderBlock(scene, sb.portBlock, keyObj.centerX, visTop, visBot, keyObj.width - 10, sb.color, 3, 3);
+      const cx = keyObj.centerX;
+      const w = keyObj.width - 10;
+
+      const mainTop = Math.max(noteTop, keyObj.portTop);
+      const mainBot = Math.min(noteBottom, keyObj.centerY + NOTE_CROP_OFFSET);
+      const mainH = mainBot - mainTop;
+
+      if (mainH > 0) {
+        const hadBlock = !!sb.portBlock;
+        sb.portBlock = renderBlock(scene, sb.portBlock, cx, mainTop, mainBot, w, sb.color, 3, 3);
+        if (sb.portBlock) {
+          sb.portBlock.setAlpha(1);
+          if (!hadBlock) {
+            const rowMask = state._rowCropMasks?.[keyObj.centerY];
+            if (rowMask && sb.portBlock.setMask) sb.portBlock.setMask(rowMask);
+          }
+        }
+      } else {
+        if (sb.portBlock) sb.portBlock.setAlpha(0);
       }
     }
   }
@@ -223,11 +252,13 @@ export function mxClearSolverBlocks() {
   for (const kn of state.mxKeyboardNotes) {
     if (kn.antennaBlock) kn.antennaBlock.destroy();
     destroyNoteBlock(kn.portBlock);
+    if (kn.tailBlock) kn.tailBlock.destroy();
   }
   state.mxKeyboardNotes = [];
   for (const sb of state.mxShiftBlocks) {
     if (sb.antennaBlock) sb.antennaBlock.destroy();
     if (sb.portBlock) sb.portBlock.destroy();
+    if (sb.tailBlock) sb.tailBlock.destroy();
   }
   state.mxShiftBlocks = [];
   state.mxKeyboardPlayed.clear();
