@@ -37,6 +37,7 @@ export const rowYPositions = [
 ];
 
 export const keyWidth = 67;
+export const keyWidthAdvanced = 52;
 export const keyGap = 5;
 export const tabWidth = 104;
 export const enterWidth = 120;
@@ -46,6 +47,7 @@ export const row1StartX = 421;
 export const row2StartX = 571;
 export const row3StartX = 452;
 
+// Standard keyboard layout (default mode — Q/A/P/; present but greyed as non-functional)
 export const keyboardLayout = [
   { y: rowYPositions[0], startX: row1StartX, keys: [
     { key: 'Tab', w: tabWidth },
@@ -69,6 +71,47 @@ export const keyboardLayout = [
     { key: 'ShiftR', w: shiftRightWidth },
   ]},
 ];
+
+/**
+ * Returns the keyboard layout to use. In advanced mode, use smaller key widths
+ * and recompute startX so the keyboard stays centered.
+ */
+export function getKeyboardLayout(advanced = false) {
+  if (!advanced) return keyboardLayout;
+  const kw = keyWidthAdvanced;
+  const tabW = 80, entW = 90, shL = 110, shR = 170;
+  // Compute total width of each row to center at x=960
+  const row1Keys = [
+    { key: 'Tab', w: tabW },
+    { key: 'Q', w: kw }, { key: 'W', w: kw }, { key: 'E', w: kw },
+    { key: 'R', w: kw }, { key: 'T', w: kw }, { key: 'Y', w: kw },
+    { key: 'U', w: kw }, { key: 'I', w: kw }, { key: 'O', w: kw },
+    { key: 'P', w: kw },
+  ];
+  const row2Keys = [
+    { key: 'A', w: kw }, { key: 'S', w: kw }, { key: 'D', w: kw },
+    { key: 'F', w: kw }, { key: 'G', w: kw }, { key: 'H', w: kw },
+    { key: 'J', w: kw }, { key: 'K', w: kw }, { key: 'L', w: kw },
+    { key: ';', w: kw }, { key: 'Enter', w: entW },
+  ];
+  const row3Keys = [
+    { key: 'ShiftL', w: shL },
+    { key: 'Z', w: kw }, { key: 'X', w: kw }, { key: 'C', w: kw },
+    { key: 'V', w: kw }, { key: 'B', w: kw }, { key: 'N', w: kw },
+    { key: 'M', w: kw }, { key: ',', w: kw }, { key: '.', w: kw },
+    { key: '/', w: kw },
+    { key: 'ShiftR', w: shR },
+  ];
+  function rowWidth(keys) {
+    return keys.reduce((s, k) => s + k.w + keyGap, 0) - keyGap;
+  }
+  function startX(keys) { return 960 - rowWidth(keys) / 2; }
+  return [
+    { y: rowYPositions[0], startX: startX(row1Keys), keys: row1Keys },
+    { y: rowYPositions[1], startX: startX(row2Keys), keys: row2Keys },
+    { y: rowYPositions[2], startX: startX(row3Keys), keys: row3Keys },
+  ];
+}
 
 // ── Piano data (all 88 keys A0–C8) ──
 export const pianoData = [];

@@ -41,7 +41,7 @@ const state = {
   mxAllParts: [],
   mxRawXmlDoc: null,
   mxPlaying: false,
-  mxMuted: false,
+  mxMuted: true,
   mxCurTime: 0,
   mxLastTs: null,
   mxSpeed: 1.0,
@@ -57,18 +57,7 @@ const state = {
   // ── First-press start ──
   mxWaitingForFirstPress: false,
 
-  // ── UI button references (Phaser objects) ──
-  btnUpload: null, btnPlay: null, btnMute: null,
-  btnVolume: null, btnMap: null, btnSpeed: null,
-  btnUploadText: null, btnPlayText: null, btnMuteText: null,
-  btnVolumeText: null, btnMapText: null, btnSpeedText: null,
-
-  // ── Hub buttons ──
-  hubPlay: null, hubBeginner: null, hubMore: null,
-  hubPlayText: null, hubBeginnerText: null, hubMoreText: null,
-  hubSubUpload: null, hubSubLibrary: null,
-  hubSubUploadText: null, hubSubLibraryText: null,
-  hubSubsVisible: false,
+  // (canvas buttons moved into teklet overlay)
 
   // ── DAG Solver globals ──
   solverPlan: [],
@@ -82,6 +71,7 @@ const state = {
   mxShiftPlayed: new Set(),
   mxKeyboardNotes: [],
   mxKeyboardPlayed: new Set(),
+  _autoShiftIdx: 0,   // next stateTimeline index to apply for auto-shift
 
   // ── Scrubber ──
   scrubberTrack: null,
@@ -111,6 +101,9 @@ const state = {
 
   // ── Glow effects pool ──
   glowEffects: [],
+
+  // ── Beginner mode ──
+  beginnerMode: null,  // 'autoSlowDown' | 'singleRowMode' | 'playRandomNotes' | 'practiceShifting' | 'oneHandMode' | null
 };
 
 /**
@@ -192,16 +185,7 @@ export function resetBeginnerState() {
   state.mxPlaying = false;
   state.isPlaying = false;
 
-  // Clear hub button refs (they belong to MainScene)
-  state.btnUpload = null; state.btnPlay = null; state.btnMute = null;
-  state.btnVolume = null; state.btnMap = null; state.btnSpeed = null;
-  state.btnUploadText = null; state.btnPlayText = null; state.btnMuteText = null;
-  state.btnVolumeText = null; state.btnMapText = null; state.btnSpeedText = null;
-  state.hubPlay = null; state.hubBeginner = null; state.hubMore = null;
-  state.hubPlayText = null; state.hubBeginnerText = null; state.hubMoreText = null;
-  state.hubSubUpload = null; state.hubSubLibrary = null;
-  state.hubSubUploadText = null; state.hubSubLibraryText = null;
-  state.hubSubsVisible = false;
+  // (canvas buttons no longer exist — moved into teklet overlay)
 }
 
 export default state;

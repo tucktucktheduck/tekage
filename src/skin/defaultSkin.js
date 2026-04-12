@@ -11,7 +11,7 @@ export const defaultSkin = {
   colors: {
     primary: '#3b9eff',    // blue  — left hand
     secondary: '#ff8a2b',  // orange — right hand
-    accent: '#9333ea',     // purple
+    accent: '#ff8a2b',     // orange
   },
   // No image overrides — everything uses color-derived defaults
   pages: {},

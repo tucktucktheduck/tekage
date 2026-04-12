@@ -4,14 +4,15 @@
 
 import state from '../core/state.js';
 import settings from '../core/settings.js';
-import { initAudio } from '../audio/engine.js';
+import { initAudio, connectAnalyserToGain } from '../audio/engine.js';
 
 export function mxEnsureAudio() {
   initAudio();
   if (!state.mxMasterGain && state.audioContext) {
     state.mxMasterGain = state.audioContext.createGain();
-    state.mxMasterGain.gain.value = state.mxVolume;
+    state.mxMasterGain.gain.value = state.mxMuted ? 0 : state.mxVolume;
     state.mxMasterGain.connect(state.audioContext.destination);
+    connectAnalyserToGain(state.mxMasterGain);
   }
   if (state.audioContext && state.audioContext.state === 'suspended') state.audioContext.resume();
 }
@@ -69,13 +70,11 @@ export function mxDownloadMap() {
 }
 
 export function mxUpdateButtons() {
-  if (!state.btnPlayText) return;
-  state.btnPlayText.setText(state.mxPlaying ? '⏸ PAUSE' : '▶ PLAY');
-  state.btnMuteText.setText(state.mxMuted ? '🔇 UNMUTE' : '🔊 MUTE');
-  const alpha = state.mxLoaded ? 1.0 : 0.35;
-  [state.btnPlay, state.btnPlayText, state.btnMute, state.btnMuteText,
-   state.btnVolume, state.btnVolumeText, state.btnMap, state.btnMapText,
-   state.btnSpeed, state.btnSpeedText].forEach(o => { if (o) o.setAlpha(alpha); });
+  // Update teklet play button label if it exists
+  const playNavItem = document.getElementById('tekletNavPlay');
+  if (playNavItem) playNavItem.textContent = state.mxPlaying ? '⏸ PAUSE' : '▶ PLAY';
+  // Update canvas PLAY button if it exists
+  if (state._btnPlay) state._btnPlay.setText(state.mxPlaying ? '⏸ PAUSE' : '▶ PLAY');
 }
 
 export function mxToggleVolSlider() {

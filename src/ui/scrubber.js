@@ -6,7 +6,8 @@ import state from '../core/state.js';
 import settings from '../core/settings.js';
 import { PIANO_WIDTH, PIANO_LEFT, PIANO_BOTTOM } from '../core/constants.js';
 import { mxClearFallingNotes } from '../musicxml/playback.js';
-import { mxClearSolverBlocks, solverPrepareBlocks } from '../solver/solverVisuals.js';
+import { mxClearSolverBlocks, solverPrepareBlocks, mxResetAutoShiftToTime } from '../solver/solverVisuals.js';
+import { resetAutoSlowDown } from '../musicxml/autoSlowDown.js';
 
 export function formatTime(sec) {
   if (!isFinite(sec) || sec < 0) sec = 0;
@@ -79,6 +80,7 @@ export function mxSeekTo(newTime) {
   state.mxLastTs = null;
   mxClearFallingNotes();
   mxClearSolverBlocks();
+  resetAutoSlowDown();
 
   state.mxPlayed.clear();
   for (let i = 0; i < state.mxNotes.length; i++) {
@@ -96,6 +98,9 @@ export function mxSeekTo(newTime) {
     state.mxKeyboardNotes = state.mxKeyboardNotes.filter(kn => !kn.deleted);
     state.mxShiftBlocks = state.mxShiftBlocks.filter(sb => !sb.deleted);
   }
+
+  // Snap auto-shift octaves to the correct state for this seek position
+  mxResetAutoShiftToTime(newTime);
 }
 
 export function setScrubberVisible(vis) {

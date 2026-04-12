@@ -7,7 +7,6 @@
 import state from '../core/state.js';
 import colors from '../core/colors.js';
 import { FALL_SPEED, PIANO_TOP, MX_SPAWN_BOUNDARY, BLACK_PC } from '../core/constants.js';
-import { drawFullKeyboard } from '../ui/sharedKeyboard.js';
 import { initAudio, playNote, stopNote, midiToNoteName } from '../audio/engine.js';
 import { pressKey, releaseKey, updateOct } from '../ui/piano.js';
 import { getNote } from '../audio/noteMap.js';
@@ -18,31 +17,13 @@ import { mxFindPianoKey } from '../musicxml/playback.js';
 import { mxUpdateKeyboardNotes, mxUpdateShiftBlocks } from '../solver/solverVisuals.js';
 
 export function startOneHandMode(scene) {
-  scene.children.removeAll();
-  scene.cameras.main.setBackgroundColor('#000');
+  // Keyboard + piano already rendered by BeginnerScene.launchMode()
+  state.mxScene = scene;
 
   let playingHand = 'left';
 
-  const titleText = scene.add.text(960, 25, 'ONE HAND MODE', { fontFamily: 'Orbitron', fontSize: '24px', color: '#fff' }).setOrigin(0.5).setDepth(30);
-
-  const swapBtn = scene.add.rectangle(1600, 25, 300, 30, 0x1a1a2e).setInteractive().setDepth(30);
-  swapBtn.setStrokeStyle(2, 0x9333ea);
-  const swapText = scene.add.text(1600, 25, 'Playing: LEFT | Shifting: RIGHT', { fontFamily: 'Rajdhani', fontSize: '14px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  swapBtn.on('pointerdown', () => {
-    playingHand = playingHand === 'left' ? 'right' : 'left';
-    swapText.setText(`Playing: ${playingHand.toUpperCase()} | Shifting: ${playingHand === 'left' ? 'RIGHT' : 'LEFT'}`);
-  });
-
-  const uploadBtn = scene.add.rectangle(300, 25, 160, 30, 0x000000).setInteractive().setDepth(30);
-  uploadBtn.setStrokeStyle(2, 0x3b82f6);
-  scene.add.text(300, 25, '📂 UPLOAD', { fontFamily: 'Rajdhani', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  uploadBtn.on('pointerdown', () => document.getElementById('mxFileInput').click());
-
-  drawFullKeyboard(scene);
-  state.mxScene = scene;
-
   // Unified shift keys: ALL shift keys move the SAME octave/semitone (the playing hand's)
-  scene.input.keyboard.on('keydown', e => {
+  function onKeyDown(e) {
     let k = e.key.toLowerCase();
     initAudio();
 
@@ -78,9 +59,9 @@ export function startOneHandMode(scene) {
     state.activeKeys.set(k, note);
     pressKey(k, scene);
     playNote(k, note);
-  });
+  }
 
-  scene.input.keyboard.on('keyup', e => {
+  function onKeyUp(e) {
     let k = e.key.toLowerCase();
     if (k === ' ') return;
     if (k === 'shift' && e.location === 1) k = 'shift_l';
@@ -94,10 +75,9 @@ export function startOneHandMode(scene) {
       state.activeKeys.delete(k);
       releaseKey(k, note, scene);
     }
-  });
+  }
 
-  // Update loop
-  scene.events.on('update', () => {
+  function onUpdate() {
     if (!state.mxLoaded) return;
     if (state.mxPlaying) {
       const now = performance.now();
@@ -150,10 +130,13 @@ export function startOneHandMode(scene) {
     mxUpdateKeyboardNotes(scene, 0);
     mxUpdateShiftBlocks(scene, 0);
     updateScrubber();
-  });
+  }
 
-  const backBtn = scene.add.rectangle(100, 1050, 120, 30, 0x000000).setInteractive().setDepth(30);
-  backBtn.setStrokeStyle(2, 0x9333ea);
-  scene.add.text(100, 1050, '← BACK', { fontFamily: 'Rajdhani', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  backBtn.on('pointerdown', () => scene.scene.start('BeginnerScene'));
+  scene.input.keyboard.on('keydown', onKeyDown);
+  scene.input.keyboard.on('keyup', onKeyUp);
+  scene.events.on('update', onUpdate);
+
+  scene._keydownHandler = onKeyDown;
+  scene._keyupHandler = onKeyUp;
+  scene._updateHandler = onUpdate;
 }

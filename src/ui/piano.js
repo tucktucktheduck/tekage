@@ -4,7 +4,7 @@
 
 import state from '../core/state.js';
 import settings from '../core/settings.js';
-import colors from '../core/colors.js';
+import colors, { intToHex } from '../core/colors.js';
 import { PIANO_WIDTH, PIANO_HEIGHT, PIANO_LEFT, pianoData } from '../core/constants.js';
 import { leftMap, rightMap, isLeftKey } from '../core/keyMapping.js';
 import { getNote } from '../audio/noteMap.js';
@@ -49,11 +49,11 @@ export function drawPiano(s) {
 
   state.octaveLeftText = s.add.text(pianoLeft - 80, pianoY,
     `L: OCT ${state.octaveLeft} | ST ${state.semitoneLeft >= 0 ? '+' : ''}${state.semitoneLeft}`,
-    { fontFamily: 'Rajdhani', fontSize: '18px', color: '#3b82f6', fontStyle: 'bold' }
+    { fontFamily: 'Orbitron', fontSize: '14px', color: intToHex(colors.left), fontStyle: 'bold' }
   ).setOrigin(1, 0.5);
   state.octaveRightText = s.add.text(pianoLeft + PIANO_WIDTH + 80, pianoY,
     `R: OCT ${state.octaveRight} | ST ${state.semitoneRight >= 0 ? '+' : ''}${state.semitoneRight}`,
-    { fontFamily: 'Rajdhani', fontSize: '18px', color: '#ec4899', fontStyle: 'bold' }
+    { fontFamily: 'Orbitron', fontSize: '14px', color: intToHex(colors.right), fontStyle: 'bold' }
   ).setOrigin(0, 0.5);
 }
 
@@ -68,16 +68,17 @@ export function updateRanges(s, pianoY) {
     const inL = lNotes.has(pk.note), inR = rNotes.has(pk.note);
     const h = pk.isBlack ? 90 : 140;
     const w = pk.isBlack ? Math.round(11 * 1.5) : Math.round(18 * 1.5);
+    const op = settings.pianoVisualizerOpacity;
     if (inL && inR) {
-      state.leftRangeOverlay.fillStyle(colors.left, 0.3);
+      state.leftRangeOverlay.fillStyle(colors.left, op);
       state.leftRangeOverlay.fillRect(pk.x - w / 2, pk.y - h / 2, w / 2, h);
-      state.rightRangeOverlay.fillStyle(colors.right, 0.3);
+      state.rightRangeOverlay.fillStyle(colors.right, op);
       state.rightRangeOverlay.fillRect(pk.x, pk.y - h / 2, w / 2, h);
     } else if (inL) {
-      state.leftRangeOverlay.fillStyle(colors.left, 0.3);
+      state.leftRangeOverlay.fillStyle(colors.left, op);
       state.leftRangeOverlay.fillRect(pk.x - w / 2, pk.y - h / 2, w, h);
     } else if (inR) {
-      state.rightRangeOverlay.fillStyle(colors.right, 0.3);
+      state.rightRangeOverlay.fillStyle(colors.right, op);
       state.rightRangeOverlay.fillRect(pk.x - w / 2, pk.y - h / 2, w, h);
     }
   });

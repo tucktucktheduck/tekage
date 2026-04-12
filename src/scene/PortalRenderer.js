@@ -7,8 +7,9 @@
 //    • 40-frame color cycle: blue→off→orange→off
 //    • Trapezoid projection glow on hover
 //    • Rotating word label on wall portal
-//    • "PLAY" label on ceiling portal
+//    • "LIBRARY" label on ceiling portal
 //    • Click wall portal → openMoreOverlay()
+//    • Click ceiling portal → library.html (with autoPlayOnLoad flag)
 //
 //  Usage:
 //    const portal = new PortalRenderer();
@@ -38,7 +39,7 @@ const CP_L = CP_CX - CP_W / 2;        // left = 74
 const CP_R = CP_CX + CP_W / 2;        // right = 246
 
 // Word rotation
-const WORDS = ['BEGINNER', 'SAMPLE', 'STUKAGE', 'CHALLENGES', 'SETTINGS', 'LIBRARY'];
+const WORDS = ['BEGINNER', 'CLICK ME', 'OPTIONS', 'STUKAGE', 'CHALLENGES', 'SETTINGS', 'LIBRARY', 'CONFIGURE', 'EXPLORE', 'SECRETS'];
 const WORD_INTERVAL = 4000;            // ms between word changes
 
 // Portal depth (above background, below keyboard)
@@ -148,9 +149,9 @@ export class PortalRenderer {
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_PORTAL_TEXT).setAlpha(0);
 
-    // Hit area for wall portal
+    // Hit area for wall portal (extends left to cover the word label)
     this._wallHitArea = scene.add.rectangle(
-      WF_LEFT + WFW / 2, WFY + WFH / 2, WFW + 60, WFH + 40, 0x000000, 0
+      WF_LEFT - 40, WFY + WFH / 2, WFW + 200, WFH + 40, 0x000000, 0
     ).setInteractive();
     this._wallHitArea.setDepth(DEPTH_PORTAL_GFX);
     this._wallHitArea.on('pointerover', () => { this._wallIsHover = true; });
@@ -175,14 +176,14 @@ export class PortalRenderer {
     this._ceilGfx.setDepth(DEPTH_PORTAL_GFX);
 
     // "PLAY" label
-    this._ceilText = scene.add.text(CP_CX, CP_H + 40, 'PLAY', {
+    this._ceilText = scene.add.text(CP_CX, CP_H + 40, 'LIBRARY', {
       fontFamily: 'Orbitron', fontSize: '24px', color: '#3b9eff',
       fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(DEPTH_PORTAL_TEXT).setAlpha(0);
 
-    // Hit area for ceiling portal
+    // Hit area for ceiling portal (extends down to cover the PLAY label)
     this._ceilHitArea = scene.add.rectangle(
-      CP_CX, CP_H / 2, CP_W + 40, CP_H + 60, 0x000000, 0
+      CP_CX, 45, CP_W + 40, 90, 0x000000, 0
     ).setInteractive();
     this._ceilHitArea.setDepth(DEPTH_PORTAL_GFX);
     this._ceilHitArea.on('pointerover', () => { this._ceilIsHover = true; });
@@ -192,7 +193,7 @@ export class PortalRenderer {
       this._ceilLockedIntensity = 0;
     });
     this._ceilHitArea.on('pointerdown', () => {
-      console.log('[Portal] PLAY');
+      window.location.href = '/library.html';
     });
   }
 
@@ -247,7 +248,7 @@ export class PortalRenderer {
   update(time, delta) {
     if (!this._scene) return;
     const dt = delta / 1000;
-    this._frameTime += dt * 8; // ~8 frames per second for the 40-frame cycle
+    this._frameTime += dt * 4; // ~10s full cycle
 
     // ── Color cycle ──
     const wallCycle = gc(this._frameTime);
@@ -475,7 +476,7 @@ export class PortalRenderer {
         color: hexColor,
         fontStyle: 'bold',
       });
-      txt.setText('PLAY');
+      txt.setText('LIBRARY');
       txt.setAlpha(Math.min(1, (intensity - 0.2) * 2));
       txt.setPosition(CP_CX, CP_H + lp(28, 55, hover));
       txt.setVisible(true);

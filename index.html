@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tekage</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body>
@@ -38,6 +38,8 @@
     <input type="file" id="mxFileInput" accept=".xml,.musicxml,.mxl,.mid,.midi">
     <!-- Hidden file input — texture packs -->
     <input type="file" id="tkpFileInput" accept=".tkg,.tkp">
+    <!-- Hidden file input — custom instrument samples -->
+    <input type="file" id="instSampleInput" multiple accept=".wav,.mp3,.ogg,.flac">
     <!-- Hidden file input — skin editor pattern/animation uploads -->
     <input type="file" id="sePatternFileInput" accept="image/*">
     <input type="file" id="seAnimFileInput" accept="image/*">
@@ -56,102 +58,211 @@
         <span class="val" id="spdVal">1.00×</span>
     </div>
 
-    <!-- ═══ MORE OVERLAY ═══ -->
-    <div class="more-overlay" id="moreOverlay">
-        <div class="more-panel" style="width:min(680px,94vw);padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <!-- ═══ TEKLET ═══ -->
+    <div class="more-overlay" id="moreOverlay" style="display:none;">
+      <div class="teklet-frame">
+      <div class="teklet-trail teklet-trail-1"></div>
+      <div class="teklet-trail teklet-trail-2"></div>
+      <div class="teklet-bezel">
+        <div class="teklet-screw-bl"></div><div class="teklet-screw-br"></div>
+        <div class="teklet-screen">
+          <div class="teklet-pgrid"></div>
+          <div class="teklet-scanbar"></div>
+          <div class="teklet-cd tl"></div><div class="teklet-cd tr"></div>
+          <div class="teklet-cd bl"></div><div class="teklet-cd br"></div>
 
-            <!-- Header -->
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 28px 16px;flex-shrink:0;">
-                <h2 style="font-size:26px;color:#9333ea;letter-spacing:2px;margin:0;">MORE</h2>
-                <button class="more-close" id="moreCloseBtn" style="margin:0;padding:6px 14px;">✕</button>
+          <!-- HEADER -->
+          <div class="teklet-hdr">
+            <div class="teklet-logo">TEKAGE</div>
+            <div class="teklet-sysinfo">
+              <span>SYS V4 //</span>
+              <span class="teklet-online">ONLINE</span>
+              <div class="teklet-clock" id="tekletClock">--:--</div>
+              <div class="teklet-batt"><span></span><span></span><span></span><span></span></div>
+            </div>
+            <button class="teklet-close-btn" id="moreCloseBtn">✕ CLOSE</button>
+          </div>
+
+          <!-- BODY: nav + content + audio -->
+          <div class="teklet-content">
+            <!-- LEFT NAV -->
+            <div class="teklet-nav">
+              <div class="teklet-nav-item nav-play active" id="tekletNavPlay" data-tab="play">▶ PLAY</div>
+              <div class="teklet-nav-item" data-tab="settings">SETTINGS</div>
+              <div class="teklet-nav-item" data-tab="instruments">INSTRUMENTS</div>
+              <div class="teklet-nav-item" data-tab="remap">REMAP KEYS</div>
+              <div class="teklet-nav-item" data-tab="loop">LOOP</div>
+              <div class="teklet-nav-item" data-tab="skin">SKIN</div>
+              <div class="teklet-nav-item" data-tab="mode">MODE</div>
             </div>
 
-            <!-- Tab bar -->
-            <div class="more-tabs">
-                <button class="more-tab-btn active" data-tab="settings">Settings</button>
-                <button class="more-tab-btn" data-tab="instruments">Instruments</button>
-                <button class="more-tab-btn" data-tab="remap">Remap Keys</button>
-                <button class="more-tab-btn" data-tab="loop">Loop</button>
-                <button class="more-tab-btn" data-tab="skin">Skin</button>
+            <!-- CENTER CONTENT -->
+            <div class="teklet-tabcontent" id="tekletTabContent">
+
+              <!-- PLAY TAB -->
+              <div id="tab-play" class="more-tab-pane active">
+                <div class="more-section">
+                  <h3>PLAYBACK</h3>
+                  <button class="more-btn" id="tekletPlayBtn" style="width:100%;font-size:18px;padding:14px;border-color:var(--tl-blue);color:var(--tl-blue);">▶ PLAY</button>
+                </div>
+                <div class="more-section" style="margin-top:12px;">
+                  <h3>SONG</h3>
+                  <div id="tekletSongName" style="font-family:Rajdhani,sans-serif;font-size:14px;color:#94a3b8;padding:6px 0;">No song loaded</div>
+                  <button class="more-btn" id="tekletUploadBtn" style="width:100%;margin-bottom:6px;font-size:13px;">UPLOAD SONG</button>
+                  <button class="more-btn" id="tekletLibraryBtn" style="width:100%;font-size:13px;">OPEN LIBRARY</button>
+                </div>
+                <div class="more-section" style="margin-top:12px;">
+                  <h3>SPEED</h3>
+                  <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+                    <input type="range" id="spdSliderTeklet" min="25" max="200" value="100" style="flex:1;accent-color:var(--tl-orange);">
+                    <span id="spdValTeklet" style="font-size:12px;color:#94a3b8;min-width:40px;">1.00×</span>
+                  </div>
+                </div>
+                <div class="more-section" style="margin-top:12px;">
+                  <h3>CONTROLS</h3>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="more-btn" id="tekletMuteBtn" style="flex:1;font-size:13px;border-color:var(--tl-orange);color:var(--tl-orange);">UNMUTE</button>
+                    <button class="more-btn" id="tekletAutoShiftBtn" style="flex:1;font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO-SHIFT</button>
+                    <button class="more-btn" id="tekletAutoSlowBtn" style="flex:1;font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO SLOW</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SETTINGS TAB -->
+              <div id="tab-settings" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>DISPLAY</h3>
+                  <label class="toggle-row"><input type="checkbox" id="togglePianoViz" checked><span>Piano Visualizer</span></label>
+                  <div style="display:flex;align-items:center;gap:8px;padding:2px 0 6px 24px;">
+                    <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tl-dim);flex:1;">Opacity</span>
+                    <input type="range" id="pianoVizOpacity" min="5" max="80" value="30" style="flex:1.5;accent-color:var(--tl-blue);">
+                    <span id="pianoVizOpacityVal" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tl-blue);min-width:32px;text-align:right;">30%</span>
+                  </div>
+                  <label class="toggle-row"><input type="checkbox" id="toggleFallingBlocks" checked><span>Falling Blocks</span></label>
+                  <label class="toggle-row"><input type="checkbox" id="toggleStats"><span>Stats Panel</span></label>
+                  <label class="toggle-row"><input type="checkbox" id="toggleEarlyLate" checked><span>Early/Late Animation</span></label>
+                </div>
+                <div class="more-section">
+                  <h3>PLAYBACK</h3>
+                  <label class="toggle-row"><input type="checkbox" id="toggleFirstPress"><span>Start on First Press</span></label>
+                </div>
+                <div class="more-section">
+                  <h3>COLORS</h3>
+                  <div class="color-row"><span>Left Hand</span><input type="color" id="colorLeft" value="#3b82f6"></div>
+                  <div class="color-row"><span>Right Hand</span><input type="color" id="colorRight" value="#ec4899"></div>
+                </div>
+                <div class="more-section">
+                  <h3>LINKS</h3>
+                  <button class="more-btn" id="btnStukage">OPEN STUKAGE</button>
+                </div>
+              </div>
+
+              <!-- INSTRUMENTS TAB -->
+              <div id="tab-instruments" class="more-tab-pane">
+                <div id="salamanderStatus" style="display:none;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--tl-blue);background:rgba(26,143,255,.06);border:1px solid var(--tl-border);border-radius:5px;padding:6px 10px;margin-bottom:10px;"></div>
+                <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:13px;margin-bottom:10px;">Choose your instrument.</p>
+                <div id="instrumentGrid" class="instrument-grid"></div>
+                <div style="margin-top:16px;border-top:1px solid var(--tl-border);padding-top:14px;">
+                  <h3 style="font-size:10px;letter-spacing:2px;color:var(--tl-dim);border-bottom:1px solid var(--tl-border);padding-bottom:3px;margin-bottom:8px;font-family:'Orbitron',sans-serif;">UPLOAD YOUR OWN</h3>
+                  <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:12px;margin-bottom:8px;line-height:1.4;">Upload .wav/.mp3 files named by note (e.g. C4.mp3, A#3.wav). Missing notes are pitch-shifted from the nearest sample.</p>
+                  <button class="more-btn" id="instUploadBtn" style="width:100%;font-size:13px;">UPLOAD SAMPLES</button>
+                  <div id="instUploadStatus" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#64748b;margin-top:6px;min-height:14px;"></div>
+                </div>
+              </div>
+
+              <!-- REMAP TAB -->
+              <div id="tab-remap" class="more-tab-pane">
+                <p class="remap-instructions" style="margin-bottom:8px;font-size:13px;">Click a key, then a note name to rebind.</p>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-family:Rajdhani,sans-serif;font-size:12px;color:var(--tl-dim);letter-spacing:1px;text-transform:uppercase;">Presets:</span>
+                  <button class="more-btn remap-preset-btn" data-preset="Default" style="font-size:12px;padding:5px 12px;">Default</button>
+                  <button class="more-btn remap-preset-btn" data-preset="Classic" style="font-size:12px;padding:5px 12px;">Classic</button>
+                  <button class="more-btn" id="remapResetBtn" style="font-size:12px;padding:5px 12px;margin-left:auto;">Reset</button>
+                </div>
+                <div id="remapGrid" class="remap-grid"></div>
+              </div>
+
+              <!-- LOOP TAB -->
+              <div id="tab-loop" class="more-tab-pane">
+                <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:13px;margin-bottom:14px;">Set loop In/Out points.</p>
+                <button class="more-btn" id="btnInOut">SET IN/OUT LOOP</button>
+                <div id="inoutDisplay" style="margin-top:12px;font-family:Rajdhani,sans-serif;font-size:16px;color:#94a3b8;">-- → --</div>
+              </div>
+
+              <!-- SKIN TAB -->
+              <div id="tab-skin" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>ACTIVE SKIN</h3>
+                  <div id="skinNameDisplay" style="font-family:Rajdhani,sans-serif;font-size:16px;color:#fff;padding:6px 10px;background:#0a0a14;border-radius:6px;border:1px solid #1e293b;margin-bottom:6px;">Tekage Default</div>
+                </div>
+                <div class="more-section">
+                  <h3>TEXTURE PACK</h3>
+                  <button class="more-btn" id="btnUploadTkp" style="width:100%;margin-bottom:6px;font-size:13px;">Upload Skin (.tkg)</button>
+                  <button class="more-btn" id="btnExportTkp" style="width:100%;border-color:#3b82f6;font-size:13px;">Export Skin (.tkg)</button>
+                </div>
+                <div class="more-section">
+                  <h3>EDITOR</h3>
+                  <button class="more-btn" id="btnOpenSkinEditor" style="width:100%;border-color:var(--tl-orange);color:var(--tl-orange);font-size:13px;">Open Skin Editor</button>
+                  <button class="more-btn" id="btnResetSkin" style="width:100%;margin-top:6px;border-color:#ef4444;color:#ef4444;font-size:13px;">Reset to Default</button>
+                </div>
+                <div id="skinStatusMsg" style="font-family:Rajdhani,sans-serif;font-size:13px;color:#64748b;margin-top:10px;text-align:center;"></div>
+              </div>
+
+              <!-- MODE TAB -->
+              <div id="tab-mode" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>KEYBOARD MODE</h3>
+                  <label class="toggle-row"><input type="checkbox" id="toggleAdvancedMode"><span>Advanced Mode (denser keys, Q/A/P/; active)</span></label>
+                </div>
+              </div>
+
+            </div><!-- /teklet-tabcontent -->
+
+            <!-- RIGHT AUDIO COLUMN -->
+            <div class="teklet-audio-col">
+              <div class="teklet-audio-label">AUDIO</div>
+              <div class="teklet-meters">
+                <div class="teklet-meter">
+                  <div class="teklet-meter-label">L</div>
+                  <div class="teklet-meter-blocks" id="tekletMeterL"></div>
+                </div>
+                <div class="teklet-meter">
+                  <div class="teklet-meter-label">R</div>
+                  <div class="teklet-meter-blocks" id="tekletMeterR"></div>
+                </div>
+              </div>
+              <div class="teklet-dial" id="tekletDial">
+                <div class="teklet-dial-ticks">
+                  <div class="teklet-dial-tick" style="transform:rotate(-120deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(-80deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(-40deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(0deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(40deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(80deg)"></div>
+                  <div class="teklet-dial-tick" style="transform:rotate(120deg)"></div>
+                </div>
+                <div class="teklet-dial-needle" id="tekletDialNeedle"></div>
+                <div class="teklet-dial-center"></div>
+              </div>
+              <div class="teklet-vol-label">VOLUME</div>
+              <canvas class="teklet-wave-bg" id="tekletWave" width="144" height="88"></canvas>
             </div>
 
-            <!-- Tab content -->
-            <div style="flex:1;overflow-y:auto;padding:20px 28px 24px;">
+          </div><!-- /teklet-content -->
 
-                <!-- SETTINGS TAB -->
-                <div id="tab-settings" class="more-tab-pane active">
-                    <div class="more-section">
-                        <h3>DISPLAY</h3>
-                        <label class="toggle-row"><input type="checkbox" id="togglePianoViz" checked><span>Piano Visualizer</span></label>
-                        <label class="toggle-row"><input type="checkbox" id="toggleFallingBlocks" checked><span>Falling Blocks (off = Blind Mode)</span></label>
-                        <label class="toggle-row"><input type="checkbox" id="toggleStats"><span>Stats Panel</span></label>
-                        <label class="toggle-row"><input type="checkbox" id="toggleEarlyLate" checked><span>Early/Late Animation</span></label>
-                    </div>
-                    <div class="more-section">
-                        <h3>PLAYBACK</h3>
-                        <label class="toggle-row"><input type="checkbox" id="toggleFirstPress"><span>Start on First Press (vs 2s delay)</span></label>
-                        <label class="toggle-row"><input type="checkbox" id="toggleAutoShift"><span>Auto-Shift (shift blocks apply automatically)</span></label>
-                    </div>
-                    <div class="more-section">
-                        <h3>COLORS</h3>
-                        <div class="color-row">
-                            <span>Left Hand</span>
-                            <input type="color" id="colorLeft" value="#3b82f6">
-                        </div>
-                        <div class="color-row">
-                            <span>Right Hand</span>
-                            <input type="color" id="colorRight" value="#ec4899">
-                        </div>
-                    </div>
-                    <div class="more-section">
-                        <h3>LINKS</h3>
-                        <button class="more-btn" id="btnStukage">🔗 Open Stukage</button>
-                    </div>
-                </div>
-
-                <!-- INSTRUMENTS TAB -->
-                <div id="tab-instruments" class="more-tab-pane">
-                    <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:14px;margin-bottom:14px;">Choose your instrument. Affects all live and playback audio.</p>
-                    <div id="instrumentGrid" class="instrument-grid"></div>
-                </div>
-
-                <!-- REMAP TAB -->
-                <div id="tab-remap" class="more-tab-pane">
-                    <p class="remap-instructions" style="margin-bottom:10px;">Click a key below, then click a note name to rebind it.</p>
-                    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                        <button class="more-btn" id="remapResetBtn" style="font-size:13px;padding:6px 14px;">Reset to Default</button>
-                    </div>
-                    <div id="remapGrid" class="remap-grid"></div>
-                </div>
-
-                <!-- LOOP TAB -->
-                <div id="tab-loop" class="more-tab-pane">
-                    <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:14px;margin-bottom:16px;">Set loop In/Out points to practice a section on repeat.</p>
-                    <button class="more-btn" id="btnInOut">🔁 Set In/Out Loop Points</button>
-                    <div id="inoutDisplay" style="margin-top:14px;font-family:Rajdhani,sans-serif;font-size:18px;color:#94a3b8;">-- → --</div>
-                </div>
-
-                <!-- SKIN TAB -->
-                <div id="tab-skin" class="more-tab-pane">
-                    <div class="more-section">
-                        <h3>ACTIVE SKIN</h3>
-                        <div id="skinNameDisplay" style="font-family:Rajdhani,sans-serif;font-size:18px;color:#fff;padding:8px 12px;background:#0a0a14;border-radius:8px;border:1px solid #1e293b;margin-bottom:8px;">Tekage Default</div>
-                    </div>
-                    <div class="more-section">
-                        <h3>TEXTURE PACK (.tkg)</h3>
-                        <button class="more-btn" id="btnUploadTkp" style="width:100%;margin-bottom:8px;">Upload Skin (.tkg)</button>
-                        <button class="more-btn" id="btnExportTkp" style="width:100%;border-color:#3b82f6;">Export Current Skin (.tkg)</button>
-                    </div>
-                    <div class="more-section">
-                        <h3>EDITOR</h3>
-                        <button class="more-btn" id="btnOpenSkinEditor" style="width:100%;border-color:#9333ea;">Open Skin Editor</button>
-                        <button class="more-btn" id="btnResetSkin" style="width:100%;margin-top:8px;border-color:#ef4444;color:#ef4444;">Reset to Default</button>
-                    </div>
-                    <div id="skinStatusMsg" style="font-family:Rajdhani,sans-serif;font-size:14px;color:#64748b;margin-top:12px;text-align:center;"></div>
-                </div>
-
+          <!-- FOOTER -->
+          <div class="teklet-ftr">
+            <div class="teklet-qa-label">QUICK ACCESS</div>
+            <div class="teklet-qa-btns">
+              <div class="teklet-qa-btn" id="tekletQaBeginner">BEGINNER</div>
+              <div class="teklet-qa-btn" id="tekletQaMap">MUSIC MAP</div>
+              <div class="teklet-qa-btn" id="tekletQaLoop">LOOP</div>
             </div>
-        </div>
+          </div>
+
+        </div><!-- /teklet-screen -->
+      </div><!-- /teklet-bezel -->
+      </div><!-- /teklet-frame -->
     </div>
 
     <!-- ═══ IN/OUT LOOP OVERLAY ═══ -->
@@ -226,8 +337,8 @@
                         <div class="se-color-card">
                             <div class="se-color-label">ACCENT</div>
                             <div class="se-color-row">
-                                <input type="color" id="seColorAccent" value="#9333ea">
-                                <input type="text" id="seColorAccentHex" class="se-hex-input" value="#9333ea" maxlength="7">
+                                <input type="color" id="seColorAccent" value="#ff8a2b">
+                                <input type="text" id="seColorAccentHex" class="se-hex-input" value="#ff8a2b" maxlength="7">
                             </div>
                             <div class="se-derived-swatches" id="seAccentSwatches"></div>
                         </div>
@@ -257,7 +368,7 @@
                     <p class="se-desc">Customize how falling notes look. Set images per-hand or per-key.</p>
 
                     <div class="se-notes-section">
-                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">DISPLAY MODE</h4>
+                        <h4 style="color:var(--tl-orange);font-family:Rajdhani,sans-serif;margin:0 0 10px;">DISPLAY MODE</h4>
                         <div class="se-mode-radios" id="seNoteDisplayMode">
                             <label><input type="radio" name="noteDisplayMode" value="stretch" checked> Stretch</label>
                             <label><input type="radio" name="noteDisplayMode" value="tile"> Tile</label>
@@ -267,7 +378,7 @@
                     </div>
 
                     <div class="se-notes-section">
-                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">HAND DEFAULTS</h4>
+                        <h4 style="color:var(--tl-orange);font-family:Rajdhani,sans-serif;margin:0 0 10px;">HAND DEFAULTS</h4>
                         <div style="display:flex;gap:16px;flex-wrap:wrap;">
                             <div class="se-hand-card" id="seHandLeft">
                                 <div class="se-card-label" style="color:#3b9eff;">LEFT HAND</div>
@@ -293,7 +404,7 @@
                     </div>
 
                     <div class="se-notes-section" id="seMaskImageSection" style="display:none;">
-                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">MASK REVEAL IMAGE</h4>
+                        <h4 style="color:var(--tl-orange);font-family:Rajdhani,sans-serif;margin:0 0 10px;">MASK REVEAL IMAGE</h4>
                         <div class="se-pattern-preview" id="seMaskImagePreview">
                             <span style="color:#334155;font-size:12px">No image</span>
                         </div>
@@ -304,7 +415,7 @@
                     </div>
 
                     <div class="se-notes-section">
-                        <h4 style="color:#9333ea;font-family:Rajdhani,sans-serif;margin:0 0 10px;">PER-KEY OVERRIDES</h4>
+                        <h4 style="color:var(--tl-orange);font-family:Rajdhani,sans-serif;margin:0 0 10px;">PER-KEY OVERRIDES</h4>
                         <p class="se-desc" style="margin-bottom:10px;">Click a key to upload a custom image for that key's notes only. Accepts PNG, JPG, GIF, WEBP.</p>
                         <div class="se-perkey-grid" id="sePerKeyGrid">
                             <!-- Built by skinEditor.js -->
@@ -342,6 +453,85 @@
 
         </div><!-- /skin-editor-panel -->
     </div><!-- /skinEditorOverlay -->
+
+    <!-- ═══ BEGINNER OVERLAY ═══ -->
+    <div class="more-overlay" id="beginnerOverlay" style="display:none;">
+      <div class="teklet-frame">
+      <div class="teklet-trail teklet-trail-1"></div>
+      <div class="teklet-trail teklet-trail-2"></div>
+      <div class="teklet-bezel">
+        <div class="teklet-screw-bl"></div><div class="teklet-screw-br"></div>
+        <div class="teklet-screen">
+          <div class="teklet-pgrid"></div>
+          <div class="teklet-scanbar"></div>
+          <div class="teklet-cd tl"></div><div class="teklet-cd tr"></div>
+          <div class="teklet-cd bl"></div><div class="teklet-cd br"></div>
+
+          <!-- HEADER -->
+          <div class="teklet-hdr">
+            <div class="teklet-logo">BEGINNER</div>
+            <div class="teklet-sysinfo">
+              <span>PRACTICE MODE //</span>
+              <span class="teklet-online">ONLINE</span>
+            </div>
+            <button class="teklet-close-btn" id="beginnerCloseBtn">✕ CLOSE</button>
+          </div>
+
+          <!-- BODY -->
+          <div class="teklet-content">
+            <!-- LEFT NAV -->
+            <div class="teklet-nav">
+              <div class="teklet-nav-item active" data-beg-tab="singleRow">SINGLE ROW</div>
+              <div class="teklet-nav-item" data-beg-tab="oneHand">ONE HAND</div>
+              <div class="teklet-nav-item" data-beg-tab="randomNotes">RANDOM NOTES</div>
+            </div>
+
+            <!-- CENTER CONTENT -->
+            <div class="teklet-tabcontent" id="begTabContent">
+
+              <!-- SINGLE ROW TAB -->
+              <div id="beg-tab-singleRow" class="more-tab-pane active">
+                <div class="more-section">
+                  <h3>SINGLE ROW</h3>
+                  <p style="font-family:Rajdhani,sans-serif;font-size:14px;color:#94a3b8;margin-bottom:12px;">Only the middle keyboard row requires input. All other notes play automatically. Focus on one hand at a time.</p>
+                  <button class="more-btn" id="begUploadSr" style="width:100%;margin-bottom:8px;">UPLOAD SONG</button>
+                  <button class="more-btn" id="begPlaySr" style="width:100%;font-size:16px;border-color:var(--tl-orange);color:var(--tl-orange);">▶ PLAY</button>
+                </div>
+              </div>
+
+              <!-- ONE HAND TAB -->
+              <div id="beg-tab-oneHand" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>ONE HAND</h3>
+                  <p style="font-family:Rajdhani,sans-serif;font-size:14px;color:#94a3b8;margin-bottom:12px;">Practice left or right hand independently. The other hand plays automatically.</p>
+                  <button class="more-btn" id="begUploadOh" style="width:100%;margin-bottom:8px;">UPLOAD SONG</button>
+                  <button class="more-btn" id="begPlayOh" style="width:100%;font-size:16px;border-color:var(--tl-orange);color:var(--tl-orange);">▶ PLAY</button>
+                </div>
+              </div>
+
+              <!-- RANDOM NOTES TAB -->
+              <div id="beg-tab-randomNotes" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>RANDOM NOTES</h3>
+                  <p style="font-family:Rajdhani,sans-serif;font-size:14px;color:#94a3b8;margin-bottom:12px;">Random notes fall from above — no song required. Great for free practice and exploring the keyboard.</p>
+                  <button class="more-btn" id="begPlayRandom" style="width:100%;font-size:16px;border-color:var(--tl-orange);color:var(--tl-orange);">▶ START</button>
+                </div>
+              </div>
+
+            </div><!-- /begTabContent -->
+          </div><!-- /teklet-content -->
+        </div><!-- /teklet-screen -->
+      </div><!-- /teklet-bezel -->
+      </div><!-- /teklet-frame -->
+    </div><!-- /beginnerOverlay -->
+
+    <!-- ═══ BEGINNER IN-MODE HUD ═══ -->
+    <div id="beginnerHud" style="display:none;">
+      <div class="beg-hud-title" id="begHudTitle">BEGINNER</div>
+      <div class="beg-hud-song" id="begHudSong">No song loaded</div>
+      <button class="beg-hud-btn" id="begHudBack">← BACK</button>
+      <button class="beg-hud-btn" id="begHudAutoShift" style="display:none;">AUTO-SHIFT: ON</button>
+    </div>
 
     <script type="module" src="/src/main.js"></script>
 </body>

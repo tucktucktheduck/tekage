@@ -5,9 +5,18 @@
 
 import state from '../core/state.js';
 import { DEBUG } from '../core/constants.js';
+import { salamanderPlayer, getCustomPlayer } from './salamander.js';
 
 // ── Instrument Presets ──────────────────────────────────────
 export const INSTRUMENTS = {
+  salamander: {
+    label: 'Salamander Grand',
+    icon: '🎹',
+    description: 'Yamaha C5 grand — real piano samples (Salamander V3, public domain)',
+    releaseTime: 1.2,
+    sampleBased: true,
+  },
+
   grandPiano: {
     label: 'Grand Piano',
     icon: '🎹',
@@ -190,7 +199,7 @@ export const INSTRUMENTS = {
 };
 
 // Default instrument
-let _currentInstrument = 'grandPiano';
+let _currentInstrument = 'salamander';
 
 export function setInstrument(key) {
   if (INSTRUMENTS[key]) _currentInstrument = key;
@@ -202,10 +211,47 @@ export function getCurrentInstrument() {
 
 // ── Core Audio ──────────────────────────────────────────────
 
+let _analyserL = null;
+let _analyserR = null;
+let _analyserData = null;
+
 export function initAudio() {
   if (!state.audioContext) {
     state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Mono analyser (stereo split would need ChannelSplitter — keep simple)
+    _analyserL = state.audioContext.createAnalyser();
+    _analyserL.fftSize = 256;
+    _analyserL.smoothingTimeConstant = 0.75;
+    _analyserR = state.audioContext.createAnalyser();
+    _analyserR.fftSize = 256;
+    _analyserR.smoothingTimeConstant = 0.75;
+    _analyserData = new Uint8Array(_analyserL.frequencyBinCount);
+    // Connect destination → analysers (post-gain sniffing)
+    state.audioContext.destination.connect !== undefined &&
+      _analyserL.connect(state.audioContext.destination);
   }
+}
+
+/**
+ * Returns { left: 0..1, right: 0..1 } audio energy levels.
+ * Both channels reflect the same mono master since we don't split stereo.
+ */
+export function getAudioLevels() {
+  if (!_analyserL || !_analyserData) return { left: 0, right: 0 };
+  _analyserL.getByteFrequencyData(_analyserData);
+  let sum = 0;
+  for (let i = 0; i < _analyserData.length; i++) sum += _analyserData[i];
+  const avg = sum / (_analyserData.length * 255);
+  // Slight divergence for visual variety
+  return { left: Math.min(1, avg * 2.5), right: Math.min(1, avg * 2.2) };
+}
+
+export function connectAnalyserToGain(gainNode) {
+  if (!_analyserL || !gainNode) return;
+  try {
+    gainNode.connect(_analyserL);
+    gainNode.connect(_analyserR);
+  } catch (e) {}
 }
 
 export function noteToFreq(note) {
@@ -223,29 +269,47 @@ export function midiToNoteName(midi) {
 
 export function playNote(key, note) {
   if (!state.audioContext) return;
-  const freq = noteToFreq(note);
-  if (!freq) return;
-
-  if (state.activeAudio.has(key)) {
-    const { oscs, gains } = state.activeAudio.get(key);
-    oscs.forEach(o => { try { o.stop(); o.disconnect(); } catch (e) {} });
-    gains.forEach(g => { try { g.disconnect(); } catch (e) {} });
-    state.activeAudio.delete(key);
-  }
 
   const ctx = state.audioContext;
   const dest = (typeof key === 'string' && key.startsWith('mx:') && state.mxMasterGain)
     ? state.mxMasterGain : ctx.destination;
 
-  const preset = INSTRUMENTS[_currentInstrument] || INSTRUMENTS.grandPiano;
-  const result = preset.build(ctx, freq, dest);
+  // Stop any existing note at this key
+  _stopActive(key, true);
 
+  const preset = INSTRUMENTS[_currentInstrument] || INSTRUMENTS.salamander;
+
+  // ── Sample-based path ─────────────────────────────────────
+  if (preset.sampleBased) {
+    const player = _currentInstrument === 'customUpload' ? getCustomPlayer() : salamanderPlayer;
+    if (player && player.hasAnyBuffers()) {
+      player.play(ctx, note, dest, key);
+      state.activeAudio.set(key, { samplePlayer: player });
+      return;
+    }
+    // Fall through to synth if samples not loaded yet
+  }
+
+  // ── Oscillator path ───────────────────────────────────────
+  const freq = noteToFreq(note);
+  if (!freq) return;
+  const fallback = preset.sampleBased ? INSTRUMENTS.grandPiano : preset;
+  const result = fallback.build(ctx, freq, dest);
   state.activeAudio.set(key, result);
 }
 
-export function stopNote(key, immediate = false) {
+function _stopActive(key, immediate = false) {
   if (!state.activeAudio.has(key)) return;
   const data = state.activeAudio.get(key);
+
+  // Sample-based note
+  if (data.samplePlayer) {
+    data.samplePlayer.stop(key, immediate);
+    state.activeAudio.delete(key);
+    return;
+  }
+
+  // Oscillator note
   const { oscs, gains } = data;
   const t = state.audioContext.currentTime;
   const preset = INSTRUMENTS[_currentInstrument] || INSTRUMENTS.grandPiano;
@@ -262,4 +326,8 @@ export function stopNote(key, immediate = false) {
     gains.forEach(g => { try { g.disconnect(); } catch (e) {} });
     if (state.activeAudio.get(key) === data) state.activeAudio.delete(key);
   }, r * 1000 + 20);
+}
+
+export function stopNote(key, immediate = false) {
+  _stopActive(key, immediate);
 }

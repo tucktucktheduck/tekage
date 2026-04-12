@@ -8,7 +8,8 @@
 
 import state from '../core/state.js';
 import colors from '../core/colors.js';
-import { keyboardLayout, keyGap, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH } from '../core/constants.js';
+import { getKeyboardLayout, keyGap, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH } from '../core/constants.js';
+import settings from '../core/settings.js';
 import { leftMap, rightMap, fnKeys, isLeftKey } from '../core/keyMapping.js';
 import { getNote } from '../audio/noteMap.js';
 import { drawPiano, updateOct } from '../ui/piano.js';
@@ -24,6 +25,7 @@ export function drawFullKeyboard(scene) {
   state.pianoKeys = [];
   state.pianoNoteMap = {};
 
+  const keyboardLayout = getKeyboardLayout(settings.advancedMode);
   keyboardLayout.forEach((row, ri) => {
     let x = row.startX;
     row.keys.forEach((keyData) => {
@@ -42,7 +44,7 @@ export function drawFullKeyboard(scene) {
       const noteInfo = isGreyed ? null : getNote(lk);
       const isShiftL = keyData.key === 'ShiftL', isShiftR = keyData.key === 'ShiftR';
       const isShift = isShiftL || isShiftR;
-      const isFn = keyData.key === 'Tab' || keyData.key === 'Enter' || isShift || lk === 'q' || lk === 'a' || lk === 'p' || lk === ';';
+      const isFn = keyData.key === 'Tab' || keyData.key === 'Enter' || isShift;
 
       let fill = colors.grayDark, stroke = colors.gray, isBlack = noteInfo && noteInfo.includes('#');
       const keyY = row.y, portTop = keyY - PORT_HEIGHT / 2, portBottom = keyY + PORT_HEIGHT / 2;
@@ -70,10 +72,6 @@ export function drawFullKeyboard(scene) {
           fontFamily: 'Rajdhani', fontSize: '14px', color: isBlack ? '#60a5fa' : '#3b82f6', fontStyle: 'bold',
         }).setOrigin(0.5);
       }
-      if (lk === 'q') scene.add.text(x + keyData.w / 2, keyY + 14, '+1', { fontFamily: 'Rajdhani', fontSize: '13px', color: '#3b82f6', fontStyle: 'bold' }).setOrigin(0.5);
-      else if (lk === 'a') scene.add.text(x + keyData.w / 2, keyY + 14, '-1', { fontFamily: 'Rajdhani', fontSize: '13px', color: '#3b82f6', fontStyle: 'bold' }).setOrigin(0.5);
-      else if (lk === 'p') scene.add.text(x + keyData.w / 2, keyY + 14, '+1', { fontFamily: 'Rajdhani', fontSize: '13px', color: '#ec4899', fontStyle: 'bold' }).setOrigin(0.5);
-      else if (lk === ';') scene.add.text(x + keyData.w / 2, keyY + 14, '-1', { fontFamily: 'Rajdhani', fontSize: '13px', color: '#ec4899', fontStyle: 'bold' }).setOrigin(0.5);
 
       state.keyObjects[lk] = {
         rect, label, nLabel, fill, stroke, isBlack, isFn,
@@ -120,10 +118,6 @@ export function wireKeyboardInput(scene, opts = {}) {
     if (k === 'shift_l') { state.octaveLeft = Math.max(0, state.octaveLeft - 1); updateOct(scene); return; }
     if (k === 'enter') { state.octaveRight = Math.min(7, state.octaveRight + 1); updateOct(scene); return; }
     if (k === 'shift_r') { state.octaveRight = Math.max(0, state.octaveRight - 1); updateOct(scene); return; }
-    if (k === 'q') { state.semitoneLeft += 1; updateOct(scene); return; }
-    if (k === 'a') { state.semitoneLeft -= 1; updateOct(scene); return; }
-    if (k === 'p') { state.semitoneRight += 1; updateOct(scene); return; }
-    if (k === ';') { state.semitoneRight -= 1; updateOct(scene); return; }
 
     if (e.repeat) return;
     if (!state.keyObjects[k]) return;

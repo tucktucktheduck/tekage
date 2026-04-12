@@ -12,6 +12,7 @@ import { midiToNoteName, playNote, stopNote } from '../audio/engine.js';
 import { mxEnsureAudio, mxUpdateButtons } from './controls.js';
 import { judgeNote } from '../scoring/timingJudge.js';
 import { createNoteBlock, updateNoteBlock, destroyNoteBlock } from '../skin/NoteRenderer.js';
+import { getAutoSlowDownMult } from './autoSlowDown.js';
 
 export function mxFindPianoKey(midi) {
   const noteName = midiToNoteName(midi);
@@ -98,7 +99,8 @@ export function mxUpdateFallingNotes(scene, delta) {
     if (state.mxLastTs === null) state.mxLastTs = now;
     const dtMs = now - state.mxLastTs;
     state.mxLastTs = now;
-    state.mxCurTime += (dtMs / 1000) * state.mxSpeed;
+    const slowMult = settings.autoSlowDownOn ? getAutoSlowDownMult(dtMs) : 1.0;
+    state.mxCurTime += (dtMs / 1000) * state.mxSpeed * slowMult;
 
     // Check for loop points
     if (settings.loopIn !== null && settings.loopOut !== null) {

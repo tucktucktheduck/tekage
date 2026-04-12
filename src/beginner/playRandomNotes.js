@@ -4,42 +4,20 @@
 // ═══════════════════════════════════════════════════════════
 
 import state from '../core/state.js';
-import colors from '../core/colors.js';
 import { FALL_SPEED, MAX_CONCURRENT_NOTES, ANTENNA_BLOCK_WIDTH } from '../core/constants.js';
-import { drawFullKeyboard, wireKeyboardInput } from '../ui/sharedKeyboard.js';
+import { wireKeyboardInput } from '../ui/sharedKeyboard.js';
 import { initAudio, playNote, stopNote } from '../audio/engine.js';
 import { pressKey, releaseKey } from '../ui/piano.js';
 import { spawnRandomNote } from '../ui/randomNotes.js';
 
 export function startPlayRandomNotes(scene) {
-  scene.children.removeAll();
-  scene.cameras.main.setBackgroundColor('#000');
-
-  drawFullKeyboard(scene);
+  // Keyboard + piano already rendered by BeginnerScene.launchMode()
+  // Auto-start playing
+  state.isPlaying = true;
 
   wireKeyboardInput(scene, {
     audio: { initAudio, playNote, stopNote },
     piano: { pressKey, releaseKey },
-  });
-
-  // Start / Stop buttons
-  const startBtn = scene.add.rectangle(860, 30, 160, 30, 0x000000).setInteractive().setDepth(30);
-  startBtn.setStrokeStyle(2, colors.left);
-  scene.add.text(860, 30, 'START', { fontFamily: 'Rajdhani', fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  startBtn.on('pointerdown', () => { state.isPlaying = true; });
-
-  const stopBtn = scene.add.rectangle(1060, 30, 160, 30, 0x000000).setInteractive().setDepth(30);
-  stopBtn.setStrokeStyle(2, colors.right);
-  scene.add.text(1060, 30, 'STOP', { fontFamily: 'Rajdhani', fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  stopBtn.on('pointerdown', () => {
-    state.isPlaying = false;
-    state.fallingNotes.forEach(fn => {
-      if (fn.antennaBlock) fn.antennaBlock.destroy();
-      if (fn.portBlock) fn.portBlock.destroy();
-      if (fn.pianoBlock) fn.pianoBlock.destroy();
-      if (fn.pianoHighlight) fn.pianoHighlight.setAlpha(0);
-    });
-    state.fallingNotes = [];
   });
 
   let spawnTimer = 0;
@@ -100,9 +78,4 @@ export function startPlayRandomNotes(scene) {
       }
     }
   });
-
-  const backBtn = scene.add.rectangle(100, 1050, 120, 30, 0x000000).setInteractive().setDepth(30);
-  backBtn.setStrokeStyle(2, 0x9333ea);
-  scene.add.text(100, 1050, '← BACK', { fontFamily: 'Rajdhani', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  backBtn.on('pointerdown', () => { state.isPlaying = false; scene.scene.start('BeginnerScene'); });
 }

@@ -1,49 +1,35 @@
 // ═══════════════════════════════════════════════════════════
-//  BEGINNER MODE 1 — AUTO SLOW DOWN
-//  Notes decelerate exponentially as they approach the target
-//  if the player hasn't pressed them yet. Unlosable mode.
-//
-//  FIX: All event listeners are stored on scene._updateHandler
-//       / scene._keydownHandler / scene._keyupHandler so
-//       BeginnerScene.cleanupMode() can remove them.
-//       No more listener stacking.
+//  BEGINNER MODE — SINGLE ROW (BETA)
+//  Only the middle keyboard row (A S D F G H J K L ; ') is
+//  shown and requires player input. Notes assigned to any
+//  other key are auto-played with audio at their start time.
+//  Tab/Shift still shift octaves.
 // ═══════════════════════════════════════════════════════════
 
 import state from '../core/state.js';
-import settings from '../core/settings.js';
 import colors from '../core/colors.js';
-import { FALL_SPEED, PIANO_TOP, MX_SPAWN_BOUNDARY, BLACK_PC } from '../core/constants.js';
+import { FALL_SPEED, PIANO_TOP, MX_SPAWN_BOUNDARY, BLACK_PC, rowYPositions, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH, keyGap } from '../core/constants.js';
 import { initAudio, playNote, stopNote, midiToNoteName } from '../audio/engine.js';
-import { pressKey, releaseKey, updateOct } from '../ui/piano.js';
+import { pressKey, releaseKey, updateOct, drawPiano } from '../ui/piano.js';
 import { getNote } from '../audio/noteMap.js';
-import { fnKeys, isLeftKey } from '../core/keyMapping.js';
-import { updateScrubber } from '../ui/scrubber.js';
+import { fnKeys, isLeftKey, leftMap, rightMap } from '../core/keyMapping.js';
+import { updateScrubber, createScrubber } from '../ui/scrubber.js';
 import { mxEnsureAudio } from '../musicxml/controls.js';
 import { mxFindPianoKey } from '../musicxml/playback.js';
-import { mxUpdateKeyboardNotes, mxUpdateShiftBlocks, mxUpdateAutoShift } from '../solver/solverVisuals.js';
+import { mxUpdateShiftBlocks } from '../solver/solverVisuals.js';
 
-/** Convert a note name like "C4", "F#3", "Bb2" to a MIDI number. */
-function noteNameToMidi(noteName) {
-  const PC = { C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11 };
-  const m = noteName.match(/^([A-G](?:#|b)?)(\d+)$/);
-  if (!m) return -1;
-  return (parseInt(m[2], 10) + 1) * 12 + (PC[m[1]] ?? -1);
-}
+// Keys in the single playable row
+const ROW_KEYS = new Set(['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';']);
 
-export function startAutoSlowDown(scene) {
+export function startSingleRowMode(scene) {
   // Keyboard + piano already rendered by BeginnerScene.launchMode()
   state.mxScene = scene;
 
-  // ══════════════════════════════════════════════════════════
-  //  KEYBOARD INPUT — stored as named functions so we can
-  //  remove them on cleanup (no anonymous arrow stacking)
-  // ══════════════════════════════════════════════════════════
-
+  // ── Key input ──
   function onKeyDown(e) {
     let k = e.key.toLowerCase();
     initAudio();
 
-    // Spacebar = play/pause
     if (k === ' ') {
       e.preventDefault();
       if (!state.mxLoaded) return;
@@ -57,18 +43,17 @@ export function startAutoSlowDown(scene) {
     if (k === 'shift' && e.location === 2) k = 'shift_r';
     state.physicallyPressedKeys.add(k);
 
-    // Octave shifts
     if (k === 'tab') { e.preventDefault(); state.octaveLeft = Math.min(7, state.octaveLeft + 1); updateOct(scene); return; }
     if (k === 'shift_l') { state.octaveLeft = Math.max(0, state.octaveLeft - 1); updateOct(scene); return; }
     if (k === 'enter') { state.octaveRight = Math.min(7, state.octaveRight + 1); updateOct(scene); return; }
     if (k === 'shift_r') { state.octaveRight = Math.max(0, state.octaveRight - 1); updateOct(scene); return; }
 
     if (e.repeat) return;
+    if (!ROW_KEYS.has(k)) return;
     if (!state.keyObjects[k]) return;
     const note = getNote(k);
     if (!note) return;
 
-    // Duplicate note prevention (same note name, same hand)
     const noteName = note.match(/^([A-G]#?)/)[1];
     const isLeftHand = isLeftKey(k);
     state.activeKeys.forEach((activeNote, activeKey) => {
@@ -85,18 +70,13 @@ export function startAutoSlowDown(scene) {
     pressKey(k, scene);
     playNote(k, note);
 
-    // Bug 0A fix: mark any nearby falling note with matching pitch as player-hit
-    const playedMidi = noteNameToMidi(note);
-    if (playedMidi >= 0) {
-      for (const fn of state.mxFallingNotes) {
-        if (fn.deleted || fn.playerHit || fn.audioStarted) continue;
-        if (fn.midi === playedMidi) {
-          const bY = PIANO_TOP + (state.mxCurTime - fn.startSec) * FALL_SPEED;
-          if (Math.abs(bY - PIANO_TOP) < 80) {
-            fn.playerHit = true;
-            break;
-          }
-        }
+    // Mark matching falling note as player-hit
+    const playedNote = note;
+    for (const fn of state.mxFallingNotes) {
+      if (fn.deleted || fn.playerHit || fn.audioStarted) continue;
+      if (midiToNoteName(fn.midi) === playedNote) {
+        const bY = PIANO_TOP + (state.mxCurTime - fn.startSec) * FALL_SPEED;
+        if (Math.abs(bY - PIANO_TOP) < 80) { fn.playerHit = true; break; }
       }
     }
   }
@@ -108,10 +88,7 @@ export function startAutoSlowDown(scene) {
     if (k === 'shift' && e.location === 2) k = 'shift_r';
     state.physicallyPressedKeys.delete(k);
     if (fnKeys.has(k)) return;
-    if (!state.keyObjects[k]) {
-      if (state.activeAudio.has(k)) stopNote(k, true);
-      return;
-    }
+    if (!state.keyObjects[k]) { if (state.activeAudio.has(k)) stopNote(k, true); return; }
     stopNote(k);
     if (state.activeKeys.has(k)) {
       const note = state.activeKeys.get(k);
@@ -120,44 +97,19 @@ export function startAutoSlowDown(scene) {
     }
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  UPDATE LOOP — stored as a named function
-  // ══════════════════════════════════════════════════════════
-
-  // Smooth speed multiplier
-  let currentSpeedMult = 1.0;
-
   function onUpdate() {
     if (!state.mxLoaded) return;
-
-    // ── Time advancement with slow-down ──
     if (state.mxPlaying) {
       const now = performance.now();
       if (state.mxLastTs === null) state.mxLastTs = now;
       const dtMs = now - state.mxLastTs;
       state.mxLastTs = now;
-
-      // Slow down when any note has reached the hit line but hasn't been pressed yet.
-      // Target slow speed = 0.15× (takes ~3s to cross the 90px port zone at 30px/s).
-      // Snap down fast on overdue notes, ramp back up slowly when all are cleared.
-      const hasOverdue = state.mxFallingNotes.some(fn =>
-        !fn.deleted && !fn.playerHit && !fn.audioStarted &&
-        state.mxCurTime >= fn.startSec
-      );
-      const targetSpeedMult = hasOverdue ? 0.15 : 1.0;
-      const lerpRate = targetSpeedMult < currentSpeedMult ? 0.5 : Math.min(1, dtMs / 200);
-      currentSpeedMult += (targetSpeedMult - currentSpeedMult) * lerpRate;
-
-      // Apply auto-shift from solver timeline (gates on beginnerAutoShift toggle)
-      settings.autoShiftOn = settings.beginnerAutoShift;
-      mxUpdateAutoShift();
-
-      state.mxCurTime += (dtMs / 1000) * state.mxSpeed * currentSpeedMult;
+      state.mxCurTime += (dtMs / 1000) * state.mxSpeed;
     } else {
       state.mxLastTs = null;
     }
 
-    // ── Spawn piano notes ──
+    // Spawn + auto-play notes whose assigned key is NOT in ROW_KEYS
     const pianoFallDist = PIANO_TOP - MX_SPAWN_BOUNDARY;
     for (let i = 0; i < state.mxNotes.length; i++) {
       if (state.mxPlayed.has(i)) continue;
@@ -166,6 +118,27 @@ export function startAutoSlowDown(scene) {
       const spT = n.startSec - (pianoFallDist + nh) / FALL_SPEED;
       if (state.mxCurTime >= spT && state.mxCurTime < n.startSec + n.durationSec + 2) {
         state.mxPlayed.add(i);
+
+        // Check if this note is assigned to a row key
+        const assignedKey = _getAssignedKey(n, i);
+        const needsPlayerInput = assignedKey && ROW_KEYS.has(assignedKey);
+
+        if (!needsPlayerInput) {
+          // Auto-play: schedule audio, no visual block needed
+          const delay = Math.max(0, (n.startSec - state.mxCurTime) * 1000 / state.mxSpeed);
+          setTimeout(() => {
+            if (!state.mxPlaying) return;
+            mxEnsureAudio();
+            const nn = midiToNoteName(n.midi);
+            const ak = `mx:auto:${n.midi}:${i}`;
+            playNote(ak, nn);
+            const dur = n.durationSec * 1000 / state.mxSpeed;
+            setTimeout(() => stopNote(ak), dur);
+          }, delay);
+          continue;
+        }
+
+        // Visual block for row key notes
         const pk = mxFindPianoKey(n.midi);
         if (!pk) continue;
         const isAcc = BLACK_PC.has(n.midi % 12);
@@ -182,21 +155,18 @@ export function startAutoSlowDown(scene) {
       }
     }
 
-    // ── Update falling piano notes ──
+    // Update falling notes
     for (let i = state.mxFallingNotes.length - 1; i >= 0; i--) {
       const fn = state.mxFallingNotes[i];
       if (fn.deleted) continue;
       const bY = PIANO_TOP + (state.mxCurTime - fn.startSec) * FALL_SPEED;
       const tY = bY - fn.noteHeight;
-
-      // Past the piano — destroy
       if (tY >= PIANO_TOP) {
         if (fn.pianoBlock) fn.pianoBlock.destroy();
         if (fn.pianoHighlight) fn.pianoHighlight.destroy();
         fn.deleted = true;
         if (fn.audioKey && !fn.audioStopped) { stopNote(fn.audioKey); fn.audioStopped = true; }
       } else if (fn.pianoBlock) {
-        // Clip to visible region
         const vT = Math.max(tY, MX_SPAWN_BOUNDARY);
         const vB = Math.min(bY, PIANO_TOP);
         const vH = vB - vT;
@@ -208,13 +178,9 @@ export function startAutoSlowDown(scene) {
           fn.pianoBlock.setVisible(false);
         }
       }
-
-      // Piano highlight glow
       if (fn.pianoHighlight) {
         fn.pianoHighlight.setAlpha(bY >= PIANO_TOP - 100 && tY < PIANO_TOP ? 0.5 : 0);
       }
-
-      // Trigger audio when note reaches target line
       if (!fn.audioStarted && state.mxCurTime >= fn.startSec) {
         fn.audioStarted = true;
         if (state.mxPlaying) {
@@ -224,33 +190,68 @@ export function startAutoSlowDown(scene) {
           fn.audioKey = ak;
           playNote(ak, nn);
           const dur = fn.durationSec * 1000 / state.mxSpeed;
-          setTimeout(() => {
-            if (!fn.audioStopped) { stopNote(ak); fn.audioStopped = true; }
-          }, dur);
+          setTimeout(() => { if (!fn.audioStopped) { stopNote(ak); fn.audioStopped = true; } }, dur);
         }
       }
     }
-
-    // Compact the array
     state.mxFallingNotes = state.mxFallingNotes.filter(fn => !fn.deleted);
-
-    // Update solver visuals + scrubber
-    mxUpdateKeyboardNotes(scene, 0);
     mxUpdateShiftBlocks(scene, 0);
     updateScrubber();
   }
 
-  // ══════════════════════════════════════════════════════════
-  //  REGISTER LISTENERS — store refs on scene for cleanup
-  // ══════════════════════════════════════════════════════════
-
   scene.input.keyboard.on('keydown', onKeyDown);
   scene.input.keyboard.on('keyup', onKeyUp);
   scene.events.on('update', onUpdate);
-
-  // Store references so BeginnerScene.cleanupMode() can remove them
   scene._keydownHandler = onKeyDown;
   scene._keyupHandler = onKeyUp;
   scene._updateHandler = onUpdate;
 }
 
+/** Find which keyboard key the solver assigned to a note, if any */
+function _getAssignedKey(noteData, noteIndex) {
+  if (!state.solverReady || !state.solverNoteMap) return null;
+  const entry = state.solverNoteMap.get(noteIndex);
+  return entry ? entry.key : null;
+}
+
+/** Draw just the middle keyboard row */
+function _drawSingleRow(scene) {
+  state.keyObjects = {};
+  const rowY = rowYPositions[1];
+  const keys = ['a','s','d','f','g','h','j','k','l',';'];
+  const keyW = 67, kgap = 5;
+  const totalW = keys.length * keyW + (keys.length - 1) * kgap;
+  let x = 960 - totalW / 2;
+
+  for (const lk of keys) {
+    const isGreyed = (lk === 'g' || lk === 'h');
+    const noteInfo = isGreyed ? null : getNote(lk);
+    const isBlack = noteInfo && noteInfo.includes('#');
+    const fill = isGreyed ? colors.grayDark : (isBlack ? colors.grayDark : colors.white);
+    const stroke = isGreyed ? colors.gray : (isLeftKey(lk) ? colors.left : colors.right);
+    const portTop = rowY - PORT_HEIGHT / 2;
+    const portBottom = rowY + PORT_HEIGHT / 2;
+
+    if (noteInfo) {
+      scene.add.rectangle(x + keyW / 2, (portTop - ANTENNA_HEIGHT + portTop) / 2, ANTENNA_WIDTH, ANTENNA_HEIGHT, stroke, 0.4).setDepth(0);
+    }
+    const rect = scene.add.rectangle(x + keyW / 2, rowY, keyW - 6, PORT_HEIGHT - 6, fill);
+    rect.setStrokeStyle(4, stroke);
+    const lc = fill === colors.white ? '#000' : '#fff';
+    scene.add.text(x + keyW / 2, rowY - 12, lk.toUpperCase(), {
+      fontFamily: 'Rajdhani', fontSize: '16px', color: lc, fontStyle: 'bold',
+    }).setOrigin(0.5);
+    if (noteInfo && !isGreyed) {
+      const noteName = leftMap[lk] || rightMap[lk] || '';
+      scene.add.text(x + keyW / 2, rowY + 14, noteName, {
+        fontFamily: 'Rajdhani', fontSize: '14px', color: '#3b82f6', fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+    state.keyObjects[lk] = {
+      rect, fill, stroke, isBlack: !!isBlack, isFn: false,
+      centerX: x + keyW / 2, centerY: rowY, width: keyW, height: PORT_HEIGHT, rowIndex: 1,
+      antennaTop: portTop - ANTENNA_HEIGHT, antennaBottom: portTop, portTop, portBottom,
+    };
+    x += keyW + kgap;
+  }
+}

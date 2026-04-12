@@ -25,6 +25,14 @@ export function solvePlan(notes) {
   // Get current key mappings (supports custom remapping)
   const { leftKeys, rightKeys } = getSolverKeyArrays();
 
+  // If both hands cover all 12 chromatic notes (piano layout), semitone shifts
+  // are useless and actively harmful — restrict to semi=0 only.
+  const leftNiSet  = new Set(leftKeys.map(k => k.ni));
+  const rightNiSet = new Set(rightKeys.map(k => k.ni));
+  const fullRange  = leftNiSet.size === 12 && rightNiSet.size === 12;
+  const semiMin = fullRange ? 0 : SEMI_MIN;
+  const semiMax = fullRange ? 0 : SEMI_MAX;
+
   function keyForMidi(midi, hand, oct, semi) {
     const keys = hand === 'left' ? leftKeys : rightKeys;
     const target = midi - (oct + 1) * 12 - semi;
@@ -100,7 +108,7 @@ export function solvePlan(notes) {
     if (handNotes.length === 0) return [{ oct: -1, semi: 0, assignments: [] }];
     const results = [];
     for (let oct = 0; oct <= 7; oct++) {
-      for (let semi = SEMI_MIN; semi <= SEMI_MAX; semi++) {
+      for (let semi = semiMin; semi <= semiMax; semi++) {
         const assigns = [];
         const usedKeys = new Set();
         let valid = true;
@@ -164,6 +172,18 @@ export function solvePlan(notes) {
 
           // No crossing penalty (already filtered, but add soft cost for near-crossing)
           let assignCost = 0;
+
+          // Prefer high notes on right hand, low notes on left hand.
+          if (sol.needsLeft && !sol.needsRight) {
+            for (const midi of sol.leftMidis) {
+              if (midi > midMid) assignCost += 20;
+            }
+          } else if (!sol.needsLeft && sol.needsRight) {
+            for (const midi of sol.rightMidis) {
+              if (midi < midMid) assignCost += 20;
+            }
+          }
+
           if (sol.needsLeft && sol.needsRight) {
             const maxL = Math.max(...sol.leftMidis);
             const minR = Math.min(...sol.rightMidis);

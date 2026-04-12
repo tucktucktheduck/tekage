@@ -64,6 +64,8 @@ const colors = {
 export function updateColors(leftHex, rightHex) {
   skinManager.setColor('primary', leftHex);
   skinManager.setColor('secondary', rightHex);
+  document.documentElement.style.setProperty('--tl-blue', leftHex);
+  document.documentElement.style.setProperty('--tl-orange', rightHex);
 }
 
 export default colors;

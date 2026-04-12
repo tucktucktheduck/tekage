@@ -20,14 +20,13 @@ import { initAudio, playNote, stopNote } from '../audio/engine.js';
 import { getNote } from '../audio/noteMap.js';
 import { drawPiano, updateOct, pressKey, releaseKey } from '../ui/piano.js';
 import { createScrubber, updateScrubber } from '../ui/scrubber.js';
-import { createHubButtons } from '../ui/hubButtons.js';
-import { openMoreOverlay } from '../ui/moreOverlay.js';
 import { createStatsPanel, updateStatsPanel } from '../ui/statsPanel.js';
-import { mxTogglePlay, mxToggleMute, mxToggleVolSlider, mxToggleSpdSlider, mxShowMusicMap, mxUpdateButtons } from '../musicxml/controls.js';
+import { mxTogglePlay, mxUpdateButtons } from '../musicxml/controls.js';
 import { mxUpdateFallingNotes } from '../musicxml/playback.js';
-import { mxUpdateKeyboardNotes, mxUpdateShiftBlocks } from '../solver/solverVisuals.js';
+import { mxUpdateKeyboardNotes, mxUpdateShiftBlocks, mxUpdateAutoShift, solverPrepareBlocks } from '../solver/solverVisuals.js';
 import { updateGlowEffects } from '../scoring/glowEffect.js';
 import { judgeNote, GOOD_WINDOW } from '../scoring/timingJudge.js';
+import { notifyAutoSlowHit } from '../musicxml/autoSlowDown.js';
 import { midiToNoteName } from '../audio/engine.js';
 import { StarfieldBackground } from './StarfieldBackground.js';
 import { BackgroundManager } from './BackgroundManager.js';
@@ -80,43 +79,32 @@ export function create() {
   title.setStroke('#3b9eff', 1.5);
   title.setDepth(20);
 
-  // ── HUB BUTTONS (Play/Beginner/More) ──
-  createHubButtons(s, {
-    onUpload: () => document.getElementById('mxFileInput').click(),
-    onLibrary: () => { window.location.href = '/library.html'; },
-    onBeginner: () => s.scene.start('BeginnerScene'),
-    onMore: () => openMoreOverlay(),
+  // ── LEFT PANEL: PLAY + BEGINNER buttons ──
+  const _makeLBtn = (y, label, color, fn) => {
+    const btn = s.add.text(54, y, label, {
+      fontFamily: 'Orbitron', fontSize: '15px', color,
+      fontStyle: 'bold', padding: { x: 10, y: 6 },
+    }).setOrigin(0.5, 0.5).setDepth(20).setInteractive({ useHandCursor: true });
+    btn.setShadow(0, 0, color, 8, false, true);
+    btn.setStroke(color, 0.5);
+    btn.on('pointerover',  () => btn.setShadow(0, 0, color, 18, false, true));
+    btn.on('pointerout',   () => btn.setShadow(0, 0, color, 8,  false, true));
+    btn.on('pointerdown',  fn);
+    return btn;
+  };
+  state._btnPlay     = _makeLBtn(460, '▶ PLAY',    '#3b9eff', () => {
+    if (!state.mxLoaded) {
+      window.location.href = '/library.html';
+    } else {
+      mxTogglePlay();
+    }
   });
-
-  // ── RIGHT BUTTONS (MusicXML controls — hidden until song loaded) ──
-  const rightBtnX = 1920 - 50 - 100;
-  const btnW = 200, btnH = 55;
-  const rightSpacing = btnH + 12;
-  const middleRowY = rowYPositions[1];
-  const rightStartY = middleRowY - rightSpacing * 2.5;
-
-  function makeRightBtn(idx, label, strokeColor, cb) {
-    const y = rightStartY + idx * rightSpacing;
-    const btn = s.add.rectangle(rightBtnX, y, btnW, btnH, colors.black).setInteractive();
-    btn.setStrokeStyle(3, strokeColor);
-    const txt = s.add.text(rightBtnX, y, label, {
-      fontFamily: 'Rajdhani', fontSize: '22px', color: '#fff', fontStyle: 'bold',
-    }).setOrigin(0.5);
-    btn.on('pointerdown', cb);
-    return { btn, txt };
-  }
-
-  const r1 = makeRightBtn(1, '▶ PLAY', colors.right, () => mxTogglePlay());
-  state.btnPlay = r1.btn; state.btnPlayText = r1.txt;
-  const r2 = makeRightBtn(2, '🔊 MUTE', colors.left, () => mxToggleMute());
-  state.btnMute = r2.btn; state.btnMuteText = r2.txt;
-  const r3 = makeRightBtn(3, '🔉 VOLUME', colors.right, () => mxToggleVolSlider());
-  state.btnVolume = r3.btn; state.btnVolumeText = r3.txt;
-  const r4 = makeRightBtn(4, '🗺 MAP', colors.left, () => { if (state.mxLoaded) mxShowMusicMap(); });
-  state.btnMap = r4.btn; state.btnMapText = r4.txt;
-  const r5 = makeRightBtn(5, '⏩ SPEED', colors.right, () => mxToggleSpdSlider());
-  state.btnSpeed = r5.btn; state.btnSpeedText = r5.txt;
-  mxUpdateButtons();
+  state._btnBeginner = _makeLBtn(510, 'BEGINNER',  '#f59e0b', () => {
+    if (window.__tekageGame) {
+      state.beginnerMode = null;
+      window.__tekageGame.scene.start('BeginnerScene');
+    }
+  });
 
   // ── STATS PANEL ──
   createStatsPanel(s);
@@ -128,6 +116,14 @@ export function create() {
   drawPiano(s);
   drawNeonPianoOverlay(s);
   createScrubber(s);
+
+  // ── Re-initialize solver visuals if song was loaded before scene was ready ──
+  // (happens when navigating back from library.html — file loads before Phaser boots)
+  if (state.mxLoaded && state.solverReady) {
+    updateOct(s);
+    solverPrepareBlocks(s);
+    mxUpdateButtons();
+  }
 
   // ── KEY INPUT ──
   s.input.keyboard.on('keydown', e => {
@@ -154,11 +150,6 @@ export function create() {
     if (k === 'shift_l') { state.octaveLeft = Math.max(0, state.octaveLeft - 1); updateOct(s); return; }
     if (k === 'enter') { state.octaveRight = Math.min(7, state.octaveRight + 1); updateOct(s); return; }
     if (k === 'shift_r') { state.octaveRight = Math.max(0, state.octaveRight - 1); updateOct(s); return; }
-    // Semitone shifts
-    if (k === 'q') { state.semitoneLeft += 1; updateOct(s); return; }
-    if (k === 'a') { state.semitoneLeft -= 1; updateOct(s); return; }
-    if (k === 'p') { state.semitoneRight += 1; updateOct(s); return; }
-    if (k === ';') { state.semitoneRight -= 1; updateOct(s); return; }
 
     if (e.repeat) return;
     if (!state.keyObjects[k]) return;
@@ -218,6 +209,7 @@ export function create() {
       if (bestIdx >= 0) {
         const quality = judgeNote(bestIdx, state.mxCurTime);
         if (state._kbGlow) state._kbGlow.flashAccuracy(k, quality);
+        notifyAutoSlowHit(quality);
       }
     }
   });
@@ -257,6 +249,7 @@ export function update(time, delta) {
   mxUpdateFallingNotes(this, delta);
   mxUpdateKeyboardNotes(this, delta);
   mxUpdateShiftBlocks(this, delta);
+  mxUpdateAutoShift();
   updateScrubber();
   updateStatsPanel();
   updateGlowEffects();

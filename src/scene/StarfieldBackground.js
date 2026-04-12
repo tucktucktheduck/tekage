@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════
-//  STARFIELD BACKGROUND
-//  Default background matching tekage-ui.jsx aesthetic:
-//    • Dark radial gradient base (#0a0a14 center → #000 edge)
-//    • Slow-drifting parallax stars with twinkle animation
-//    • Used when no custom background skin is set
+//  SPACE BACKGROUND
+//  Procedurally generated deep-space scene:
+//    • Seeded PRNG (mulberry32) — different layout each load
+//    • 3840×2160 canvas: nebulas, star dust, mid stars, bright stars
+//    • Slow diagonal pan across canvas
 //
-//  Usage:
+//  Usage (unchanged from original):
 //    import { StarfieldBackground } from './StarfieldBackground.js';
 //    const starfield = new StarfieldBackground();
 //    starfield.init(scene);          // call in create()
@@ -14,122 +14,245 @@
 //    starfield.destroy();            // cleanup
 // ═══════════════════════════════════════════════════════════
 
-const LAYER_CONFIG = [
-  { count: 100, minSize: 0.5, maxSize: 1.0, speed: 3,  alpha: 0.2, color: 0xffffff },  // far — very dim
-  { count: 60,  minSize: 0.8, maxSize: 1.5, speed: 6,  alpha: 0.35, color: 0xffffff }, // mid
-  { count: 25,  minSize: 1.2, maxSize: 2.5, speed: 10, alpha: 0.55, color: 0xd0d8ff }, // near — brighter, slight blue
-];
+import { PIANO_LEFT, PIANO_WIDTH } from '../core/constants.js';
 
 const DEPTH = -10;
 
-export class StarfieldBackground {
-  constructor() {
-    this._layers = [];   // array of { config, stars: Circle[] }
-    this._scene = null;
-    this._visible = true;
-    this._bg = null;      // radial gradient background image
+const CANVAS_W = 3840;
+const CANVAS_H = 2160;
+
+
+// Game interface dimmer bounds — covers keyboard + note fall area.
+// Nebulas are visible at left/right margins outside these bounds.
+const DIMMER_X = PIANO_LEFT;
+const DIMMER_W = PIANO_WIDTH;
+
+const PAN_SPEED = 8; // px/sec in canvas space
+
+function mulberry32(seed) {
+  return () => {
+    let t = (seed += 0x6D2B79F5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function _generate(seed) {
+  const rand = mulberry32(seed);
+  const c = document.createElement('canvas');
+  c.width = CANVAS_W;
+  c.height = CANVAS_H;
+  const ctx = c.getContext('2d');
+
+  // ── Base fill ──────────────────────────────────────────────
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+
+  // ── Star dust (2500 tiny stars) ────────────────────────────
+  for (let i = 0; i < 2500; i++) {
+    const sx = rand() * CANVAS_W;
+    const sy = rand() * CANVAS_H;
+    const alpha = 0.1 + rand() * 0.2;
+    ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.fillRect(sx, sy, 1, 1);
   }
 
-  /**
-   * Create background + all star layers. Call once in scene.create().
-   * @param {Phaser.Scene} scene
-   */
+  // ── Mid stars (400 stars) ──────────────────────────────────
+  for (let i = 0; i < 400; i++) {
+    const sx = rand() * CANVAS_W;
+    const sy = rand() * CANVAS_H;
+    const size = 0.8 + rand() * 1.0;
+    const alpha = 0.4 + rand() * 0.4;
+    const isYellow = rand() < 0.3;
+    const color = isYellow ? `rgba(255,217,61,${alpha.toFixed(2)})` : `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(sx, sy, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── Bright stars (60 stars with halos) ────────────────────
+  for (let i = 0; i < 60; i++) {
+    const sx = rand() * CANVAS_W;
+    const sy = rand() * CANVAS_H;
+    const size = 1.5 + rand() * 1.5;
+    const alpha = 0.7 + rand() * 0.3;
+    const isYellow = rand() < 0.3;
+    const r = isYellow ? 255 : 255;
+    const g = isYellow ? 217 : 255;
+    const b = isYellow ? 61 : 255;
+
+    // Glow halo
+    const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, size * 3);
+    halo.addColorStop(0, `rgba(${r},${g},${b},${(alpha * 0.5).toFixed(2)})`);
+    halo.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(sx, sy, size * 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cross-hairs for largest stars
+    if (size > 2.5) {
+      ctx.strokeStyle = `rgba(${r},${g},${b},${(alpha * 0.4).toFixed(2)})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(sx - size * 4, sy);
+      ctx.lineTo(sx + size * 4, sy);
+      ctx.moveTo(sx, sy - size * 4);
+      ctx.lineTo(sx, sy + size * 4);
+      ctx.stroke();
+    }
+  }
+
+  return c;
+}
+
+export class StarfieldBackground {
+  constructor() {
+    this._scene = null;
+    this._image = null;
+    this._scrim = null;  // dark overlay above bg, below game elements
+    this._visible = true;
+    this._cx = CANVAS_W / 2;
+    this._cy = CANVAS_H / 2;
+    this._targetCx = CANVAS_W / 2;
+    this._targetCy = CANVAS_H / 2;
+    this._seed = Date.now() | 0;
+    this._elapsed = 0;  // total seconds, for smooth sine rotation
+  }
+
   init(scene) {
     this._scene = scene;
 
-    // ── Dark radial gradient background (matching JSX) ──
-    const bgKey = '__starfield_bg__';
-    if (!scene.textures.exists(bgKey)) {
-      const c = document.createElement('canvas');
-      c.width = 1920; c.height = 1080;
-      const ctx = c.getContext('2d');
-      const g = ctx.createRadialGradient(960, 540, 100, 960, 540, 900);
-      g.addColorStop(0, '#0a0a14');
-      g.addColorStop(1, '#000000');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 1920, 1080);
-      scene.textures.addCanvas(bgKey, c);
+    const texKey = '__space_bg__';
+    if (scene.textures.exists(texKey)) scene.textures.remove(texKey);
+    const canvas = _generate(this._seed);
+    scene.textures.addCanvas(texKey, canvas);
+
+    this._image = scene.add.image(0, 0, texKey);
+    this._image.setDepth(DEPTH - 1);
+    this._image.setOrigin(0.5, 0.5);
+
+    // Start at center of canvas
+    // image.x = 2880 - cx  (where cx is canvas x mapped to screen center 960)
+    // image.y = 1620 - cy  (where cy is canvas y mapped to screen center 540)
+    this._cx = CANVAS_W / 2;   // 1920
+    this._cy = CANVAS_H / 2;   // 1080
+    this._image.x = 2880 - this._cx;  // 960 — screen center
+    this._image.y = 1620 - this._cy;  // 540 — screen center
+
+    this._pickNewTarget();
+
+    // ── Game interface dimmer (soft vignette) ─────────────────
+    // A gradient shadow over the keyboard + note area.
+    // Fades to transparent at all edges — no hard lines.
+    // Stops before the piano so the piano area is fully undimmed.
+    // Depth -10: above bg (-11), below portals (-5) and notes (3+).
+    const dimKey = '__space_dimmer__';
+    if (scene.textures.exists(dimKey)) scene.textures.remove(dimKey);
+    {
+      const W = 1920, H = 1080;
+      const PIANO_TOP_Y = 1080 - 40 - 140; // matches PIANO_TOP constant (~900)
+      const FADE = 320; // px to fade on left/right edges — wide, gradual feather
+      const FADE_TOP = 180; // px to fade at top
+      const FADE_BOT = 220; // px to fade into piano area at bottom
+      const PEAK = 0.50; // max opacity at center — slightly darker now outside is dimmer
+
+      const dc = document.createElement('canvas');
+      dc.width = W; dc.height = H;
+      const dctx = dc.getContext('2d');
+
+      // Pass 1: draw the full dimmer band with left/right horizontal fade
+      const gH = dctx.createLinearGradient(DIMMER_X, 0, DIMMER_X + DIMMER_W, 0);
+      gH.addColorStop(0,                    'rgba(0,0,0,0)');
+      gH.addColorStop(FADE / DIMMER_W,      `rgba(0,0,0,${PEAK})`);
+      gH.addColorStop(1 - FADE / DIMMER_W,  `rgba(0,0,0,${PEAK})`);
+      gH.addColorStop(1,                    'rgba(0,0,0,0)');
+      dctx.fillStyle = gH;
+      dctx.fillRect(DIMMER_X, 0, DIMMER_W, PIANO_TOP_Y);
+
+      // Pass 2 & 3: erase top and bottom edges using destination-out.
+      // destination-out subtracts alpha — source alpha=1 fully erases, 0 leaves intact.
+      dctx.globalCompositeOperation = 'destination-out';
+
+      // Top erase: fully transparent at y=0, no erase by y=FADE_TOP
+      const gT = dctx.createLinearGradient(0, 0, 0, FADE_TOP);
+      gT.addColorStop(0, 'rgba(0,0,0,1)');
+      gT.addColorStop(1, 'rgba(0,0,0,0)');
+      dctx.fillStyle = gT;
+      dctx.fillRect(DIMMER_X, 0, DIMMER_W, FADE_TOP);
+
+      // Bottom erase: no erase at (PIANO_TOP_Y - FADE_BOT), fully transparent at PIANO_TOP_Y
+      const gB = dctx.createLinearGradient(0, PIANO_TOP_Y - FADE_BOT, 0, PIANO_TOP_Y);
+      gB.addColorStop(0, 'rgba(0,0,0,0)');
+      gB.addColorStop(1, 'rgba(0,0,0,1)');
+      dctx.fillStyle = gB;
+      dctx.fillRect(DIMMER_X, PIANO_TOP_Y - FADE_BOT, DIMMER_W, FADE_BOT);
+
+      dctx.globalCompositeOperation = 'source-over';
+
+      scene.textures.addCanvas(dimKey, dc);
     }
-    this._bg = scene.add.image(960, 540, bgKey);
-    this._bg.setDepth(DEPTH - 1);
-
-    // ── Stars ──
-    for (const config of LAYER_CONFIG) {
-      const stars = [];
-      for (let i = 0; i < config.count; i++) {
-        const x = Math.random() * 1920;
-        const y = Math.random() * 1080;
-        const size = config.minSize + Math.random() * (config.maxSize - config.minSize);
-        const alpha = config.alpha * (0.3 + Math.random() * 0.7);
-
-        const star = scene.add.circle(x, y, size, config.color, alpha);
-        star.setDepth(DEPTH);
-
-        // Per-star animation data
-        star._sf = {
-          baseAlpha: alpha,
-          twinkleSpeed: 0.4 + Math.random() * 1.5,
-          twinklePhase: Math.random() * Math.PI * 2,
-          driftX: (Math.random() - 0.5) * config.speed * 0.3,
-          driftY: config.speed * (0.2 + Math.random() * 0.5),
-        };
-
-        stars.push(star);
-      }
-      this._layers.push({ config, stars });
-    }
+    this._scrim = scene.add.image(0, 0, dimKey).setOrigin(0, 0).setDepth(DEPTH);
   }
 
-  /**
-   * Animate stars — drift + twinkle. Call in scene.update().
-   */
+  _pickNewTarget() {
+    // cx = canvas x mapped to screen center; must stay in [960, CANVAS_W-960]
+    // With 200px margin: [1160, 2680]; cy similarly with 100px margin
+    const minCx = 960 + 200;
+    const maxCx = CANVAS_W - 960 - 200;
+    const minCy = 540 + 100;
+    const maxCy = CANVAS_H - 540 - 100;
+    this._targetCx = minCx + Math.random() * (maxCx - minCx);
+    this._targetCy = minCy + Math.random() * (maxCy - minCy);
+  }
+
   update(time, delta) {
-    if (!this._visible || !this._scene) return;
+    if (!this._visible || !this._image) return;
     const dt = delta / 1000;
-    const t = time / 1000;
+    this._elapsed += dt;
 
-    for (const layer of this._layers) {
-      for (const star of layer.stars) {
-        const sf = star._sf;
+    // ── Pan toward target ──────────────────────────────────────
+    const dx = this._targetCx - this._cx;
+    const dy = this._targetCy - this._cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Drift
-        star.x += sf.driftX * dt;
-        star.y += sf.driftY * dt;
-
-        // Wrap around edges
-        if (star.x < -5) star.x = 1925;
-        if (star.x > 1925) star.x = -5;
-        if (star.y > 1085) {
-          star.y = -5;
-          star.x = Math.random() * 1920;
-        }
-        if (star.y < -5) star.y = 1085;
-
-        // Twinkle
-        const twinkle = 0.5 + 0.5 * Math.sin(t * sf.twinkleSpeed * Math.PI * 2 + sf.twinklePhase);
-        star.setAlpha(sf.baseAlpha * (0.3 + twinkle * 0.7));
-      }
+    if (dist < 50) {
+      this._pickNewTarget();
+    } else {
+      const step = PAN_SPEED * dt;
+      this._cx += (dx / dist) * step;
+      this._cy += (dy / dist) * step;
     }
+
+    this._image.x = 2880 - this._cx;
+    this._image.y = 1620 - this._cy;
+
+    // ── Floating rotation: two overlapping sine waves ──────────
+    // Primary: ±3° over 90s; secondary: ±1.2° over 47s — drifts
+    // without repeating, giving organic float rather than clock tick.
+    const rot = (3 * Math.PI / 180) * Math.sin(this._elapsed * 2 * Math.PI / 90)
+              + (1.2 * Math.PI / 180) * Math.sin(this._elapsed * 2 * Math.PI / 47);
+    this._image.setRotation(rot);
   }
 
-  /** Show or hide the starfield */
   setVisible(visible) {
     this._visible = visible;
-    if (this._bg) this._bg.setVisible(visible);
-    for (const layer of this._layers) {
-      for (const star of layer.stars) {
-        star.setVisible(visible);
-      }
-    }
+    if (this._image) this._image.setVisible(visible);
+    if (this._scrim) this._scrim.setVisible(visible);
   }
 
-  /** Full cleanup */
   destroy() {
-    if (this._bg) { this._bg.destroy(); this._bg = null; }
-    for (const layer of this._layers) {
-      for (const star of layer.stars) star.destroy();
-    }
-    this._layers = [];
+    if (this._image) { this._image.destroy(); this._image = null; }
+    if (this._scrim) { this._scrim.destroy(); this._scrim = null; }
     this._scene = null;
   }
 }

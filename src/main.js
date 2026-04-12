@@ -9,6 +9,7 @@ import skinManager from './skin/SkinManager.js';
 import { initSkinEditor } from './ui/skinEditor.js';
 skinManager.loadDefaultSkin();
 import { create, update } from './scene/MainScene.js';
+import { initBeginnerOverlay } from './ui/beginnerOverlay.js';
 
 import BeginnerScene from './scene/BeginnerScene.js';
 import { mxHandleFile, mxConfirmPart } from './musicxml/fileHandler.js';
@@ -42,17 +43,38 @@ const config = {
   scene: [MainScene, BeginnerScene],
 };
 
-const game = new Phaser.Game(config);
-window.__tekageGame = game; // exposed for skinEditor scene restart
+// Wait for web fonts (Orbitron, Rajdhani) before Phaser renders any text
+document.fonts.ready.then(() => {
+  const game = new Phaser.Game(config);
+  window.__tekageGame = game; // exposed for skinEditor scene restart
 
-// Init skin editor DOM after a tick so HTML is guaranteed ready
-setTimeout(() => initSkinEditor(), 0);
+  // Init skin editor and beginner overlay DOM after a tick
+  setTimeout(() => { initSkinEditor(); initBeginnerOverlay(); }, 0);
 
-// Restart current scene when a .tkp is loaded to apply new visuals
-skinManager.on('skinLoaded', () => {
-  const activeScenes = game.scene.getScenes(true);
-  if (activeScenes.length > 0) activeScenes[0].scene.restart();
+  // Restart current scene when a .tkp is loaded to apply new visuals
+  skinManager.on('skinLoaded', () => {
+    const activeScenes = game.scene.getScenes(true);
+    if (activeScenes.length > 0) activeScenes[0].scene.restart();
+  });
 });
+
+// ── Auto-load local file uploaded from library page (via sessionStorage) ──
+(function checkPendingUpload() {
+  const name = sessionStorage.getItem('pendingUploadName');
+  const data = sessionStorage.getItem('pendingUploadData');
+  if (!name || !data) return;
+  sessionStorage.removeItem('pendingUploadName');
+  sessionStorage.removeItem('pendingUploadData');
+  try {
+    const binary = atob(data);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const file = new File([bytes], name);
+    mxHandleFile({ files: [file] });
+  } catch (e) {
+    console.error('[Upload] Failed to load pending file', e);
+  }
+})();
 
 // ── Auto-load file from library (reads ?file= query param on boot) ──
 (function checkUrlFile() {

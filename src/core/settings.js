@@ -8,6 +8,9 @@ const settings = {
   /** Show the 88-key piano at the bottom */
   pianoVisualizerOn: true,
 
+  /** Opacity of the piano range overlay (left/right hand highlights) */
+  pianoVisualizerOpacity: 0.3,
+
   /** Show falling note blocks (off = blind mode) */
   fallingBlocksOn: true,
 
@@ -25,6 +28,15 @@ const settings = {
 
   /** Auto-shift: when ON, shift blocks apply automatically */
   autoShiftOn: false,
+
+  /** Auto slow down: when ON, time slows when notes are overdue at the hit line */
+  autoSlowDownOn: false,
+
+  /** Advanced keyboard mode: smaller keys, q/a/p/; become note keys */
+  advancedMode: false,
+
+  /** Beginner mode: auto-shift applies automatically */
+  beginnerAutoShift: true,
 
   /** In/out loop range (null = no loop) */
   loopIn: null,  // seconds

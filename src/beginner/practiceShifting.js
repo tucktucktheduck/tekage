@@ -6,42 +6,19 @@
 
 import state from '../core/state.js';
 import colors from '../core/colors.js';
-import { PIANO_TOP, PIANO_LEFT, PIANO_WIDTH, FALL_SPEED, ANTENNA_BLOCK_WIDTH } from '../core/constants.js';
-import { drawFullKeyboard, wireKeyboardInput } from '../ui/sharedKeyboard.js';
+import { PIANO_TOP, FALL_SPEED, ANTENNA_BLOCK_WIDTH } from '../core/constants.js';
+import { wireKeyboardInput } from '../ui/sharedKeyboard.js';
 import { initAudio, playNote, stopNote } from '../audio/engine.js';
 import { pressKey, releaseKey, updateOct, updateRanges } from '../ui/piano.js';
 import { getNote } from '../audio/noteMap.js';
 
 export function startPracticeShifting(scene) {
-  scene.children.removeAll();
-  scene.cameras.main.setBackgroundColor('#000');
-
-  scene.add.text(960, 60, 'PRACTICE SHIFTING', { fontFamily: 'Orbitron', fontSize: '36px', color: '#fff' }).setOrigin(0.5);
-
-  const modes = [
-    { label: '🎯 Get to the Dot', desc: 'A dot appears — shift to cover it ASAP', key: 'dot' },
-    { label: '⬇️ Random Shift Blocks', desc: 'Falling blocks on shift keys only', key: 'blocks' },
-  ];
-
-  modes.forEach((mode, i) => {
-    const y = 200 + i * 100;
-    const btn = scene.add.rectangle(960, y, 500, 70, 0x0f0f1e).setInteractive();
-    btn.setStrokeStyle(2, 0xec4899);
-    scene.add.text(960, y - 10, mode.label, { fontFamily: 'Rajdhani', fontSize: '24px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-    scene.add.text(960, y + 16, mode.desc, { fontFamily: 'Rajdhani', fontSize: '14px', color: '#94a3b8' }).setOrigin(0.5);
-    btn.on('pointerdown', () => { if (mode.key === 'dot') launchGetToDot(scene); else launchRandomShiftBlocks(scene); });
-  });
-
-  const backBtn = scene.add.rectangle(960, 440, 150, 40, 0x000000).setInteractive();
-  backBtn.setStrokeStyle(2, 0x9333ea);
-  scene.add.text(960, 440, '← BACK', { fontFamily: 'Rajdhani', fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-  backBtn.on('pointerdown', () => scene.scene.start('BeginnerScene'));
+  // Keyboard + piano already rendered by BeginnerScene.launchMode()
+  // Launch Get to the Dot directly
+  launchGetToDot(scene);
 }
 
 function launchGetToDot(scene) {
-  scene.children.removeAll();
-  drawFullKeyboard(scene);
-
   wireKeyboardInput(scene, {
     audio: { initAudio, playNote, stopNote },
     piano: { pressKey, releaseKey },
@@ -96,17 +73,9 @@ function launchGetToDot(scene) {
       spawnDot();
     }
   });
-
-  const backBtn = scene.add.rectangle(100, 1050, 120, 30, 0x000000).setInteractive().setDepth(30);
-  backBtn.setStrokeStyle(2, 0x9333ea);
-  scene.add.text(100, 1050, '← BACK', { fontFamily: 'Rajdhani', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  backBtn.on('pointerdown', () => scene.scene.start('BeginnerScene'));
 }
 
 function launchRandomShiftBlocks(scene) {
-  scene.children.removeAll();
-  drawFullKeyboard(scene);
-
   wireKeyboardInput(scene, {
     audio: { initAudio, playNote, stopNote },
     piano: { pressKey, releaseKey },
@@ -167,9 +136,4 @@ function launchRandomShiftBlocks(scene) {
     }
     fallingBlocks = fallingBlocks.filter(fb => !fb.deleted);
   });
-
-  const backBtn = scene.add.rectangle(100, 1050, 120, 30, 0x000000).setInteractive().setDepth(30);
-  backBtn.setStrokeStyle(2, 0x9333ea);
-  scene.add.text(100, 1050, '← BACK', { fontFamily: 'Rajdhani', fontSize: '16px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5).setDepth(30);
-  backBtn.on('pointerdown', () => scene.scene.start('BeginnerScene'));
 }

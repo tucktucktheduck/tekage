@@ -202,10 +202,6 @@ export function mxUpdateShiftBlocks(scene, delta) {
       if (sb.antennaBlock) sb.antennaBlock.destroy();
       if (sb.portBlock) sb.portBlock.destroy();
       if (sb.tailBlock) { sb.tailBlock.destroy(); sb.tailBlock = null; }
-      if (settings.autoShiftOn && !sb.fired) {
-        sb.fired = true;
-        applyShift(sb);
-      }
       sb.deleted = true;
       continue;
     }
@@ -280,22 +276,50 @@ export function solverPrepareBlocks(scene) {
 
 
 
-// ── AUTO-SHIFT HELPER ──
-function applyShift(sb) {
-  if (!state.mxScene) return;
-  if (sb.hand === 'left') {
-    if (sb.action === 'octave+') state.octaveLeft = Math.min(7, state.octaveLeft + 1);
-    else if (sb.action === 'octave-') state.octaveLeft = Math.max(0, state.octaveLeft - 1);
-    else if (sb.action === 'semi+') state.semitoneLeft += 1;
-    else if (sb.action === 'semi-') state.semitoneLeft -= 1;
-    // Fallback: if shift entry just has a numeric delta
-    else if (typeof sb.delta === 'number') state.octaveLeft = Math.min(7, Math.max(0, state.octaveLeft + sb.delta));
-  } else {
-    if (sb.action === 'octave+') state.octaveRight = Math.min(7, state.octaveRight + 1);
-    else if (sb.action === 'octave-') state.octaveRight = Math.max(0, state.octaveRight - 1);
-    else if (sb.action === 'semi+') state.semitoneRight += 1;
-    else if (sb.action === 'semi-') state.semitoneRight -= 1;
-    else if (typeof sb.delta === 'number') state.octaveRight = Math.min(7, Math.max(0, state.octaveRight + sb.delta));
+// ── TIMELINE-BASED AUTO-SHIFT ──
+
+/**
+ * Called every frame during playback. Advances through stateTimeline,
+ * applying any entries whose timeSec has been passed.
+ */
+export function mxUpdateAutoShift() {
+  if (!settings.autoShiftOn || !state.solverReady) return;
+  const tl = state.solverStateTimeline;
+  if (!tl || !tl.length) return;
+
+  let changed = false;
+  while (state._autoShiftIdx < tl.length && state.mxCurTime >= tl[state._autoShiftIdx].timeSec) {
+    const e = tl[state._autoShiftIdx];
+    state.octaveLeft    = e.leftOctave;
+    state.octaveRight   = e.rightOctave;
+    state.semitoneLeft  = e.leftSemitone;
+    state.semitoneRight = e.rightSemitone;
+    state._autoShiftIdx++;
+    changed = true;
   }
-  updateOct(state.mxScene);
+  if (changed && state.mxScene) updateOct(state.mxScene);
+}
+
+/**
+ * Called on song load or scrubber seek. Finds the correct timeline
+ * snapshot for the given time, applies it if autoShiftOn, and sets
+ * _autoShiftIdx so future frames continue from the right position.
+ */
+export function mxResetAutoShiftToTime(t) {
+  const tl = state.solverStateTimeline;
+  if (!tl || !tl.length) { state._autoShiftIdx = 0; return; }
+
+  // Find last timeline entry at or before t
+  let idx = 0;
+  while (idx < tl.length - 1 && tl[idx + 1].timeSec <= t) idx++;
+  state._autoShiftIdx = idx + 1; // next entry to apply going forward
+
+  if (settings.autoShiftOn) {
+    const e = tl[idx];
+    state.octaveLeft    = e.leftOctave;
+    state.octaveRight   = e.rightOctave;
+    state.semitoneLeft  = e.leftSemitone;
+    state.semitoneRight = e.rightSemitone;
+    if (state.mxScene) updateOct(state.mxScene);
+  }
 }

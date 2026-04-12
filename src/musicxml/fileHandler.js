@@ -9,10 +9,12 @@ import { unzip } from '../core/unzip.js';
 import { mxParseMusicXML } from './parser.js';
 import { parseMidi } from './midiParser.js';
 import { solvePlan } from '../solver/dagSolver.js';
-import { solverBuildLookups, solverPrepareBlocks } from '../solver/solverVisuals.js';
+import { solverBuildLookups, solverPrepareBlocks, mxResetAutoShiftToTime } from '../solver/solverVisuals.js';
+import { resetAutoSlowDown } from './autoSlowDown.js';
 import { mxClearFallingNotes } from './playback.js';
 import { mxClearSolverBlocks } from '../solver/solverVisuals.js';
 import { mxUpdateButtons } from './controls.js';
+import { showTeklet } from '../ui/moreOverlay.js';
 import { updateOct } from '../ui/piano.js';
 
 export function mxHandleFile(input) {
@@ -136,6 +138,7 @@ export function mxSelectPart(idx) {
   state.solverStateTimeline = result.stateTimeline;
   state.solverStats = result.stats;
   state.solverReady = true;
+  state._autoShiftIdx = 0;
   solverBuildLookups(state.solverPlan);
 
   if (state.solverInitialState) {
@@ -146,17 +149,26 @@ export function mxSelectPart(idx) {
     if (state.mxScene) updateOct(state.mxScene);
   }
 
+  // Prime the auto-shift index and reset slow-down state
+  mxResetAutoShiftToTime(state.mxCurTime);
+  resetAutoSlowDown();
+
   if (state.mxScene) solverPrepareBlocks(state.mxScene);
 
   mxUpdateButtons();
-  if (state.btnPlayText) state.btnPlayText.setText('▶ PLAY');
 
-  // Switch to main scene if currently in another scene
-  if (state.game) {
-    const sceneManager = state.game.scene;
-    if (sceneManager && !sceneManager.isActive('MainScene')) {
-      sceneManager.stop('LibraryScene');
-      sceneManager.start('MainScene');
+  // Switch to main scene if currently in another scene, UNLESS we're in BeginnerScene
+  if (window.__tekageGame) {
+    const sceneManager = window.__tekageGame.scene;
+    const inBeginner = sceneManager && sceneManager.isActive('BeginnerScene');
+    if (!inBeginner) {
+      showTeklet();
+      if (sceneManager && !sceneManager.isActive('MainScene')) {
+        sceneManager.stop('LibraryScene');
+        sceneManager.start('MainScene');
+      }
     }
+  } else {
+    showTeklet();
   }
 }

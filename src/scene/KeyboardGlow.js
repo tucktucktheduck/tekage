@@ -21,9 +21,10 @@
 import state from '../core/state.js';
 import colors, { intToHex } from '../core/colors.js';
 import {
-  keyboardLayout, keyGap, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH,
-  rowYPositions,
+  keyGap, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH,
+  rowYPositions, getKeyboardLayout,
 } from '../core/constants.js';
+import settings from '../core/settings.js';
 import { leftMap, rightMap, isLeftKey } from '../core/keyMapping.js';
 import { getNote } from '../audio/noteMap.js';
 import { getGlowKey, getJunctionKey, getAmbientKey } from './GlowTextures.js';
@@ -36,9 +37,9 @@ const DEPTH_JUNCTION = 3;
 const DEPTH_PRESS_GLOW = 4;
 
 // Fn keys that are visually on the LEFT side of the keyboard
-const FN_LEFT_SET = new Set(['tab', 'q', 'a', 'shift_l']);
+const FN_LEFT_SET = new Set(['tab', 'shift_l']);
 // Fn keys that are visually on the RIGHT side of the keyboard
-const FN_RIGHT_SET = new Set(['enter', 'p', ';', 'shift_r']);
+const FN_RIGHT_SET = new Set(['enter', 'shift_r']);
 
 /**
  * Determine if a key is visually on the left side.
@@ -75,8 +76,10 @@ export class KeyboardGlow {
     // ── Draw row connector bars first (behind everything) ──
     this._drawRowBars(scene, leftInt, rightInt);
 
+    const layout = getKeyboardLayout(settings.advancedMode);
+
     // ── Build per-key visuals ──
-    keyboardLayout.forEach((row, ri) => {
+    layout.forEach((row, ri) => {
       let x = row.startX;
       row.keys.forEach((keyData) => {
         let lk;
@@ -88,8 +91,7 @@ export class KeyboardGlow {
         const noteInfo = isGreyed ? null : getNote(lk);
         const isShiftL = keyData.key === 'ShiftL', isShiftR = keyData.key === 'ShiftR';
         const isShift = isShiftL || isShiftR;
-        const isFn = keyData.key === 'Tab' || keyData.key === 'Enter' || isShift ||
-                     lk === 'q' || lk === 'a' || lk === 'p' || lk === ';';
+        const isFn = keyData.key === 'Tab' || keyData.key === 'Enter' || isShift;
 
         const centerX = x + keyData.w / 2;
         const keyY = row.y;
@@ -240,16 +242,6 @@ export class KeyboardGlow {
             objs.noteLabel = noteLabel;
           }
 
-          // Fn key sub-labels
-          if (lk === 'q' || lk === 'a') {
-            scene.add.text(centerX, keyY + 14, lk === 'q' ? '+1' : '-1', {
-              fontFamily: 'Rajdhani', fontSize: '13px', color: leftHex, fontStyle: 'bold',
-            }).setOrigin(0.5).setDepth(DEPTH_KEY_LABEL);
-          } else if (lk === 'p' || lk === ';') {
-            scene.add.text(centerX, keyY + 14, lk === 'p' ? '+1' : '-1', {
-              fontFamily: 'Rajdhani', fontSize: '13px', color: rightHex, fontStyle: 'bold',
-            }).setOrigin(0.5).setDepth(DEPTH_KEY_LABEL);
-          }
         } else {
           // Grey keys — dimmed label
           scene.add.text(centerX, keyY, dk, {
@@ -290,7 +282,8 @@ export class KeyboardGlow {
    * Uses dynamic colors from colors.js.
    */
   _drawRowBars(scene, leftColor, rightColor) {
-    keyboardLayout.forEach((row) => {
+    const layout = getKeyboardLayout(settings.advancedMode);
+    layout.forEach((row) => {
       const leftKeys = [];
       const rightKeys = [];
       let x = row.startX;
@@ -302,11 +295,11 @@ export class KeyboardGlow {
         else lk = keyData.key.toLowerCase();
 
         const isFn = keyData.key === 'Tab' || keyData.key === 'Enter' ||
-                     keyData.key === 'ShiftL' || keyData.key === 'ShiftR' ||
-                     lk === 'q' || lk === 'a' || lk === 'p' || lk === ';';
+                     keyData.key === 'ShiftL' || keyData.key === 'ShiftR';
 
         const cx = x + keyData.w / 2;
-        if (lk !== 'g' && lk !== 'h') {
+        const isMapped = isFn || leftMap[lk] !== undefined || rightMap[lk] !== undefined;
+        if (lk !== 'g' && lk !== 'h' && isMapped) {
           // Use visual-side-aware classification for row bars too
           if (isVisuallyLeft(lk, isFn)) leftKeys.push(cx);
           else rightKeys.push(cx);
