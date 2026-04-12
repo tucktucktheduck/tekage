@@ -27,8 +27,7 @@ let _recentQualities = [];   // rolling window, max WINDOW_SIZE entries
 export function getAutoSlowDownMult(dtMs) {
   // Any note that has reached the hit line but hasn't been pressed or played yet
   const hasOverdue = state.mxFallingNotes.some(fn =>
-    !fn.deleted && !fn.playerHit && !fn.audioStarted &&
-    state.mxCurTime >= fn.startSec
+    !fn.deleted && !fn.playerHit && state.mxCurTime >= fn.startSec
   );
 
   // Recovery rate scales with recent accuracy
@@ -38,7 +37,7 @@ export function getAutoSlowDownMult(dtMs) {
   const recoveryRate = 0.08 + avgScore * 0.52; // [0.08, 0.60]
 
   const target   = hasOverdue ? MIN_MULT : MAX_MULT;
-  const lerpRate = hasOverdue ? 0.5 : recoveryRate;
+  const lerpRate = hasOverdue ? 4.0 : recoveryRate;  // snap down fast, recover slowly
 
   _speedMult += (target - _speedMult) * Math.min(1, lerpRate * dtMs / 1000);
   // Clamp to avoid floating-point drift

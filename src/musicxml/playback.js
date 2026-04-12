@@ -87,6 +87,7 @@ export function mxSpawnNote(scene, noteData, noteIndex) {
     audioStopped: false,
     audioKey: null,
     deleted: false,
+    playerHit: false,
     isAccidental,
   });
 }

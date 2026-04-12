@@ -208,6 +208,9 @@ export function create() {
 
       if (bestIdx >= 0) {
         const quality = judgeNote(bestIdx, state.mxCurTime);
+        // Mark the falling note as player-hit so auto slow-down releases
+        const hitFn = state.mxFallingNotes.find(fn => fn.noteIndex === bestIdx);
+        if (hitFn) hitFn.playerHit = true;
         if (state._kbGlow) state._kbGlow.flashAccuracy(k, quality);
         notifyAutoSlowHit(quality);
       }
