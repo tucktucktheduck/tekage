@@ -57,7 +57,7 @@ export function mxSpawnNote(scene, noteData, noteIndex) {
       // Use NoteRenderer for skinned notes
       pianoBlock = createNoteBlock(scene, pk.x, pianoStartY, noteWidth, noteHeight, solverKey, solverHand, blockFill, { depth: 10, strokeWidth: 2, strokeColor: colors.purple, alpha: 0.9 });
     } else {
-      // Fallback: plain rectangle (no solver data)
+      // Fallback: plain rectangle (no solver data yet, or note not assigned)
       pianoBlock = scene.add.rectangle(pk.x, pianoStartY, noteWidth, noteHeight, blockFill, 0.9);
       pianoBlock.setStrokeStyle(2, colors.purple);
       pianoBlock.setDepth(10);

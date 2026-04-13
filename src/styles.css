@@ -184,6 +184,11 @@ canvas { display: block; }
     background: var(--tl-orange); color: #fff; font-family: 'Rajdhani', sans-serif;
     font-size: 16px; font-weight: bold; cursor: pointer;
 }
+.summary-play-again {
+    padding: 10px; border: none; border-radius: 8px;
+    background: var(--tl-blue); color: #fff; font-family: 'Rajdhani', sans-serif;
+    font-size: 16px; font-weight: bold; cursor: pointer;
+}
 
 .more-tabs {
   background: #0a0a0f;

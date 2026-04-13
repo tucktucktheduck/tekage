@@ -13,11 +13,25 @@ import { initBeginnerOverlay } from './ui/beginnerOverlay.js';
 
 import BeginnerScene from './scene/BeginnerScene.js';
 import { mxHandleFile, mxConfirmPart } from './musicxml/fileHandler.js';
-import { mxSetVolume, mxSetSpeed, mxDownloadMap } from './musicxml/controls.js';
+import { mxSetVolume, mxSetSpeed, mxDownloadMap, mxUpdateButtons, mxEnsureAudio } from './musicxml/controls.js';
 import { formatTime } from './ui/scrubber.js';
 import { mxSeekTo, getMxDuration } from './ui/scrubber.js';
 import settings from './core/settings.js';
-import state from './core/state.js';
+import state, { resetScore } from './core/state.js';
+
+// ── Play Again — seek to 0, reset score, resume playing ──
+// Settings (autoshift, autoslow, mute) are intentionally preserved.
+window.tekagePlayAgain = function () {
+  if (!state.mxLoaded) return;
+  document.getElementById('summaryOverlay').classList.remove('open');
+  resetScore();
+  mxSeekTo(-2); // -2 = 2-second lead-in before first note (matches fileHandler initial value)
+  mxEnsureAudio();
+  state.mxPlaying = true;
+  state.mxLastTs = null;
+  state.mxWaitingForFirstPress = false;
+  mxUpdateButtons();
+};
 
 // ── MainScene as a class wrapping the create/update functions ──
 class MainScene extends Phaser.Scene {

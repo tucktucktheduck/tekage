@@ -17,6 +17,66 @@ import { mxUpdateButtons } from './controls.js';
 import { showTeklet } from '../ui/moreOverlay.js';
 import { updateOct } from '../ui/piano.js';
 
+// ── Simplified-part extraction ──────────────────────────────
+// For any part that contains simultaneous notes (chords), derive
+// "Easy" (melody + recurring bass) and "Melody Only" (top note per
+// 30ms window) sub-parts and prepend them before the original part.
+// Applied universally after every file load (MIDI, MXL, or XML).
+function addSimplifiedParts(parts) {
+  const result = [];
+  for (const part of parts) {
+    const sorted = [...part.notes].sort((a, b) => a.startSec - b.startSec);
+    const hasChords = sorted.some((n, i) => i > 0 && n.startSec - sorted[i - 1].startSec < 0.03);
+
+    if (hasChords) {
+      const melodyNotes = [];
+      const windowNonMelody = [];
+      let i = 0;
+      while (i < sorted.length) {
+        let j = i + 1;
+        while (j < sorted.length && sorted[j].startSec - sorted[i].startSec < 0.03) j++;
+        const win = sorted.slice(i, j);
+        const top = win.reduce((a, b) => a.midi > b.midi ? a : b);
+        melodyNotes.push({ midi: top.midi, startSec: top.startSec, durationSec: top.durationSec, partId: `${part.id}-melody` });
+        windowNonMelody.push(win.filter(n => n !== top));
+        i = j;
+      }
+
+      // Count how many windows each non-melody pitch recurs in
+      const bassPitchCounts = new Map();
+      for (const nonMelody of windowNonMelody) {
+        const seen = new Set(nonMelody.map(n => n.midi));
+        for (const midi of seen) bassPitchCounts.set(midi, (bassPitchCounts.get(midi) || 0) + 1);
+      }
+      const threshold = Math.max(3, Math.floor(melodyNotes.length * 0.15));
+      const persistentPitches = new Set(
+        [...bassPitchCounts.entries()].filter(([, c]) => c >= threshold).map(([m]) => m)
+      );
+
+      if (persistentPitches.size > 0) {
+        // Easy = melody + lowest persistent bass note per window
+        const easyNotes = [];
+        for (let wi = 0; wi < melodyNotes.length; wi++) {
+          easyNotes.push({ ...melodyNotes[wi], partId: `${part.id}-easy` });
+          const bassOptions = windowNonMelody[wi].filter(n => persistentPitches.has(n.midi));
+          if (bassOptions.length > 0) {
+            const bass = bassOptions.reduce((a, b) => a.midi < b.midi ? a : b);
+            easyNotes.push({ midi: bass.midi, startSec: bass.startSec, durationSec: bass.durationSec, partId: `${part.id}-easy` });
+          }
+        }
+        easyNotes.sort((a, b) => a.startSec - b.startSec);
+        result.push({ id: `${part.id}-easy`,   name: 'Easy',        notes: easyNotes });
+        result.push({ id: `${part.id}-melody`, name: 'Melody Only', notes: melodyNotes });
+      } else {
+        result.push({ id: `${part.id}-melody`, name: 'Melody Only', notes: melodyNotes });
+      }
+    }
+
+    result.push(part);
+  }
+  return result;
+}
+
 export function mxHandleFile(input) {
   const f = input.files[0];
   if (!f) return;
@@ -27,9 +87,28 @@ export function mxHandleFile(input) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const notes = parseMidi(reader.result);
+        const { notes, trackParts } = parseMidi(reader.result);
         if (!notes.length) { alert('No notes found in MIDI file.'); return; }
-        mxLoadFromNotes(notes, f.name.replace(/\.[^.]+$/, ''));
+        const songName = f.name.replace(/\.[^.]+$/, '');
+
+        const allParts = addSimplifiedParts(trackParts);
+
+        if (allParts.length <= 1) {
+          // Single track, no chords — load directly
+          mxLoadFromNotes(allParts[0]?.notes || notes, songName);
+        } else {
+          // Multiple parts — show part selector
+          state.mxAllParts = allParts;
+          const sel = document.getElementById('partSelect');
+          sel.innerHTML = '';
+          allParts.forEach((t, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `${t.name} (${t.notes.length} notes)`;
+            sel.appendChild(opt);
+          });
+          document.getElementById('partModalBg').classList.add('open');
+        }
       } catch (e) {
         console.error('MIDI load error:', e);
         alert('Error loading MIDI: ' + e.message);
@@ -82,8 +161,10 @@ export function mxHandleFile(input) {
 }
 
 export function mxLoadFromXml(xmlStr) {
-  state.mxAllParts = mxParseMusicXML(xmlStr);
-  if (state.mxAllParts.length === 0) { alert('No parts found in file.'); return; }
+  const rawParts = mxParseMusicXML(xmlStr);
+  if (rawParts.length === 0) { alert('No parts found in file.'); return; }
+
+  state.mxAllParts = addSimplifiedParts(rawParts);
 
   if (state.mxAllParts.length === 1) {
     mxSelectPart(0);

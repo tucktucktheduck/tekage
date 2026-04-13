@@ -16,7 +16,10 @@ export const PIANO_HEIGHT = 140;
 export const PIANO_BOTTOM = 1080 - 40;
 export const PIANO_TOP = PIANO_BOTTOM - PIANO_HEIGHT;
 export const PIANO_LEFT = (1920 - PIANO_WIDTH) / 2;
-export const MX_SPAWN_BOUNDARY = 765;
+// Piano fall distance must match keyboard fall distance:
+// keyboard antennaTop = keyY - PORT_HEIGHT/2 - ANTENNA_HEIGHT = keyY - 45 - 100 = keyY - 145
+// So keyboard fall = 145px. Set piano fall = 145px: MX_SPAWN_BOUNDARY = PIANO_TOP - 145 = 755
+export const MX_SPAWN_BOUNDARY = 755;
 
 // ── UNIFIED falling speed (fixes alignment bug) ──
 // Both keyboard lane and piano lane use this single speed.
