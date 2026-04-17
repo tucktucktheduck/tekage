@@ -12,6 +12,7 @@ import { ANTENNA_BLOCK_WIDTH, FALL_SPEED } from '../core/constants.js';
 import { updateOct } from '../ui/piano.js';
 import { createNoteBlock, updateNoteBlock, destroyNoteBlock } from '../skin/NoteRenderer.js';
 import { getNoteGlowKey, NOTE_CROP_OFFSET } from '../scene/GlowTextures.js';
+import { getSolverKeyArrays } from '../core/keyMapping.js';
 
 
 export function solverBuildLookups(plan) {
@@ -23,7 +24,7 @@ export function solverBuildLookups(plan) {
   }
 }
 
-export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName) {
+export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName, isFallback = false) {
   const keyObj = state.keyObjects[keyName];
   if (!keyObj) return;
 
@@ -40,6 +41,8 @@ export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName) {
     startSec: noteData.startSec,
     durationSec: noteData.durationSec,
     spawnTimeSec, noteHeight, color,
+    // Fallback blocks are dimmed so the player can distinguish solver-assigned from best-guess
+    alpha: isFallback ? 0.45 : 1.0,
     currentY: keyObj.antennaTop - noteHeight / 2,
     antennaBlock: null, portBlock: null, tailBlock: null,
     antennaDeleted: false, spawned: false, deleted: false,
@@ -142,6 +145,7 @@ export function mxUpdateKeyboardNotes(scene, delta) {
         const visBot = Math.min(noteBottom, keyObj.antennaBottom);
         if (visBot > visTop) {
           kn.antennaBlock = renderBlock(scene, kn.antennaBlock, keyObj.centerX, visTop, visBot, ANTENNA_BLOCK_WIDTH, kn.color, 5, 3);
+          if (kn.antennaBlock && kn.alpha != null) kn.antennaBlock.setAlpha(kn.alpha);
         }
       }
     }
@@ -160,13 +164,14 @@ export function mxUpdateKeyboardNotes(scene, delta) {
         const cy = (mainTop + mainBot) / 2;
         if (!kn.portBlock) {
           kn.portBlock = createNoteBlock(scene, cx, cy, w, mainH, kn.key, kn.hand, kn.color, { depth: 3, strokeWidth: 3 });
+          if (kn.portBlock?.setAlpha && kn.alpha != null) kn.portBlock.setAlpha(kn.alpha);
           // Apply the row's feather crop mask once at creation
           const rowMask = state._rowCropMasks?.[keyObj.centerY];
           if (rowMask && kn.portBlock?.setMask) kn.portBlock.setMask(rowMask);
         } else {
           updateNoteBlock(kn.portBlock, cx, cy, w, mainH);
           if (kn.portBlock.setVisible) kn.portBlock.setVisible(true);
-          if (kn.portBlock.setAlpha) kn.portBlock.setAlpha(1);
+          if (kn.portBlock.setAlpha) kn.portBlock.setAlpha(kn.alpha ?? 1);
         }
       } else {
         if (kn.portBlock && kn.portBlock.setVisible) kn.portBlock.setVisible(false);
@@ -261,6 +266,16 @@ export function mxClearSolverBlocks() {
   state.mxShiftPlayed.clear();
 }
 
+// Replicate dagSolver's keyForMidi so solverVisuals can do fallback lookups
+// without a circular import.  Logic is identical to the private closure in dagSolver.js.
+function _keyForMidiFallback(midi, hand, oct, semi, leftKeys, rightKeys) {
+  const keys = hand === 'left' ? leftKeys : rightKeys;
+  const target = midi - (oct + 1) * 12 - semi;
+  if (target < 0 || target > 11) return null;
+  const found = keys.find(k => k.ni === target);
+  return found ? found.key : null;
+}
+
 export function solverPrepareBlocks(scene) {
   if (!state.solverReady || !state.mxScene) return;
   mxClearSolverBlocks();
@@ -271,6 +286,41 @@ export function solverPrepareBlocks(scene) {
     } else if (entry.type === 'shift') {
       mxSpawnShiftBlock(scene, entry);
     }
+  }
+
+  // ── Fallback: give skipped notes a best-effort keyboard block ──
+  // These appear dimmed (alpha 0.45) so the player knows they're approximate.
+  // Notes truly outside any playable octave range at that moment are silently omitted.
+  const { leftKeys, rightKeys } = getSolverKeyArrays();
+  const tl = state.solverStateTimeline || [];
+
+  for (const entry of state.solverPlan) {
+    if (entry.type !== 'skip') continue;
+    const noteData = state.mxNotes[entry.noteIndex];
+    if (!noteData) continue;
+
+    // Find the active octave/semitone state at this note's time
+    let lo = state.solverInitialState?.leftOctave  ?? 3;
+    let ls = state.solverInitialState?.leftSemitone ?? 0;
+    let ro = state.solverInitialState?.rightOctave  ?? 5;
+    let rs = state.solverInitialState?.rightSemitone ?? 0;
+    for (const t of tl) {
+      if (t.timeSec <= noteData.startSec) {
+        lo = t.leftOctave; ls = t.leftSemitone;
+        ro = t.rightOctave; rs = t.rightSemitone;
+      } else break;
+    }
+
+    // Try right hand first (handles high notes), then left
+    let hand = null, key = null;
+    const rk = _keyForMidiFallback(noteData.midi, 'right', ro, rs, leftKeys, rightKeys);
+    if (rk) { hand = 'right'; key = rk; }
+    else {
+      const lk = _keyForMidiFallback(noteData.midi, 'left', lo, ls, leftKeys, rightKeys);
+      if (lk) { hand = 'left'; key = lk; }
+    }
+
+    if (hand && key) mxSpawnKeyboardNote(scene, noteData, entry.noteIndex, hand, key, true);
   }
 }
 

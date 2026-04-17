@@ -54,17 +54,17 @@ export function solvePlan(notes) {
   }
   events.push(curEvent);
 
-  // Cap at 6 per event
+  // Cap at 9 per event (raised from 6 to handle denser chords like Debussy)
   for (const ev of events) {
-    if (ev.notes.length > 6) {
+    if (ev.notes.length > 9) {
       ev.notes.sort((a, b) => a.midi - b.midi);
-      ev.notes = ev.notes.slice(0, 6);
+      ev.notes = ev.notes.slice(0, 9);
     }
   }
 
   function findSolutionsForEvent(ev) {
     const n = ev.notes.length;
-    if (n === 0 || n > 6) return [];
+    if (n === 0 || n > 9) return [];
     const solutions = [];
     const limit = 1 << n;
     for (let mask = 0; mask < limit; mask++) {
@@ -73,7 +73,7 @@ export function solvePlan(notes) {
         if (mask & (1 << i)) rightNotes.push(ev.notes[i]);
         else leftNotes.push(ev.notes[i]);
       }
-      if (leftNotes.length > 3 || rightNotes.length > 3) continue;
+      if (leftNotes.length > 5 || rightNotes.length > 5) continue;
 
       // ══ NO-CROSSING CONSTRAINT ══
       // Right hand's lowest MIDI must be >= left hand's highest MIDI
