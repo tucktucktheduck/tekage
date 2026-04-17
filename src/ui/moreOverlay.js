@@ -119,6 +119,11 @@ function _init() {
     _updateAutoSlowBtn();
   });
 
+  $('tekletRosBtn').addEventListener('click', () => {
+    state.mxRosMode = !state.mxRosMode;
+    _updateRosBtn();
+  });
+
   // Speed slider in teklet
   const spdSliderTk = $('spdSliderTeklet');
   if (spdSliderTk) {
@@ -244,6 +249,7 @@ function _syncSettings() {
   _updateMuteBtn();
   _updateAutoShiftBtn();
   _updateAutoSlowBtn();
+  _updateRosBtn();
   _updateSongName();
   refreshInstrumentPanel();
 }
@@ -296,6 +302,20 @@ function _updateAutoSlowBtn() {
     btn.style.background   = '#0a0a14';
     btn.style.color        = 'var(--tl-blue)';
     btn.style.borderColor  = 'var(--tl-blue)';
+  }
+}
+
+function _updateRosBtn() {
+  const btn = document.getElementById('tekletRosBtn');
+  if (!btn) return;
+  if (state.mxRosMode) {
+    btn.style.background  = 'var(--tl-blue)';
+    btn.style.color       = '#050810';
+    btn.style.borderColor = 'var(--tl-blue)';
+  } else {
+    btn.style.background  = '#0a0a14';
+    btn.style.color       = 'var(--tl-blue)';
+    btn.style.borderColor = 'var(--tl-blue)';
   }
 }
 

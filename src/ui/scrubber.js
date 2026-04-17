@@ -83,6 +83,11 @@ export function mxSeekTo(newTime) {
   resetAutoSlowDown();
 
   state.mxPlayed.clear();
+  state.mxRosPlayed = new Set();
+  // Re-mark ROS notes that have already passed the new seek time
+  for (let i = 0; i < state.mxRosNotes.length; i++) {
+    if (state.mxRosNotes[i].startSec < newTime) state.mxRosPlayed.add(i);
+  }
   for (let i = 0; i < state.mxNotes.length; i++) {
     if (state.mxNotes[i].startSec + state.mxNotes[i].durationSec < newTime) state.mxPlayed.add(i);
   }

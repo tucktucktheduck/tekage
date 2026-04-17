@@ -197,9 +197,40 @@ export function mxConfirmPart() {
   mxSelectPart(idx);
 }
 
+/**
+ * Compute the "Rest Of Song" notes: notes that appear in the full parent part
+ * but NOT in the current simplified part.  Matches by midi + startSec (±30 ms).
+ * Returns [] when the current part is already the full part.
+ */
+function computeRosNotes(currentPartId, currentNotes) {
+  // Derive the full-part ID by stripping known suffixes
+  let fullId = null;
+  if (currentPartId.endsWith('-easy'))   fullId = currentPartId.slice(0, -5);
+  if (currentPartId.endsWith('-melody')) fullId = currentPartId.slice(0, -7);
+  if (!fullId) return [];  // already the full part
+
+  const fullPart = state.mxAllParts.find(p => p.id === fullId);
+  if (!fullPart) return [];
+
+  // Build a fast lookup: "midi:roundedStartCs" where Cs = centiseconds (10ms buckets)
+  const currentKeys = new Set(
+    currentNotes.map(n => `${n.midi}:${Math.round(n.startSec * 100)}`)
+  );
+
+  // Difference = full notes not present in current (within ±30 ms = ±3 centiseconds)
+  return fullPart.notes.filter(n => {
+    for (let d = -3; d <= 3; d++) {
+      if (currentKeys.has(`${n.midi}:${Math.round(n.startSec * 100) + d}`)) return false;
+    }
+    return true;
+  });
+}
+
 export function mxSelectPart(idx) {
   const part = state.mxAllParts[idx];
   state.mxNotes = part.notes;
+  state.mxRosNotes = computeRosNotes(part.id, part.notes);
+  state.mxRosPlayed = new Set();
   state.mxLoaded = true;
   state.mxPlaying = false;
   state.mxWaitingForFirstPress = false;

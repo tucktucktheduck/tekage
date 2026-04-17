@@ -36,6 +36,35 @@ import { loadNoteTextures } from '../skin/NoteRenderer.js';
 import { drawNeonPianoOverlay } from './NeonPiano.js';
 import { PortalRenderer } from './PortalRenderer.js';
 
+// ── Restart countdown (0.75 s = 3 steps × 250 ms) ──
+let _restartPending = false;
+function _triggerRestart(scene) {
+  if (!state.mxLoaded) return;
+  if (_restartPending) return;
+  _restartPending = true;
+
+  let count = 3;
+  const txt = scene.add.text(960, 480, String(count), {
+    fontFamily: 'Orbitron', fontSize: '140px', color: '#3b9eff',
+    fontStyle: 'bold',
+  }).setOrigin(0.5).setDepth(200);
+  txt.setShadow(0, 0, '#3b9eff', 50, false, true);
+  txt.setStroke('#3b9eff', 2);
+
+  const step = () => {
+    count--;
+    if (count > 0) {
+      txt.setText(String(count));
+      scene.time.delayedCall(250, step);
+    } else {
+      txt.destroy();
+      _restartPending = false;
+      if (window.tekageRestart) window.tekageRestart();
+    }
+  };
+  scene.time.delayedCall(250, step);
+}
+
 export function create() {
   const s = this;
   state.mxScene = s;
@@ -105,6 +134,7 @@ export function create() {
       window.__tekageGame.scene.start('BeginnerScene');
     }
   });
+  _makeLBtn(560, 'RESTART', '#3b9eff', () => _triggerRestart(s));
 
   // ── STATS PANEL ──
   createStatsPanel(s);
@@ -132,6 +162,9 @@ export function create() {
 
     // Spacebar = MusicXML play/pause
     if (k === ' ') { e.preventDefault(); mxTogglePlay(); return; }
+
+    // Backtick ` = restart with countdown
+    if (k === '`') { e.preventDefault(); _triggerRestart(s); return; }
 
     if (k === 'shift' && e.location === 1) k = 'shift_l';
     if (k === 'shift' && e.location === 2) k = 'shift_r';

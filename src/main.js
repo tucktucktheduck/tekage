@@ -33,6 +33,11 @@ window.tekagePlayAgain = function () {
   mxUpdateButtons();
 };
 
+// ── Restart — identical to Play Again ──
+window.tekageRestart = function () {
+  if (window.tekagePlayAgain) window.tekagePlayAgain();
+};
+
 // ── MainScene as a class wrapping the create/update functions ──
 class MainScene extends Phaser.Scene {
   constructor() {

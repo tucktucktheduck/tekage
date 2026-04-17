@@ -201,6 +201,23 @@ export function mxUpdateFallingNotes(scene, delta) {
   }
 
   state.mxFallingNotes = state.mxFallingNotes.filter(fn => !fn.deleted);
+
+  // ── Rest Of Song: play full-part notes not in current part (audio only, no visuals) ──
+  if (state.mxRosMode && state.mxPlaying && state.mxRosNotes.length > 0) {
+    mxEnsureAudio();
+    for (let i = 0; i < state.mxRosNotes.length; i++) {
+      if (state.mxRosPlayed.has(i)) continue;
+      const rn = state.mxRosNotes[i];
+      if (state.mxCurTime >= rn.startSec) {
+        state.mxRosPlayed.add(i);
+        const noteName = midiToNoteName(rn.midi);
+        const audioKey = `ros:${rn.midi}:${i}`;
+        playNote(audioKey, noteName);
+        const stopDelay = rn.durationSec * 1000 / state.mxSpeed;
+        setTimeout(() => { stopNote(audioKey); }, stopDelay);
+      }
+    }
+  }
 }
 
 function showEndSummary() {

@@ -57,6 +57,11 @@ const state = {
   // ── First-press start ──
   mxWaitingForFirstPress: false,
 
+  // ── Rest Of Song mode — plays notes from the full part that aren't in the current part ──
+  mxRosMode: false,
+  mxRosNotes: [],      // {midi, startSec, durationSec} — diff between full part and current part
+  mxRosPlayed: new Set(),  // indices into mxRosNotes already triggered
+
   // (canvas buttons moved into teklet overlay)
 
   // ── DAG Solver globals ──
