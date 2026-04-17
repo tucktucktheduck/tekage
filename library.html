@@ -160,6 +160,13 @@
     .play-btn:disabled { background: #12244a; color: var(--muted); cursor: default; }
     .play-icon { font-size: 10px; }
 
+    .card-notes {
+      font-size: 11px; font-weight: 600;
+      color: var(--text-dim); letter-spacing: 0.5px;
+      min-height: 14px; transition: color .3s;
+    }
+    .card-notes.loaded { color: var(--text-mid); }
+
     .empty {
       grid-column: 1 / -1; text-align: center;
       color: var(--text-dim); font-size: 18px; padding: 80px 0;
@@ -216,6 +223,8 @@
     <option value="title-desc">Song Z → A</option>
     <option value="composer-asc">Composer A → Z</option>
     <option value="composer-desc">Composer Z → A</option>
+    <option value="notes-asc">Notes: Fewest first</option>
+    <option value="notes-desc">Notes: Most first</option>
   </select>
 </div>
 
@@ -225,6 +234,7 @@
 
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 <script>
 const MXT = 'https://musetrainer.github.io/library/scores/';
 const MF  = 'https://www.mfiles.co.uk';
@@ -608,6 +618,92 @@ const PIECES = [
   { title: 'Lelette',  composer: 'Traditional', url: MF+'/downloads/lelette-piano.mid',  difficulty: 'easy', category: 'Other' },
 ];
 
+// ── Note count cache ───────────────────────────────────────────
+const LS_KEY = 'tekage_lib_notecounts_v1';
+const noteCountCache = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+function saveCache() { try { localStorage.setItem(LS_KEY, JSON.stringify(noteCountCache)); } catch {} }
+function isSortingByNotes() { return state.sort.startsWith('notes'); }
+
+function countMidiNotes(buffer) {
+  const d = new Uint8Array(buffer);
+  let pos = 0;
+  if (String.fromCharCode(d[0],d[1],d[2],d[3]) !== 'MThd') return null;
+  pos = 8; // skip "MThd" + length(4)
+  const nTracks = (d[pos+2]<<8)|d[pos+3]; pos += 6; // skip format(2)+ntracks(2)+division(2)
+  function readVlq() { let v=0,b; do { b=d[pos++]; v=(v<<7)|(b&0x7f); } while(b&0x80); return v; }
+  let count = 0;
+  for (let t = 0; t < nTracks && pos < d.length; t++) {
+    if (String.fromCharCode(d[pos],d[pos+1],d[pos+2],d[pos+3]) !== 'MTrk') break;
+    pos += 4;
+    const len = (d[pos]<<24)|(d[pos+1]<<16)|(d[pos+2]<<8)|d[pos+3]; pos += 4;
+    const end = pos + len;
+    let last = 0;
+    while (pos < end) {
+      readVlq();
+      let st = d[pos];
+      if (st & 0x80) { last = st; pos++; } else { st = last; }
+      const type = st & 0xF0;
+      if      (type === 0x90) { pos++; const vel=d[pos++]; if(vel>0) count++; }
+      else if (type === 0x80 || type === 0xA0 || type === 0xB0 || type === 0xE0) { pos += 2; }
+      else if (type === 0xC0 || type === 0xD0) { pos++; }
+      else if (st === 0xF0 || st === 0xF7) { const n=readVlq(); pos+=n; }
+      else if (st === 0xFF) { pos++; const n=readVlq(); pos+=n; }
+      else pos++;
+    }
+    pos = end;
+  }
+  return count;
+}
+
+async function getNoteCount(piece) {
+  const key = piece.url;
+  if (noteCountCache[key] !== undefined) return noteCountCache[key];
+  const res = await fetch(piece.url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  let count;
+  if (piece.url.match(/\.(mid|midi)$/i)) {
+    count = countMidiNotes(await res.arrayBuffer());
+  } else if (piece.url.match(/\.mxl$/i)) {
+    const zip = await JSZip.loadAsync(await res.arrayBuffer());
+    let rootPath = null;
+    const container = zip.file('META-INF/container.xml');
+    if (container) {
+      const m = (await container.async('text')).match(/full-path="([^"]+\.xml)"/i);
+      if (m) rootPath = m[1];
+    }
+    if (!rootPath) rootPath = Object.keys(zip.files).find(n => n.endsWith('.xml') && !n.startsWith('META-INF')) || null;
+    if (!rootPath) throw new Error('No XML in MXL');
+    const doc = new DOMParser().parseFromString(await zip.file(rootPath).async('text'), 'application/xml');
+    count = [...doc.querySelectorAll('note')].filter(n => !n.querySelector('rest')).length;
+  } else {
+    const doc = new DOMParser().parseFromString(await res.text(), 'application/xml');
+    count = [...doc.querySelectorAll('note')].filter(n => !n.querySelector('rest')).length;
+  }
+  noteCountCache[key] = count;
+  saveCache();
+  return count;
+}
+
+function updateCardCount(url, count) {
+  const el = document.querySelector(`.card-notes[data-url="${CSS.escape(url)}"]`);
+  if (!el || count == null) return;
+  el.textContent = `${count.toLocaleString()} notes`;
+  el.classList.add('loaded');
+}
+
+async function countAllPieces() {
+  const uncached = PIECES.filter(p => noteCountCache[p.url] === undefined);
+  for (let i = 0; i < uncached.length; i += 6) {
+    await Promise.all(uncached.slice(i, i+6).map(async p => {
+      try {
+        const n = await getNoteCount(p);
+        updateCardCount(p.url, n);
+        if (isSortingByNotes()) render();
+      } catch { noteCountCache[p.url] = null; }
+    }));
+  }
+}
+
 // ── Build filter dropdowns ──────────────────────────────────────
 const CATEGORIES = ['All Categories', ...Array.from(new Set(PIECES.map(p => p.category))).sort()];
 const catSel = document.getElementById('categoryFilter');
@@ -649,11 +745,19 @@ function render() {
   });
 
   const [key, dir] = state.sort.split('-');
-  list.sort((a, b) => {
-    const av = key === 'title' ? a.title : a.composer;
-    const bv = key === 'title' ? b.title : b.composer;
-    return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-  });
+  if (key === 'notes') {
+    list.sort((a, b) => {
+      const an = (noteCountCache[a.url] != null) ? noteCountCache[a.url] : Infinity;
+      const bn = (noteCountCache[b.url] != null) ? noteCountCache[b.url] : Infinity;
+      return dir === 'asc' ? an - bn : bn - an;
+    });
+  } else {
+    list.sort((a, b) => {
+      const av = key === 'title' ? a.title : a.composer;
+      const bv = key === 'title' ? b.title : b.composer;
+      return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+  }
 
   document.getElementById('headerCount').textContent = `${list.length} piece${list.length !== 1 ? 's' : ''}`;
 
@@ -662,7 +766,12 @@ function render() {
     return;
   }
 
-  grid.innerHTML = list.map(p => `
+  grid.innerHTML = list.map(p => {
+    const count = noteCountCache[p.url];
+    const notesHtml = (count != null)
+      ? `<div class="card-notes loaded" data-url="${esc(p.url)}">${count.toLocaleString()} notes</div>`
+      : `<div class="card-notes" data-url="${esc(p.url)}"></div>`;
+    return `
     <div class="card">
       <div class="card-meta">
         <span class="card-composer">${esc(p.composer)}</span>
@@ -670,11 +779,12 @@ function render() {
       </div>
       <div class="card-category">${esc(p.category)}</div>
       <div class="card-title">${esc(p.title)}</div>
+      ${notesHtml}
       <button class="play-btn" data-url="${esc(p.url)}" data-title="${esc(p.title)}">
         <span class="play-icon">▶</span> PLAY
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   grid.querySelectorAll('.play-btn').forEach(btn => {
     btn.addEventListener('click', () => { if (!loadingFile) handlePlay(btn); });
@@ -698,6 +808,7 @@ function esc(s) {
 }
 
 render();
+countAllPieces();
 
 // ── Upload ─────────────────────────────────────────────────────
 document.getElementById('libUploadBtn').addEventListener('click', () => {
