@@ -104,6 +104,38 @@ canvas { display: block; }
     transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .more-btn:hover { background: rgba(26,143,255,.12); }
+
+/* ── Beginner assist row with info icon + tooltip ── */
+.assist-row {
+    display: flex; align-items: center; gap: 8px;
+}
+.assist-row .more-btn { flex: 1; }
+.assist-info {
+    position: relative; flex-shrink: 0;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid #475569; color: #475569;
+    font-size: 10px; font-family: 'Rajdhani', sans-serif; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    cursor: default; user-select: none; letter-spacing: 0;
+    transition: border-color 0.15s, color 0.15s;
+}
+.assist-info:hover { border-color: var(--tl-blue); color: var(--tl-blue); }
+.assist-info::after {
+    content: attr(data-tip);
+    position: absolute;
+    right: calc(100% + 10px);
+    top: 50%; transform: translateY(-50%);
+    background: #080818; border: 1px solid var(--tl-blue);
+    border-radius: 7px; padding: 8px 11px;
+    font-size: 12px; font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    color: #94a3b8; line-height: 1.5;
+    width: 190px; text-align: left;
+    pointer-events: none;
+    opacity: 0; transition: opacity 0.18s;
+    z-index: 9999;
+    box-shadow: 0 0 18px rgba(26,143,255,.18);
+}
+.assist-info:hover::after { opacity: 1; }
 .more-close {
     margin-top: 8px; padding: 10px; border: none; border-radius: 8px;
     background: #333; color: #fff; font-family: 'Rajdhani', sans-serif;
