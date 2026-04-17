@@ -226,28 +226,27 @@
                   <div style="display:flex;flex-direction:column;gap:8px;">
                     <div class="assist-row">
                       <button class="more-btn" id="assistMuteBtn" style="font-size:13px;border-color:var(--tl-orange);color:var(--tl-orange);">UNMUTE</button>
-                      <span class="assist-info" data-tip="The song plays silently by default. Unmute to hear the full audio as you play along.">i</span>
+                      <span class="assist-info" data-tip="Song plays silently by default. Unmute to have the notes automatically played.">i</span>
                     </div>
                     <div class="assist-row">
                       <button class="more-btn" id="assistAutoSlowBtn" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO SLOW</button>
-                      <span class="assist-info" data-tip="Slows the song down when you miss notes, then gradually speeds back up as you get them right.">i</span>
+                      <span class="assist-info" data-tip="Slows down on misses. Speeds back up when all notes are pressed.">i</span>
                     </div>
                     <div class="assist-row">
                       <button class="more-btn" id="assistAutoShiftBtn" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO-SHIFT</button>
-                      <span class="assist-info" data-tip="Automatically shifts the keyboard octave so upcoming notes stay within reach — no manual octave changes needed.">i</span>
+                      <span class="assist-info" data-tip="Automatically applies octave shifts so you only need to focus on playing notes.">i</span>
                     </div>
                     <div class="assist-row">
                       <button class="more-btn" id="assistRosBtn" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">REST OF SONG</button>
-                      <span class="assist-info" data-tip="When playing a simplified part (Easy or Melody Only), auto-plays the remaining notes so you hear the full song.">i</span>
+                      <span class="assist-info" data-tip="If playing a simplified version of a song, fills in the rest of the song automatically.">i</span>
                     </div>
                   </div>
                 </div>
                 <div class="more-section" style="margin-top:12px;">
                   <h3>SPEED</h3>
-                  <div class="assist-row" style="gap:10px;">
+                  <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
                     <input type="range" id="spdSliderAssist" min="25" max="200" value="100" style="flex:1;accent-color:var(--tl-orange);">
                     <span id="spdValAssist" style="font-size:12px;color:#94a3b8;min-width:40px;">1.00×</span>
-                    <span class="assist-info" data-tip="Slow the song down to learn at your own pace. Try 50% to start, then work up to 100%.">i</span>
                   </div>
                 </div>
               </div>
