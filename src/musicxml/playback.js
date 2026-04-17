@@ -50,9 +50,13 @@ export function mxSpawnNote(scene, noteData, noteIndex) {
     solverHand = info.hand;
   }
 
+  // Only show a piano block if the solver (or fallback) has a keyboard block for this note.
+  // When the solver hasn't run yet (e.g. song just loaded), show everything.
+  const hasKeyboardBlock = !state.solverReady || state.mxKeyboardNoteIndices.has(noteIndex);
+
   let pianoBlock = null;
   let pianoHighlight = null;
-  if (settings.pianoVisualizerOn) {
+  if (settings.pianoVisualizerOn && hasKeyboardBlock) {
     if (solverKey) {
       // Use NoteRenderer for skinned notes
       pianoBlock = createNoteBlock(scene, pk.x, pianoStartY, noteWidth, noteHeight, solverKey, solverHand, blockFill, { depth: 10, strokeWidth: 2, strokeColor: colors.purple, alpha: 0.9 });

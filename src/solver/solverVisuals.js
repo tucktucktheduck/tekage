@@ -27,6 +27,7 @@ export function solverBuildLookups(plan) {
 export function mxSpawnKeyboardNote(scene, noteData, noteIndex, hand, keyName, isFallback = false) {
   const keyObj = state.keyObjects[keyName];
   if (!keyObj) return;
+  state.mxKeyboardNoteIndices.add(noteIndex);
 
   const color = hand === 'left' ? colors.left : colors.right;
   // UNIFIED: same height calc as piano lane
@@ -256,6 +257,7 @@ export function mxClearSolverBlocks() {
     if (kn.tailBlock) kn.tailBlock.destroy();
   }
   state.mxKeyboardNotes = [];
+  state.mxKeyboardNoteIndices = new Set();
   for (const sb of state.mxShiftBlocks) {
     if (sb.antennaBlock) sb.antennaBlock.destroy();
     if (sb.portBlock) sb.portBlock.destroy();

@@ -41,6 +41,14 @@ export function openMoreOverlay() {
   document.getElementById('moreOverlay').style.display = 'flex';
 }
 
+export function openAssistTab() {
+  _init();
+  _syncSettings();
+  document.getElementById('moreOverlay').classList.add('open');
+  document.getElementById('moreOverlay').style.display = 'flex';
+  _activateTab('assist');
+}
+
 // ── Init ───────────────────────────────────────────────────
 
 function _init() {
@@ -123,6 +131,25 @@ function _init() {
     state.mxRosMode = !state.mxRosMode;
     _updateRosBtn();
   });
+
+  // ── Beginner Assist tab ──
+  $('assistMuteBtn').addEventListener('click', () => { mxToggleMute(); _updateAssistTab(); });
+  $('assistAutoSlowBtn').addEventListener('click', () => { settings.autoSlowDownOn = !settings.autoSlowDownOn; _updateAssistTab(); });
+  $('assistAutoShiftBtn').addEventListener('click', () => { settings.autoShiftOn = !settings.autoShiftOn; _updateAssistTab(); });
+  $('assistRosBtn').addEventListener('click', () => { state.mxRosMode = !state.mxRosMode; _updateRosBtn(); _updateAssistTab(); });
+  const spdSliderAssist = $('spdSliderAssist');
+  if (spdSliderAssist) {
+    spdSliderAssist.addEventListener('input', function () {
+      mxSetSpeed(+this.value);
+      const valEl = $('spdValAssist');
+      if (valEl) valEl.textContent = (+this.value / 100).toFixed(2) + '×';
+      // Keep the main speed slider in sync
+      const mainSlider = $('spdSliderTeklet');
+      if (mainSlider) mainSlider.value = this.value;
+      const mainVal = $('spdValTeklet');
+      if (mainVal) mainVal.textContent = (+this.value / 100).toFixed(2) + '×';
+    });
+  }
 
   // Speed slider in teklet
   const spdSliderTk = $('spdSliderTeklet');
@@ -250,6 +277,7 @@ function _syncSettings() {
   _updateAutoShiftBtn();
   _updateAutoSlowBtn();
   _updateRosBtn();
+  _updateAssistTab();
   _updateSongName();
   refreshInstrumentPanel();
 }
@@ -317,6 +345,33 @@ function _updateRosBtn() {
     btn.style.color       = 'var(--tl-blue)';
     btn.style.borderColor = 'var(--tl-blue)';
   }
+}
+
+function _setToggleBtn(btn, on, activeColor) {
+  if (!btn) return;
+  if (on) {
+    btn.style.background  = activeColor;
+    btn.style.color       = '#050810';
+    btn.style.borderColor = activeColor;
+  } else {
+    btn.style.background  = '#0a0a14';
+    btn.style.color       = activeColor;
+    btn.style.borderColor = activeColor;
+  }
+}
+
+function _updateAssistTab() {
+  const $ = id => document.getElementById(id);
+  const muteBtn = $('assistMuteBtn');
+  if (muteBtn) muteBtn.textContent = state.mxMuted ? 'UNMUTE' : 'MUTE';
+  _setToggleBtn($('assistAutoSlowBtn'),  settings.autoSlowDownOn, 'var(--tl-blue)');
+  _setToggleBtn($('assistAutoShiftBtn'), settings.autoShiftOn,    'var(--tl-blue)');
+  _setToggleBtn($('assistRosBtn'),       state.mxRosMode,         'var(--tl-blue)');
+  // Sync speed slider
+  const assistSlider = $('spdSliderAssist');
+  if (assistSlider) assistSlider.value = Math.round(state.mxSpeed * 100);
+  const assistVal = $('spdValAssist');
+  if (assistVal) assistVal.textContent = state.mxSpeed.toFixed(2) + '×';
 }
 
 function _updateSongName() {

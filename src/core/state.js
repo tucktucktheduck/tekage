@@ -57,6 +57,10 @@ const state = {
   // ── First-press start ──
   mxWaitingForFirstPress: false,
 
+  // ── Unified note-map: noteIndices that have a keyboard block (solid or fallback) ──
+  // Piano blocks are suppressed for notes not in this set (when solverReady).
+  mxKeyboardNoteIndices: new Set(),
+
   // ── Rest Of Song mode — plays notes from the full part that aren't in the current part ──
   mxRosMode: false,
   mxRosNotes: [],      // {midi, startSec, durationSec} — diff between full part and current part

@@ -94,6 +94,7 @@
               <div class="teklet-nav-item" data-tab="loop">LOOP</div>
               <div class="teklet-nav-item" data-tab="skin">SKIN</div>
               <div class="teklet-nav-item" data-tab="mode">MODE</div>
+              <div class="teklet-nav-item" data-tab="assist" style="color:var(--tl-orange);border-color:var(--tl-orange);">BEGINNER</div>
             </div>
 
             <!-- CENTER CONTENT -->
@@ -214,6 +215,27 @@
                 <div class="more-section">
                   <h3>KEYBOARD MODE</h3>
                   <label class="toggle-row"><input type="checkbox" id="toggleAdvancedMode"><span>Advanced Mode (denser keys, Q/A/P/; active)</span></label>
+                </div>
+              </div>
+
+              <!-- BEGINNER ASSIST TAB -->
+              <div id="tab-assist" class="more-tab-pane">
+                <div class="more-section">
+                  <h3>ASSIST</h3>
+                  <p style="font-family:Rajdhani,sans-serif;font-size:13px;color:#64748b;margin-bottom:12px;">Toggle assists to make the song easier to play.</p>
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <button class="more-btn" id="assistMuteBtn" style="font-size:13px;border-color:var(--tl-orange);color:var(--tl-orange);">UNMUTE</button>
+                    <button class="more-btn" id="assistAutoSlowBtn" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO SLOW</button>
+                    <button class="more-btn" id="assistAutoShiftBtn" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">AUTO-SHIFT</button>
+                    <button class="more-btn" id="assistRosBtn" title="Plays notes from the full song not in your current part" style="font-size:13px;background:#0a0a14;border-color:var(--tl-blue);color:var(--tl-blue);">REST OF SONG</button>
+                  </div>
+                </div>
+                <div class="more-section" style="margin-top:12px;">
+                  <h3>SPEED</h3>
+                  <div style="display:flex;align-items:center;gap:10px;padding:4px 0;">
+                    <input type="range" id="spdSliderAssist" min="25" max="200" value="100" style="flex:1;accent-color:var(--tl-orange);">
+                    <span id="spdValAssist" style="font-size:12px;color:#94a3b8;min-width:40px;">1.00×</span>
+                  </div>
                 </div>
               </div>
 

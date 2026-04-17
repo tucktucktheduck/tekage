@@ -35,6 +35,7 @@ import { KeyboardGlow } from './KeyboardGlow.js';
 import { loadNoteTextures } from '../skin/NoteRenderer.js';
 import { drawNeonPianoOverlay } from './NeonPiano.js';
 import { PortalRenderer } from './PortalRenderer.js';
+import { openAssistTab } from '../ui/moreOverlay.js';
 
 // ── Restart countdown (0.75 s = 3 steps × 250 ms) ──
 let _restartPending = false;
@@ -129,10 +130,7 @@ export function create() {
     }
   });
   state._btnBeginner = _makeLBtn(510, 'BEGINNER',  '#f59e0b', () => {
-    if (window.__tekageGame) {
-      state.beginnerMode = null;
-      window.__tekageGame.scene.start('BeginnerScene');
-    }
+    openAssistTab();
   });
   _makeLBtn(560, 'RESTART', '#3b9eff', () => _triggerRestart(s));
 
