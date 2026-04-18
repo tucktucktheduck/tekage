@@ -15,6 +15,7 @@ import { setStatsPanelVisible } from './statsPanel.js';
 import { ALL_COMPUTER_KEYS, leftMap, rightMap, fnKeys, setBinding, resetMappings, applyPreset, setAdvancedMode } from '../core/keyMapping.js';
 import { INSTRUMENTS, setInstrument, getCurrentInstrument, getAudioLevels } from '../audio/engine.js';
 import { salamanderPlayer, CustomSamplePlayer, getCustomPlayer, setCustomPlayer, filenameToMidi } from '../audio/salamander.js';
+import { sf2Player } from '../audio/sf2Player.js';
 import { openSkinEditor } from './skinEditor.js';
 import { mxTogglePlay, mxToggleMute, mxSetVolume, mxSetSpeed, mxShowMusicMap } from '../musicxml/controls.js';
 
@@ -429,11 +430,11 @@ function refreshInstrumentPanel() {
   });
 }
 
-// ── Custom Sample Upload ────────────────────────────────────
+// ── Custom Sample / SF2 Upload ──────────────────────────────
 
 function _wireCustomSampleUpload() {
-  const btn   = document.getElementById('instUploadBtn');
-  const input = document.getElementById('instSampleInput');
+  const btn    = document.getElementById('instUploadBtn');
+  const input  = document.getElementById('instSampleInput');
   const status = document.getElementById('instUploadStatus');
   if (!btn || !input) return;
 
@@ -443,14 +444,38 @@ function _wireCustomSampleUpload() {
     const files = Array.from(this.files || []);
     if (!files.length) return;
 
-    // Ensure AudioContext exists for decoding
     const ctx = state.audioContext || (() => {
       const c = new (window.AudioContext || window.webkitAudioContext)();
       state.audioContext = c;
       return c;
     })();
 
-    if (status) status.textContent = `Decoding ${files.length} file(s)…`;
+    // ── SF2 path: single .sf2 file ──
+    if (files.length === 1 && files[0].name.toLowerCase().endsWith('.sf2')) {
+      const file = files[0];
+      if (status) { status.style.color = 'var(--tl-blue)'; status.textContent = 'Parsing ' + file.name + '…'; }
+      try {
+        const ab = await file.arrayBuffer();
+        await sf2Player.load(ab, ctx, pct => {
+          if (status) status.textContent = `Loading samples… ${pct}%`;
+        });
+        INSTRUMENTS.soundfont.description =
+          sf2Player.name ? `${sf2Player.name} — ${sf2Player.zones.length} zones` :
+          `${sf2Player.zones.length} zones loaded`;
+        setInstrument('soundfont');
+        buildInstrumentPanel();
+        refreshInstrumentPanel();
+        if (status) status.textContent = `✓ ${sf2Player.name || file.name} — ${sf2Player.zones.length} zones`;
+      } catch (e) {
+        console.error('[SF2] load error', e);
+        if (status) { status.style.color = '#ef4444'; status.textContent = '✗ ' + e.message; }
+      }
+      this.value = '';
+      return;
+    }
+
+    // ── Audio sample path: .wav / .mp3 / etc. ──
+    if (status) { status.style.color = 'var(--tl-blue)'; status.textContent = `Decoding ${files.length} file(s)…`; }
 
     const player = new CustomSamplePlayer();
     let ok = 0, fail = 0;
@@ -467,13 +492,12 @@ function _wireCustomSampleUpload() {
     }));
 
     if (ok === 0) {
-      if (status) status.textContent = 'No valid samples found. Name files like C4.mp3, A#3.wav.';
+      if (status) { status.style.color = '#ef4444'; status.textContent = 'No valid samples found. Name files like C4.mp3, A#3.wav.'; }
       this.value = '';
       return;
     }
 
     setCustomPlayer(player);
-    // Register / update the custom instrument entry
     INSTRUMENTS.customUpload = {
       label: 'Custom Piano',
       icon: '📁',
@@ -482,10 +506,7 @@ function _wireCustomSampleUpload() {
       sampleBased: true,
     };
 
-    // Rebuild grid so the new card appears
     buildInstrumentPanel();
-
-    // Auto-select custom upload
     setInstrument('customUpload');
     refreshInstrumentPanel();
 

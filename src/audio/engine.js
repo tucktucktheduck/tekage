@@ -6,6 +6,7 @@
 import state from '../core/state.js';
 import { DEBUG } from '../core/constants.js';
 import { salamanderPlayer, getCustomPlayer } from './salamander.js';
+import { sf2Player } from './sf2Player.js';
 
 // ── Instrument Presets ──────────────────────────────────────
 export const INSTRUMENTS = {
@@ -175,6 +176,14 @@ export const INSTRUMENTS = {
     },
   },
 
+  soundfont: {
+    label: 'SF2 SoundFont',
+    icon: '🎼',
+    description: 'Upload a .sf2 file to use any instrument.',
+    releaseTime: 0.4,
+    sampleBased: true,
+  },
+
   harpsichord: {
     label: 'Harpsichord',
     icon: '🎼',
@@ -281,7 +290,10 @@ export function playNote(key, note) {
 
   // ── Sample-based path ─────────────────────────────────────
   if (preset.sampleBased) {
-    const player = _currentInstrument === 'customUpload' ? getCustomPlayer() : salamanderPlayer;
+    let player;
+    if (_currentInstrument === 'customUpload') player = getCustomPlayer();
+    else if (_currentInstrument === 'soundfont') player = sf2Player;
+    else player = salamanderPlayer;
     if (player && player.hasAnyBuffers()) {
       player.play(ctx, note, dest, key);
       state.activeAudio.set(key, { samplePlayer: player });
