@@ -170,6 +170,15 @@
                   <button class="more-btn" id="instUploadBtn" style="width:100%;font-size:13px;">UPLOAD INSTRUMENT</button>
                   <div id="instUploadStatus" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--tl-blue);margin-top:6px;min-height:14px;padding:0 2px;"></div>
                 </div>
+                <div style="margin-top:14px;border-top:1px solid var(--tl-border);padding-top:14px;">
+                  <h3 style="font-size:10px;letter-spacing:2px;color:var(--tl-dim);border-bottom:1px solid var(--tl-border);padding-bottom:3px;margin-bottom:8px;font-family:'Orbitron',sans-serif;">SFZ INSTRUMENT</h3>
+                  <p style="color:#64748b;font-family:Rajdhani,sans-serif;font-size:12px;margin-bottom:8px;line-height:1.4;">Load an SFZ instrument ZIP (e.g. from sfzinstruments.github.io or pianobook.co.uk).</p>
+                  <button class="more-btn" id="sfzUploadBtn" style="width:100%;font-size:13px;">LOAD SFZ INSTRUMENT (.ZIP)</button>
+                  <input type="file" id="sfzFileInput" accept=".zip" style="display:none">
+                  <div id="sfzUploadStatus" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#64748b;margin-top:6px;min-height:14px;"></div>
+                  <select id="sfzFilePicker" style="display:none;width:100%;margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:12px;background:#0d1117;color:var(--tl-blue);border:1px solid var(--tl-border);border-radius:4px;padding:4px;"></select>
+                  <button class="more-btn" id="sfzPickerConfirm" style="display:none;width:100%;font-size:12px;margin-top:4px;">USE SELECTED SFZ</button>
+                </div>
               </div>
 
               <!-- REMAP TAB -->

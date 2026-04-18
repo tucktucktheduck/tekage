@@ -15,7 +15,7 @@ import { BackgroundManager } from './BackgroundManager.js';
 import { KeyboardGlow } from './KeyboardGlow.js';
 import { loadNoteTextures } from '../skin/NoteRenderer.js';
 import { drawPiano, updateOct } from '../ui/piano.js';
-import { drawNeonPianoOverlay } from './NeonPiano.js';
+import { initGhostPiano } from './GhostPiano.js';
 import { createScrubber } from '../ui/scrubber.js';
 import { showBeginnerOverlay, showBegHud, hideBegHud } from '../ui/beginnerOverlay.js';
 import { solverPrepareBlocks } from '../solver/solverVisuals.js';
@@ -59,7 +59,7 @@ export default class BeginnerScene extends Phaser.Scene {
 
     // ── Piano + scrubber ──
     drawPiano(this);
-    drawNeonPianoOverlay(this);
+    initGhostPiano(this);
     createScrubber(this);
 
     // ── Set scene reference ──

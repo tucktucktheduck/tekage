@@ -30,6 +30,8 @@ const state = {
 
   // ── Audio ──
   audioContext: null,
+  sfzPlayer: null,
+  ghostPiano: null,
 
   // ── Random note spawner (lives in Beginner scene now) ──
   fallingNotes: [],

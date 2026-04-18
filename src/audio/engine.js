@@ -184,6 +184,14 @@ export const INSTRUMENTS = {
     sampleBased: true,
   },
 
+  sfzInstrument: {
+    label: 'SFZ Instrument',
+    icon: '🎻',
+    description: 'Load a .sfz ZIP in the Instruments tab',
+    releaseTime: 0.3,
+    sampleBased: true,
+  },
+
   harpsichord: {
     label: 'Harpsichord',
     icon: '🎼',
@@ -291,7 +299,8 @@ export function playNote(key, note) {
   // ── Sample-based path ─────────────────────────────────────
   if (preset.sampleBased) {
     let player;
-    if (_currentInstrument === 'customUpload') player = getCustomPlayer();
+    if (_currentInstrument === 'sfzInstrument') player = state.sfzPlayer;
+    else if (_currentInstrument === 'customUpload') player = getCustomPlayer();
     else if (_currentInstrument === 'soundfont') player = sf2Player;
     else player = salamanderPlayer;
     if (player && player.hasAnyBuffers()) {

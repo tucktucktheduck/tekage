@@ -33,7 +33,7 @@ import { BackgroundManager } from './BackgroundManager.js';
 import { generateGlowTextures, createRowCropMasks } from './GlowTextures.js';
 import { KeyboardGlow } from './KeyboardGlow.js';
 import { loadNoteTextures } from '../skin/NoteRenderer.js';
-import { drawNeonPianoOverlay } from './NeonPiano.js';
+import { initGhostPiano } from './GhostPiano.js';
 import { PortalRenderer } from './PortalRenderer.js';
 import { openAssistTab } from '../ui/moreOverlay.js';
 
@@ -142,7 +142,7 @@ export function create() {
   // AND populated state.keyObjects with the correct geometry.
 
   drawPiano(s);
-  drawNeonPianoOverlay(s);
+  initGhostPiano(s);
   createScrubber(s);
 
   // ── Re-initialize solver visuals if song was loaded before scene was ready ──

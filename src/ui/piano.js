@@ -24,6 +24,7 @@ export function drawPiano(s) {
     if (!d.isBlack) {
       const r = s.add.rectangle(x + ww / 2, pianoY, ww - 1, wh, colors.white);
       r.setStrokeStyle(1, colors.gray);
+      r.setAlpha(0); // ghost piano handles visual rendering
       const pkData = { note: d.note, rect: r, isBlack: false, x: x + ww / 2, y: pianoY };
       state.pianoKeys.push(pkData);
       state.pianoNoteMap[d.note.match(/^([A-G]#?)/)[1]].push(pkData);
@@ -36,6 +37,7 @@ export function drawPiano(s) {
       const blackY = pianoY - wh / 2 + bh / 2;
       const r = s.add.rectangle(x + ww - bw / 2, blackY, bw, bh, colors.grayDark);
       r.setStrokeStyle(1, colors.gray); r.setDepth(1);
+      r.setAlpha(0); // ghost piano handles visual rendering
       const pkData = { note: pianoData[i + 1].note, rect: r, isBlack: true, x: x + ww - bw / 2, y: blackY };
       state.pianoKeys.push(pkData);
       state.pianoNoteMap[pianoData[i + 1].note.match(/^([A-G]#?)/)[1]].push(pkData);
@@ -92,11 +94,11 @@ export function updateOct(s) {
 }
 
 export function setPianoVisible(visible) {
-  state.pianoKeys.forEach(pk => { pk.rect.setVisible(visible); });
   if (state.leftRangeOverlay) state.leftRangeOverlay.setVisible(visible);
   if (state.rightRangeOverlay) state.rightRangeOverlay.setVisible(visible);
   if (state.octaveLeftText) state.octaveLeftText.setVisible(visible);
   if (state.octaveRightText) state.octaveRightText.setVisible(visible);
+  if (state.ghostPiano) state.ghostPiano.setVisible(visible);
 }
 
 export function pressKey(k, s) {

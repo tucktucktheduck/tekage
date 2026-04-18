@@ -16,6 +16,8 @@ import { ALL_COMPUTER_KEYS, leftMap, rightMap, fnKeys, setBinding, resetMappings
 import { INSTRUMENTS, setInstrument, getCurrentInstrument, getAudioLevels } from '../audio/engine.js';
 import { salamanderPlayer, CustomSamplePlayer, getCustomPlayer, setCustomPlayer, filenameToMidi } from '../audio/salamander.js';
 import { sf2Player } from '../audio/sf2Player.js';
+import { SfzPlayer } from '../sfz/voice.js';
+import { loadSfzFromZip } from '../sfz/loader.js';
 import { openSkinEditor } from './skinEditor.js';
 import { mxTogglePlay, mxToggleMute, mxSetVolume, mxSetSpeed, mxShowMusicMap } from '../musicxml/controls.js';
 
@@ -224,6 +226,7 @@ function _init() {
   // ── Instruments panel ──
   buildInstrumentPanel();
   _wireCustomSampleUpload();
+  _wireSfzUpload();
 
   // ── Quick access footer ──
   $('tekletQaBeginner').addEventListener('click', () => {
@@ -513,6 +516,88 @@ function _wireCustomSampleUpload() {
     if (status) status.textContent = `Loaded ${ok} sample(s)${fail ? ' (' + fail + ' skipped)' : ''}.`;
     this.value = '';
   });
+}
+
+// ── SFZ ZIP Upload ─────────────────────────────────────────
+
+function _wireSfzUpload() {
+  const btn    = document.getElementById('sfzUploadBtn');
+  const input  = document.getElementById('sfzFileInput');
+  const status = document.getElementById('sfzUploadStatus');
+  const picker = document.getElementById('sfzFilePicker');
+  const pickerConfirm = document.getElementById('sfzPickerConfirm');
+  if (!btn || !input) return;
+
+  btn.addEventListener('click', () => input.click());
+
+  input.addEventListener('change', async function () {
+    const file = this.files?.[0];
+    if (!file) return;
+    this.value = '';
+
+    const ctx = state.audioContext || (() => {
+      const c = new (window.AudioContext || window.webkitAudioContext)();
+      state.audioContext = c;
+      return c;
+    })();
+
+    if (status) status.textContent = 'Reading ZIP\u2026';
+    if (picker) picker.style.display = 'none';
+    if (pickerConfirm) pickerConfirm.style.display = 'none';
+
+    const result = await loadSfzFromZip(file, ctx, msg => {
+      if (status) status.textContent = msg;
+    });
+
+    if (!result) { if (status) status.textContent = 'Error loading ZIP.'; return; }
+
+    if (result.needsChoice) {
+      if (!picker || !pickerConfirm) return;
+      picker.innerHTML = '';
+      result.sfzFiles.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f; opt.textContent = f;
+        picker.appendChild(opt);
+      });
+      picker.style.display = 'block';
+      pickerConfirm.style.display = 'block';
+      if (status) status.textContent = 'Multiple SFZ files found \u2014 pick one:';
+      pickerConfirm._sfzFile = file;
+      pickerConfirm._sfzCtx  = ctx;
+      pickerConfirm.onclick = async () => {
+        picker.style.display = 'none';
+        pickerConfirm.style.display = 'none';
+        if (status) status.textContent = 'Loading\u2026';
+        const instrument = await loadSfzFromZip(
+          pickerConfirm._sfzFile, pickerConfirm._sfzCtx,
+          msg => { if (status) status.textContent = msg; }, picker.value
+        );
+        if (instrument) _activateSfzInstrument(instrument, status);
+        else if (status) status.textContent = 'Failed to load selected SFZ.';
+      };
+      return;
+    }
+
+    _activateSfzInstrument(result, status);
+  });
+}
+
+function _activateSfzInstrument(instrument, statusEl) {
+  state.sfzPlayer = new SfzPlayer(instrument);
+  INSTRUMENTS.sfzInstrument = {
+    label: instrument.name.slice(0, 20),
+    icon: '\uD83C\uDFBB',
+    description: `${instrument.regions.length} regions, ${instrument.audioBuffers.size} samples`,
+    releaseTime: 0.3,
+    sampleBased: true,
+  };
+  buildInstrumentPanel();
+  setInstrument('sfzInstrument');
+  refreshInstrumentPanel();
+  const warns = instrument.warnings.length ? ` (${instrument.warnings.length} warning${instrument.warnings.length > 1 ? 's' : ''})` : '';
+  if (statusEl) statusEl.textContent = `${instrument.name} loaded \u2014 ${instrument.regions.length} regions${warns}`;
+  if (instrument.warnings.length) console.warn('[SFZ]', instrument.warnings);
+  if (instrument.unknownOpcodes.size) console.info('[SFZ] Unknown opcodes:', [...instrument.unknownOpcodes].join(', '));
 }
 
 // ── Remap Grid ─────────────────────────────────────────────
