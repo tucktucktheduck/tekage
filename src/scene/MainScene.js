@@ -10,7 +10,8 @@
 
 import state from '../core/state.js';
 import settings from '../core/settings.js';
-import colors from '../core/colors.js';
+import colors, { intToHex } from '../core/colors.js';
+import skinManager from '../skin/SkinManager.js';
 import {
   keyboardLayout, keyGap, PORT_HEIGHT, ANTENNA_HEIGHT, ANTENNA_WIDTH,
   rowYPositions, FALL_SPEED, ANTENNA_BLOCK_WIDTH, MAX_CONCURRENT_NOTES,
@@ -45,12 +46,13 @@ function _triggerRestart(scene) {
   _restartPending = true;
 
   let count = 3;
+  const _lc = intToHex(colors.left);
   const txt = scene.add.text(960, 480, String(count), {
-    fontFamily: 'Orbitron', fontSize: '140px', color: '#3b9eff',
+    fontFamily: 'Orbitron', fontSize: '140px', color: _lc,
     fontStyle: 'bold',
   }).setOrigin(0.5).setDepth(200);
-  txt.setShadow(0, 0, '#3b9eff', 50, false, true);
-  txt.setStroke('#3b9eff', 2);
+  txt.setShadow(0, 0, _lc, 50, false, true);
+  txt.setStroke(_lc, 2);
 
   const step = () => {
     count--;
@@ -105,8 +107,8 @@ export function create() {
     fontFamily: 'Orbitron', fontSize: '64px', color: '#fff',
     fontStyle: 'bold',
   }).setOrigin(1, 0);
-  title.setShadow(0, 0, '#3b9eff', 30, false, true);
-  title.setStroke('#3b9eff', 1.5);
+  title.setShadow(0, 0, intToHex(colors.left), 30, false, true);
+  title.setStroke(intToHex(colors.left), 1.5);
   title.setDepth(20);
 
   // ── LEFT PANEL: PLAY + BEGINNER buttons ──
@@ -122,17 +124,28 @@ export function create() {
     btn.on('pointerdown',  fn);
     return btn;
   };
-  state._btnPlay     = _makeLBtn(460, '▶ PLAY',    '#3b9eff', () => {
+  state._btnPlay     = _makeLBtn(460, '▶ PLAY',    intToHex(colors.left), () => {
     if (!state.mxLoaded) {
       window.location.href = '/library.html';
     } else {
       mxTogglePlay();
     }
   });
-  state._btnBeginner = _makeLBtn(510, 'BEGINNER',  '#f59e0b', () => {
+  state._btnBeginner = _makeLBtn(510, 'BEGINNER',  intToHex(colors.right), () => {
     openAssistTab();
   });
-  _makeLBtn(560, 'RESTART', '#3b9eff', () => _triggerRestart(s));
+  state._btnRestart = _makeLBtn(560, 'RESTART', intToHex(colors.left), () => _triggerRestart(s));
+
+  // ── Reactive color updates ──
+  skinManager.on('colorChange', () => {
+    const lc = intToHex(colors.left);
+    const rc = intToHex(colors.right);
+    title.setShadow(0, 0, lc, 30, false, true);
+    title.setStroke(lc, 1.5);
+    if (state._btnPlay)     { state._btnPlay.setShadow(0,0,lc,8,false,true);    state._btnPlay.setStroke(lc,0.5);    state._btnPlay.setStyle({color:lc}); }
+    if (state._btnBeginner) { state._btnBeginner.setShadow(0,0,rc,8,false,true); state._btnBeginner.setStroke(rc,0.5); state._btnBeginner.setStyle({color:rc}); }
+    if (state._btnRestart)  { state._btnRestart.setShadow(0,0,lc,8,false,true); state._btnRestart.setStroke(lc,0.5); state._btnRestart.setStyle({color:lc}); }
+  });
 
   // ── STATS PANEL ──
   createStatsPanel(s);

@@ -40,7 +40,7 @@ export function mxSpawnNote(scene, noteData, noteIndex) {
   const pianoStartY = MX_SPAWN_BOUNDARY - noteHeight / 2;
 
   const isAccidental = BLACK_PC.has(noteData.midi % 12);
-  const blockFill = isAccidental ? colors.grayDark : colors.white;
+  const blockFill = colors.white;
 
   // Look up solver info for per-key rendering if available
   let solverKey = null, solverHand = null;
@@ -59,10 +59,10 @@ export function mxSpawnNote(scene, noteData, noteIndex) {
   if (settings.pianoVisualizerOn && hasKeyboardBlock) {
     if (solverKey) {
       // Use NoteRenderer for skinned notes
-      pianoBlock = createNoteBlock(scene, pk.x, pianoStartY, noteWidth, noteHeight, solverKey, solverHand, blockFill, { depth: 10, strokeWidth: 2, strokeColor: colors.purple, alpha: 0.9 });
+      pianoBlock = createNoteBlock(scene, pk.x, pianoStartY, noteWidth, noteHeight, solverKey, solverHand, blockFill, { depth: 10, strokeWidth: 2, strokeColor: solverHand === 'left' ? colors.left : colors.right, alpha: 0.5 });
     } else {
       // Fallback: plain rectangle (no solver data yet, or note not assigned)
-      pianoBlock = scene.add.rectangle(pk.x, pianoStartY, noteWidth, noteHeight, blockFill, 0.9);
+      pianoBlock = scene.add.rectangle(pk.x, pianoStartY, noteWidth, noteHeight, blockFill, 0.5);
       pianoBlock.setStrokeStyle(2, colors.purple);
       pianoBlock.setDepth(10);
       pianoBlock._noteType = 'rect';

@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import state from '../core/state.js';
+import colors from '../core/colors.js';
 import { pianoData, PIANO_LEFT, PIANO_HEIGHT } from '../core/constants.js';
 import { isLeftKey } from '../core/keyMapping.js';
 
@@ -41,8 +42,9 @@ const LW    = 1.95; // uniform stroke width
 // ── Color constants ─────────────────────────────────────────
 const OUTLINE_RGBA  = 'rgba(225,232,255,0.90)';
 const OUTLINE_GLOW  = 'rgba(225,232,255,1.0)';
-const BLUE_RGBA     = (a) => `rgba(59,158,255,${a})`;
-const ORANGE_RGBA   = (a) => `rgba(255,138,43,${a})`;
+function _intToRgba(n, a) { return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+const BLUE_RGBA   = (a) => _intToRgba(colors.left,  a);
+const ORANGE_RGBA = (a) => _intToRgba(colors.right, a);
 
 // ── Precompute key left edges from pianoData ────────────────
 // White key left edges (for divider drawing)

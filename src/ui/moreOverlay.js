@@ -21,6 +21,8 @@ import { loadSfzFromZip } from '../sfz/loader.js';
 import { openSkinEditor } from './skinEditor.js';
 import { mxTogglePlay, mxToggleMute, mxSetVolume, mxSetSpeed, mxShowMusicMap } from '../musicxml/controls.js';
 
+function _intToRgba(n, a) { return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+
 let initialized = false;
 
 // ── Public: show/hide ──────────────────────────────────────
@@ -641,7 +643,7 @@ function buildRemapGrid() {
   noteNames.forEach(n => {
     const btn = document.createElement('button');
     btn.textContent = n;
-    btn.style.cssText = `padding:6px 12px;border:2px solid ${n.includes('#') ? '#ec4899' : '#3b82f6'};border-radius:6px;background:${n.includes('#') ? '#1a1a2e' : 'transparent'};color:#fff;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:bold;cursor:pointer;`;
+    btn.style.cssText = `padding:6px 12px;border:2px solid ${n.includes('#') ? '#ec4899' : 'var(--tl-blue)'};border-radius:6px;background:${n.includes('#') ? '#1a1a2e' : 'transparent'};color:#fff;font-family:Rajdhani,sans-serif;font-size:13px;font-weight:bold;cursor:pointer;`;
     btn.addEventListener('click', () => {
       if (!selectedRemapKey) return;
       const hand = leftMap[selectedRemapKey] ? 'left' : 'right';
@@ -827,17 +829,18 @@ function _startWaveform() {
   function draw() {
     wt += 0.016;
     ctx.clearRect(0, 0, 144, 88);
-    ctx.strokeStyle = 'rgba(26,143,255,.06)'; ctx.lineWidth = 1;
+    const _lc = colors.left, _rc = colors.right;
+    ctx.strokeStyle = _intToRgba(_lc, 0.06); ctx.lineWidth = 1;
     for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.moveTo(0, i * 13); ctx.lineTo(144, i * 13); ctx.stroke(); }
     for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.moveTo(i * 18, 0); ctx.lineTo(i * 18, 88); ctx.stroke(); }
-    ctx.strokeStyle = 'rgba(26,143,255,.22)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = _intToRgba(_lc, 0.22); ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i <= 72; i++) {
       const x = i * 2, y = 44 + Math.sin(i * 0.12 + wt * 1.8) * 16 + Math.sin(i * 0.04 + wt * 0.6) * 10;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,138,43,.12)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = _intToRgba(_rc, 0.12); ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 0; i <= 72; i++) {
       const x = i * 2, y = 44 + Math.sin(i * 0.10 + wt * 1.2 + 1) * 13 + Math.cos(i * 0.06 + wt * 0.4) * 9;

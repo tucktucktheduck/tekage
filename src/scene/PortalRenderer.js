@@ -76,18 +76,12 @@ function lp(a, b, t) { return a + (b - a) * t; }
 /** Convert color name + intensity to [r,g,b] */
 function gRGB(c, i) {
   if (c === 'blue') {
-    return [
-      Math.round(lp(15, 59, i)),
-      Math.round(lp(15, 158, i)),
-      Math.round(lp(15, 255, i)),
-    ];
+    const n = colors.left;
+    return [Math.round(lp(15,(n>>16)&255,i)), Math.round(lp(15,(n>>8)&255,i)), Math.round(lp(15,n&255,i))];
   }
   if (c === 'orange') {
-    return [
-      Math.round(lp(15, 255, i)),
-      Math.round(lp(15, 140, i)),
-      Math.round(lp(15, 15, i)),
-    ];
+    const n = colors.right;
+    return [Math.round(lp(15,(n>>16)&255,i)), Math.round(lp(15,(n>>8)&255,i)), Math.round(lp(15,n&255,i))];
   }
   return [15, 15, 15];
 }
