@@ -1,5 +1,5 @@
 <#
-  loop.ps1 — Windows-native autonomous build loop for TKG, using a LOCAL model
+  loop.ps1 -- Windows-native autonomous build loop for TKG, using a LOCAL model
   (Qwen3-Coder-30B via Ollama) driven by Aider, in place of `claude -p`.
 
   This is the local-model equivalent of scripts/build-loop.sh. Each iteration:
@@ -51,7 +51,7 @@ for ($i = 1; $i -le $Iters; $i++) {
   Write-Host "-- gate: node tests/run-headless.js --" -ForegroundColor Yellow
   node tests/run-headless.js
   if ($LASTEXITCODE -ne 0) {
-    Write-Host "verify RED after iteration $i — stopping for review." -ForegroundColor Red
+    Write-Host "verify RED after iteration $i -- stopping for review." -ForegroundColor Red
     exit 1
   }
 }
