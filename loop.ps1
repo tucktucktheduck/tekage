@@ -25,6 +25,10 @@ $env:OLLAMA_API_BASE   = "http://127.0.0.1:11434"
 $env:OLLAMA_CONTEXT_LENGTH = "16384"   # match .aider.model.settings.yml num_ctx
 $env:OLLAMA_KEEP_ALIVE = "30m"         # keep the 18 GB model resident between calls
 
+# Force UTF-8 in Python so Aider doesn't crash on Windows' legacy console codepage.
+$env:PYTHONUTF8 = "1"
+$env:PYTHONIOENCODING = "utf-8"
+
 # Work on a branch, never main (mirrors AGENTS.md / TERMINAL-HANDOFF).
 # Use `git branch --list` (clean stdout, no stderr) to detect the branch; rev-parse
 # writes to stderr when absent, which PS 5.1 turns into a fatal error.
@@ -49,7 +53,7 @@ a repro and move on. STOP at the STOP-FOR-REVIEW marker after T11. Do ONE task n
 for ($i = 1; $i -le $Iters; $i++) {
   Write-Host "`n=== loop iteration $i / $Iters ===" -ForegroundColor Cyan
 
-  python -m aider `
+  python -m aider --no-pretty --no-stream --yes-always --no-show-model-warnings `
     --read AGENTS.md --read docs/DECISIONS.md --read backlog/STAGE-1.md `
     --message $bootstrap
 

@@ -14,4 +14,6 @@ auto-commits: true
 
 # Keep token use lean on a small local model.
 map-tokens: 1024
-stream: true
+# Headless-friendly: no streaming/pretty TUI (the loop runs without a real console).
+stream: false
+pretty: false
