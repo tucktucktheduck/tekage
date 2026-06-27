@@ -1,0 +1,17 @@
+# Aider defaults for the TKG autonomous loop on a local model.
+model: ollama_chat/qwen3-coder:30b
+
+# Always say yes to aider's prompts (add file? run test?) so the loop is unattended.
+yes-always: true
+
+# Run the engine tests after every change; feed failures back to the model.
+auto-test: true
+test-cmd: node tests/run-headless.js
+
+# Keep aider's own git commits (one per change) but never touch main directly;
+# the loop driver checks out the tkg/auto branch first.
+auto-commits: true
+
+# Keep token use lean on a small local model.
+map-tokens: 1024
+stream: true

@@ -1,0 +1,7 @@
+- name: ollama_chat/qwen3-coder:30b
+  edit_format: diff
+  use_repo_map: true
+  extra_params:
+    # Context window. Qwen3-Coder supports far more, but this box has 24 GB RAM
+    # and a 6 GB GPU, so the KV cache has to stay modest. Raise if you have headroom.
+    num_ctx: 16384
