@@ -26,8 +26,13 @@ $env:OLLAMA_CONTEXT_LENGTH = "16384"   # match .aider.model.settings.yml num_ctx
 $env:OLLAMA_KEEP_ALIVE = "30m"         # keep the 18 GB model resident between calls
 
 # Work on a branch, never main (mirrors AGENTS.md / TERMINAL-HANDOFF).
-git rev-parse --verify tkg/auto *> $null
-if ($LASTEXITCODE -ne 0) { git checkout -b tkg/auto } else { git checkout tkg/auto }
+# Use `git branch --list` (clean stdout, no stderr) to detect the branch; rev-parse
+# writes to stderr when absent, which PS 5.1 turns into a fatal error.
+if ([string]::IsNullOrWhiteSpace((git branch --list tkg/auto))) {
+  git checkout -b tkg/auto
+} else {
+  git checkout tkg/auto
+}
 
 $bootstrap = @'
 Read AGENTS.md and follow the loop in its section 2. Take the top unchecked task
