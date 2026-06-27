@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEKAGE · SYNTH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════
+   TEKAGE · SYNTH  — retro-futuristic falling-note trainer
+   Palette / fonts / glow language carried over from Tekage.
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --blue:#1a8fff; --blue-dim:#0d4a8a; --blue-glow:#3ba5ff;
+  --orange:#ff8a2b; --orange-dim:#8a4a10; --orange-glow:#ffaa55;
+  --bg:#050810; --panel:#0a0e1a; --border:#1a2040; --dim:#3a5070;
+  --ok:#22cc66;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--blue);
+  font-family:'Share Tech Mono',monospace;-webkit-font-smoothing:antialiased;}
+body{display:flex;flex-direction:column;}
+
+/* ── Top HUD ── */
+#hud{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;background:linear-gradient(180deg,#0a0e1a,#070a12);
+  border-bottom:1px solid var(--border);position:relative;z-index:30;}
+#hud::after{content:'';position:absolute;left:0;bottom:-1px;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue-dim),transparent);opacity:.5;}
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;letter-spacing:4px;
+  color:var(--orange);text-shadow:0 0 16px rgba(255,138,43,.4);}
+.logo small{color:var(--blue);font-size:11px;letter-spacing:3px;text-shadow:0 0 10px rgba(26,143,255,.4);margin-left:6px;}
+.hud-right{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--dim);letter-spacing:1px;}
+.online{color:var(--ok);text-shadow:0 0 6px rgba(34,204,102,.5);}.online::before{content:'● ';}
+.clock{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--blue);
+  border:1px solid var(--border);padding:2px 10px;border-radius:3px;text-shadow:0 0 6px rgba(26,143,255,.25);}
+
+/* ── Stage / canvas ── */
+#stageWrap{flex:1 1 auto;position:relative;overflow:hidden;background:var(--bg);}
+#stage{display:block;width:100%;height:100%;}
+/* CRT overlays */
+#stageWrap::before{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px);}
+#stageWrap::after{content:'';position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(0,0,0,.45) 100%);}
+.scanbar{position:absolute;left:0;width:100%;height:3px;z-index:7;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(26,143,255,.05),transparent);animation:scan 7s linear infinite;}
+@keyframes scan{0%{transform:translateY(-10%)}100%{transform:translateY(100vh)}}
+.corner{position:absolute;width:18px;height:18px;border:1px solid var(--border);z-index:8;pointer-events:none;}
+.corner.tl{top:8px;left:8px;border-right:none;border-bottom:none;}
+.corner.tr{top:8px;right:8px;border-left:none;border-bottom:none;}
+.corner.bl{bottom:8px;left:8px;border-right:none;border-top:none;}
+.corner.br{bottom:8px;right:8px;border-left:none;border-top:none;}
+
+/* drop hint */
+#dropHint{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:0;transition:opacity .2s;}
+#dropHint.show{opacity:1;}
+#dropHint div{border:2px dashed var(--orange);border-radius:14px;padding:30px 50px;
+  font-family:'Orbitron';letter-spacing:3px;color:var(--orange);text-shadow:0 0 14px rgba(255,138,43,.4);
+  background:rgba(255,138,43,.04);}
+
+/* ── Control teklet (bottom dock) ── */
+#dock{flex:0 0 auto;position:relative;z-index:20;
+  background:linear-gradient(180deg,#0c1020,#070a12);
+  border-top:1px solid var(--border);padding:10px 16px 12px;
+  display:flex;align-items:center;gap:10px;}
+#dock::before{content:'';position:absolute;left:0;top:-1px;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--orange-dim),transparent);opacity:.5;}
+
+.dockL,.dockR{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;}
+.dockGap{flex:1 1 64px;min-width:64px;}            /* clear center zone (Wispr Flow) */
+
+.grp{display:flex;align-items:center;gap:8px;}
+.sep{width:1px;height:30px;background:var(--border);}
+
+/* difficulty / version buttons */
+.ver-grp{flex-direction:column;align-items:flex-start;gap:4px;}
+#verRow{display:flex;gap:6px;flex-wrap:wrap;}
+button.tk.ver{display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1;
+  padding:6px 11px;letter-spacing:1px;}
+button.tk.ver .vname{font-size:10px;}
+button.tk.ver .vden{font-family:'Share Tech Mono';font-weight:400;font-size:8px;letter-spacing:0;color:var(--dim);}
+button.tk.ver.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);
+  box-shadow:0 0 12px rgba(255,138,43,.18) inset;}
+button.tk.ver.sel .vden{color:#ffba7a;}
+
+/* keyboard-map viewer */
+#mapOverlay{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(4,6,12,.74);backdrop-filter:blur(3px);}
+#mapOverlay.open{display:flex;}
+#mapPanel{width:min(880px,94vw);background:linear-gradient(180deg,#0d1426,#080b14);
+  border:1px solid var(--border);border-radius:14px;padding:16px 18px 20px;
+  box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 0 1px rgba(26,143,255,.08);}
+.mapHead{display:flex;align-items:center;justify-content:space-between;
+  font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:3px;color:#cfe3ff;}
+.mapHeadBtns{display:flex;gap:8px;}
+#mapLinesBtn.sel{border-color:var(--blue);color:var(--blue);background:rgba(26,143,255,.10);}
+.mapHint{font-family:'Rajdhani';font-weight:500;font-size:12.5px;color:#8aa2c2;margin:8px 0 14px;letter-spacing:.3px;}
+#mapBody{position:relative;}
+#mapKb{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.mapRow{display:flex;gap:6px;justify-content:center;}
+.mapKey{width:40px;height:40px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron';font-weight:700;font-size:13px;border:1px solid #1e2740;
+  background:#0e1424;color:#3a465e;transition:transform .05s,box-shadow .12s,background .12s;}
+.mapKey.dim{opacity:.32;}
+.mapKey.mapped{color:#dce8fb;background:#16203a;border-color:#2a3a5e;}
+.mapKey.mapped.left{border-color:rgba(26,143,255,.55);box-shadow:0 1px 0 rgba(26,143,255,.25) inset;}
+.mapKey.mapped.right{border-color:rgba(255,138,43,.55);box-shadow:0 1px 0 rgba(255,138,43,.25) inset;}
+.mapKey.lit{transform:translateY(1px);}
+.mapKey.mapped.left.lit{background:#1a8fff;color:#fff;box-shadow:0 0 16px rgba(26,143,255,.8);}
+.mapKey.mapped.right.lit{background:#ff8a2b;color:#1a0e04;box-shadow:0 0 16px rgba(255,138,43,.85);}
+#mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
+  background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
+.mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
+  border-right:1px solid #2a3242;box-sizing:border-box;}
+.mapWhite.dim{background:linear-gradient(180deg,#2a3140,#1b2130);}
+.mapWhite.in-left{background:linear-gradient(180deg,#cfe7ff,#7cc0ff);}
+.mapWhite.in-right{background:linear-gradient(180deg,#ffe2c4,#ffb877);}
+.mapWhite.lit{background:linear-gradient(180deg,#fff,#fff) !important;box-shadow:0 0 22px rgba(255,255,255,.6);}
+.mapBlack{position:absolute;top:0;height:60%;background:linear-gradient(180deg,#222936,#05070b);
+  border-radius:0 0 3px 3px;z-index:3;border:1px solid #000;box-sizing:border-box;}
+.mapBlack.in-left{background:linear-gradient(180deg,#2f5d8c,#0d2748);}
+.mapBlack.in-right{background:linear-gradient(180deg,#7a4a1e,#2a1606);}
+.mapBlack.dim{opacity:.5;}
+.mapBlack.lit{background:linear-gradient(180deg,#fff,#cfe3ff) !important;box-shadow:0 0 18px rgba(255,255,255,.7);}
+.mapClab{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-family:'Share Tech Mono';
+  font-size:8px;color:rgba(40,55,80,.85);}
+#mapSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;}
+
+button.tk{font-family:'Orbitron',sans-serif;font-weight:700;font-size:11px;letter-spacing:2px;
+  color:var(--blue);background:rgba(26,143,255,.03);border:1px solid var(--border);border-radius:5px;
+  padding:8px 12px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+button.tk:hover{border-color:var(--blue);background:rgba(26,143,255,.08);
+  text-shadow:0 0 8px rgba(26,143,255,.35);box-shadow:0 0 14px rgba(26,143,255,.06);}
+button.tk.accent{color:var(--orange);}
+button.tk.accent:hover{border-color:var(--orange);background:rgba(255,138,43,.08);
+  text-shadow:0 0 8px rgba(255,138,43,.4);box-shadow:0 0 14px rgba(255,138,43,.06);}
+button.tk.big{font-size:14px;padding:9px 16px;}
+button.tk.on{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);
+  box-shadow:0 0 14px rgba(255,138,43,.08),inset 0 0 14px rgba(255,138,43,.03);}
+
+.lbl{font-family:'Orbitron',sans-serif;font-weight:700;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;}
+
+select.tk{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:#cfe3ff;
+  background:#0a0e1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;cursor:pointer;
+  max-width:240px;}
+select.tk:focus{outline:none;border-color:var(--blue);}
+
+/* segmented toggle */
+.seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.seg button{font-family:'Orbitron';font-weight:700;font-size:10px;letter-spacing:2px;
+  color:var(--dim);background:transparent;border:none;padding:8px 14px;cursor:pointer;transition:all .15s;}
+.seg button.sel{color:var(--orange);background:rgba(255,138,43,.10);text-shadow:0 0 8px rgba(255,138,43,.35);}
+
+/* ── neon sliders (the two signature sliders) ── */
+.slider{display:flex;flex-direction:column;gap:3px;min-width:200px;}
+.slider .top{display:flex;justify-content:space-between;align-items:baseline;}
+.slider .name{font-family:'Orbitron';font-weight:700;font-size:10px;letter-spacing:2px;color:var(--blue);}
+.slider .name.melo{color:var(--orange);}
+.slider .val{font-family:'Share Tech Mono';font-size:11px;color:var(--dim);}
+.slider .ends{display:flex;justify-content:space-between;font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:-1px;}
+input[type=range].neon{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,var(--blue-dim),#13243f);outline:none;cursor:pointer;}
+input[type=range].neon.melo{background:linear-gradient(90deg,#13243f,var(--orange-dim));}
+input[type=range].neon::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#bfe0ff,var(--blue));border:1px solid #0a2a4a;
+  box-shadow:0 0 10px rgba(26,143,255,.7);cursor:pointer;}
+input[type=range].neon.melo::-webkit-slider-thumb{background:radial-gradient(circle at 38% 32%,#ffd9b0,var(--orange));
+  border-color:#5a3408;box-shadow:0 0 10px rgba(255,138,43,.7);}
+input[type=range].neon::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--blue);
+  border:1px solid #0a2a4a;box-shadow:0 0 10px rgba(26,143,255,.7);cursor:pointer;}
+input[type=range].neon.melo::-moz-range-thumb{background:var(--orange);box-shadow:0 0 10px rgba(255,138,43,.7);}
+
+/* volume mini */
+input[type=range].vol{-webkit-appearance:none;appearance:none;width:90px;height:4px;border-radius:3px;
+  background:#13243f;outline:none;cursor:pointer;}
+input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--blue);box-shadow:0 0 6px rgba(26,143,255,.6);cursor:pointer;}
+
+/* checkbox toggle */
+label.chk{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;}
+label.chk input{accent-color:var(--orange);width:15px;height:15px;cursor:pointer;}
+
+/* insight badge */
+#insight{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:9;
+  font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;
+  background:rgba(8,12,26,.7);border:1px solid var(--border);border-radius:6px;padding:5px 12px;
+  pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;white-space:nowrap;}
+#insight.show{opacity:1;}
+#insight b{color:var(--orange);}
+
+@media (max-width:760px){
+  .slider{min-width:140px;}
+  .logo{font-size:16px;}
+  select.tk{max-width:150px;}
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="logo">TEKAGE <small>// SYNTH</small></div>
+  <div class="hud-right">
+    <span>SYS V2.00</span>
+    <span class="online">ONLINE</span>
+    <span id="songName" style="color:#9fb6d4;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">DEMO · "FIRST LIGHT"</span>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+</div>
+
+<div id="stageWrap">
+  <canvas id="stage"></canvas>
+  <div class="scanbar"></div>
+  <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+  <div id="insight"></div>
+  <div id="dropHint"><div>DROP .MID FILE</div></div>
+</div>
+
+<div id="dock">
+  <div class="dockL">
+    <button class="tk big accent" id="playBtn" title="Play / Pause (Space)">▶ PLAY</button>
+    <button class="tk" id="restartBtn" title="Restart">⟲</button>
+    <button class="tk" id="loadBtn">LOAD MIDI</button>
+    <button class="tk" id="demoBtn">DEMO</button>
+    <button class="tk" id="mapBtn" title="Show the keyboard map">⌨ MAP</button>
+    <input type="file" id="fileInput" accept=".mid,.midi" style="display:none">
+  </div>
+
+  <div class="dockGap"></div>   <!-- clear center zone (Wispr Flow) -->
+
+  <div class="dockR">
+    <div class="grp ver-grp">
+      <span class="lbl">Difficulty</span>
+      <div id="verRow"></div>
+    </div>
+    <div class="grp">
+      <div class="seg" id="modeSeg">
+        <button data-mode="listen">LISTEN</button>
+        <button data-mode="play" class="sel">PLAY</button>
+      </div>
+    </div>
+    <div class="slider">
+      <div class="top"><span class="name">SPEED</span><span class="val" id="speedVal">1.00×</span></div>
+      <input type="range" class="neon" id="speed" min="25" max="125" value="100">
+      <div class="ends"><span>0.25×</span><span>1.25×</span></div>
+    </div>
+    <div class="grp">
+      <span class="lbl">Vol</span>
+      <input type="range" class="vol" id="vol" min="0" max="100" value="75">
+    </div>
+    <label class="chk"><input type="checkbox" id="namesChk" checked> C marks</label>
+  </div>
+</div>
+
+<!-- ── Keyboard-map viewer ── -->
+<div id="mapOverlay">
+  <div id="mapPanel">
+    <div class="mapHead">
+      <span>KEYBOARD MAP</span>
+      <div class="mapHeadBtns">
+        <button class="tk" id="mapLinesBtn">LINES</button>
+        <button class="tk" id="mapClose">CLOSE ✕</button>
+      </div>
+    </div>
+    <div class="mapHint">Lit keys are mapped to a note. Press any letter — it lights the key and its piano note. Left hand = blue, right hand = orange.</div>
+    <div id="mapBody">
+      <div id="mapKb"></div>
+      <div id="mapPiano"></div>
+      <svg id="mapSvg" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ════════════════════════════════════════════════════════════
+   0 · SMALL HELPERS
+   ════════════════════════════════════════════════════════════ */
+const NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const BLACK = new Set([1,3,6,8,10]);
+const noteName = m => NAMES[((m%12)+12)%12];
+const octaveOf = m => Math.floor(m/12) - 1;
+const isBlack = m => BLACK.has(((m%12)+12)%12);
+const midiToFreq = m => 440 * Math.pow(2,(m-69)/12);
+const clamp = (v,a,b)=>v<a?a:v>b?b:v;
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+/* ════════════════════════════════════════════════════════════
+   1 · MIDI PARSER  (ported from Tekage midiParser.js)
+   Returns { notes, parts } — parts grouped by channel, drums dropped.
+   ════════════════════════════════════════════════════════════ */
+function parseMidi(buffer){
+  const data = new Uint8Array(buffer); let pos=0;
+  const u32=()=>{const v=(data[pos]<<24)|(data[pos+1]<<16)|(data[pos+2]<<8)|data[pos+3];pos+=4;return v>>>0;};
+  const u16=()=>{const v=(data[pos]<<8)|data[pos+1];pos+=2;return v;};
+  const vlq=()=>{let v=0;for(let i=0;i<4;i++){const b=data[pos++];v=(v<<7)|(b&0x7f);if(!(b&0x80))break;}return v;};
+
+  if(u32()!==0x4d546864) throw new Error('Not a MIDI file');
+  u32(); u16(); const numTracks=u16(); const division=u16();
+  if(division & 0x8000) throw new Error('SMPTE timecode not supported');
+
+  const rawTracks=[];
+  for(let t=0;t<numTracks;t++){
+    if(pos+8>data.length) break;
+    const type=u32(); const len=u32(); const end=pos+len;
+    if(type!==0x4d54726b){pos=end;continue;}
+    const events=[]; let tick=0, running=0;
+    while(pos<end){
+      const d=vlq(); tick+=d;
+      let sb=data[pos];
+      if(sb&0x80){running=sb;pos++;} else {sb=running;}
+      const tp=sb&0xf0;
+      if(sb===0xff){
+        const mt=data[pos++], ml=vlq();
+        if(mt===0x51 && ml===3){const tempo=(data[pos]<<16)|(data[pos+1]<<8)|data[pos+2];events.push({tick,type:'tempo',tempo});}
+        pos+=ml; running=0;
+      } else if(sb===0xf0||sb===0xf7){ pos+=vlq(); running=0; }
+      else if(tp===0x80||tp===0x90){ const note=data[pos++], vel=data[pos++];
+        events.push({tick,type:(tp===0x90&&vel>0)?'on':'off',channel:sb&0x0f,note,vel}); }
+      else if(tp===0xa0||tp===0xb0||tp===0xe0){pos+=2;}
+      else if(tp===0xc0||tp===0xd0){pos+=1;}
+      else{pos++;}
+    }
+    pos=end; rawTracks.push(events);
+  }
+
+  // tempo map from all tracks (some files put tempo on track 0, some elsewhere)
+  const tempoMap=[{tick:0,tempo:500000}];
+  for(const tr of rawTracks) for(const ev of tr) if(ev.type==='tempo') tempoMap.push({tick:ev.tick,tempo:ev.tempo});
+  tempoMap.sort((a,b)=>a.tick-b.tick);
+  const tickToSec=(target)=>{
+    let secs=0,last=0,tempo=tempoMap[0].tempo;
+    for(let i=1;i<tempoMap.length;i++){ if(tempoMap[i].tick>=target) break;
+      secs += (tempoMap[i].tick-last)/division*(tempo/1e6); last=tempoMap[i].tick; tempo=tempoMap[i].tempo; }
+    return secs + (target-last)/division*(tempo/1e6);
+  };
+
+  const channelNotes=new Map();
+  for(const track of rawTracks){
+    const active=new Map(); let lastTick=0;
+    for(const ev of track){
+      if(ev.tick>lastTick) lastTick=ev.tick;
+      if(ev.type==='on') active.set(ev.channel+'-'+ev.note,{startTick:ev.tick,channel:ev.channel,vel:ev.vel});
+      else if(ev.type==='off'){
+        const k=ev.channel+'-'+ev.note, a=active.get(k);
+        if(a){ active.delete(k);
+          if(ev.note>=21&&ev.note<=108&&a.channel!==9){
+            const s=tickToSec(a.startTick), dur=Math.max(tickToSec(ev.tick)-s,0.05);
+            if(!channelNotes.has(a.channel)) channelNotes.set(a.channel,[]);
+            channelNotes.get(a.channel).push({midi:ev.note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel});
+          }
+        }
+      }
+    }
+    for(const [k,a] of active){
+      const note=parseInt(k.split('-')[1]);
+      if(note>=21&&note<=108&&a.channel!==9){
+        const s=tickToSec(a.startTick), dur=Math.max(tickToSec(lastTick)-s,0.05);
+        if(!channelNotes.has(a.channel)) channelNotes.set(a.channel,[]);
+        channelNotes.get(a.channel).push({midi:note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel});
+      }
+    }
+  }
+
+  const parts=[];
+  for(const [ch,notes] of [...channelNotes.entries()].sort((a,b)=>a[0]-b[0])){
+    if(!notes.length) continue;
+    notes.sort((a,b)=>a.startSec-b.startSec);
+    parts.push({channel:ch,name:'Channel '+(ch+1),notes});
+  }
+  const allNotes=parts.flatMap(p=>p.notes).sort((a,b)=>a.startSec-b.startSec);
+  return {notes:allNotes, parts};
+}
+
+/* ════════════════════════════════════════════════════════════
+   2 · CORE-OF-SONG EXTRACTION  (pure; no DOM/audio)
+   Turns a parsed song into density-ranked, beginner-playable
+   "versions": Easy·Core / Medium·Two-Voice / Hard·Full (+ a
+   baked-in simple part when the file ships one). Six stages,
+   per the research handoff: meter grid → voice separation →
+   (single-segment) → per-note salience → ≤2 monophonic lines →
+   difficulty thinning. Each version's .notes feeds solvePlan()
+   unchanged. Notes are references to the originals (identity
+   preserved) so the engine can play the backing in tandem.
+   ════════════════════════════════════════════════════════════ */
+
+// ── Stage 1 · meter grid → metricWeight ∈ [0,1] per note ──
+function estimateMeterGrid(notes){
+  const onsets=[...new Set(notes.map(n=>+n.startSec.toFixed(3)))].sort((a,b)=>a-b);
+  const iois=[];
+  for(let i=1;i<onsets.length;i++){ const d=onsets[i]-onsets[i-1]; if(d>0.06&&d<2) iois.push(d); }
+  let beat=0.5;
+  if(iois.length){
+    // histogram in 20ms buckets; dominant small interval ≈ beat/subdivision
+    const bucket=new Map();
+    for(const d of iois){ const b=Math.round(d/0.02); bucket.set(b,(bucket.get(b)||0)+1); }
+    let best=0,bb=25; for(const [b,c] of bucket){ if(c>best){best=c;bb=b;} }
+    beat=Math.min(1.0,Math.max(0.2,bb*0.02));
+  }
+  // phase: offset that lands the most onsets on grid points
+  let bestPhase=0,bestHit=-1;
+  for(let p=0;p<beat;p+=beat/8){
+    let hit=0; for(const o of onsets){ const r=((o-p)/beat); if(Math.abs(r-Math.round(r))<0.15) hit++; }
+    if(hit>bestHit){bestHit=hit;bestPhase=p;}
+  }
+  const metricWeight=(t)=>{
+    const r=(t-bestPhase)/beat;
+    const frac=Math.abs(r-Math.round(r));            // 0 on a beat
+    const onGrid=Math.max(0,1-frac/0.5);             // 1 on beat → 0 mid
+    const bar=Math.abs((Math.round(r))%4);           // strong every 4 beats
+    const strong=(bar===0)?1:(bar===2?0.6:0.3);
+    return Math.max(0,Math.min(1, 0.55*onGrid + 0.45*onGrid*strong));
+  };
+  for(const n of notes) n._metric=metricWeight(n.startSec);
+  return {beat, phase:bestPhase};
+}
+
+// ── Stage 2 · greedy pitch-proximity voice separation ──
+function separateVoices(notes){
+  const sorted=[...notes].sort((a,b)=> a.startSec-b.startSec || b.midi-a.midi);
+  const voices=[];
+  const LEAP=14;
+  for(const n of sorted){
+    let best=null,bestD=1e9;
+    for(const v of voices){
+      const last=v.notes[v.notes.length-1];
+      if(last.startSec+last.durationSec <= n.startSec+0.04){   // voice is free
+        const d=Math.abs(last.midi-n.midi);
+        if(d<bestD && d<=LEAP){ bestD=d; best=v; }
+      }
+    }
+    if(best) best.notes.push(n);
+    else voices.push({notes:[n]});
+  }
+  for(const v of voices){
+    const ms=v.notes.map(x=>x.midi);
+    v.meanPitch=ms.reduce((a,b)=>a+b,0)/ms.length;
+    v.span=Math.max(...ms)-Math.min(...ms);
+    v.onsetRate=v.notes.length / Math.max(0.5,(v.notes[v.notes.length-1].startSec - v.notes[0].startSec)||1);
+  }
+  return voices;
+}
+
+// ── Stage 4 · per-note salience (+ per-voice prominence) ──
+function repetitionScores(voice){
+  // encode each note by relative (Δpitch, Δonset-bucket) to its predecessor,
+  // count recurring 3-grams (transposition-invariant) → motif membership.
+  const ns=voice.notes; const N=ns.length;
+  const tup=[];
+  for(let i=1;i<N;i++){
+    const dp=Math.max(-12,Math.min(12, ns[i].midi-ns[i-1].midi));
+    const dob=Math.round(Math.min(2,(ns[i].startSec-ns[i-1].startSec))/0.12);
+    tup.push(dp+','+dob);
+  }
+  const gramCount=new Map();
+  for(let i=0;i+2<tup.length;i++){ const g=tup[i]+'|'+tup[i+1]+'|'+tup[i+2]; gramCount.set(g,(gramCount.get(g)||0)+1); }
+  const score=new Array(N).fill(0);
+  for(let i=0;i+2<tup.length;i++){ const c=gramCount.get(tup[i]+'|'+tup[i+1]+'|'+tup[i+2])||1;
+    const s=Math.log2(c+1); for(let k=i;k<=i+3 && k<N;k++) score[k]=Math.max(score[k],s); }
+  const mx=Math.max(1,...score);
+  return score.map(s=>s/mx);
+}
+function scoreNotes(notes, voices){
+  let durMax=0, velMin=127, velMax=0, velVar=0, velMean=0;
+  for(const n of notes){ durMax=Math.max(durMax,n.durationSec); const v=n.vel??80; velMin=Math.min(velMin,v); velMax=Math.max(velMax,v); velMean+=v; }
+  velMean/=Math.max(1,notes.length);
+  for(const n of notes){ const v=n.vel??80; velVar+=(v-velMean)**2; } velVar/=Math.max(1,notes.length);
+  const velFlat = velVar < 6;                      // quantized/exported MIDI → ignore velocity
+  for(const v of voices){
+    const rep=repetitionScores(v);
+    const regular = 1 - Math.min(1, voiceIOIstd(v));
+    v._repMean = rep.reduce((a,b)=>a+b,0)/Math.max(1,rep.length);
+    v._regular = regular;
+    v.notes.forEach((n,i)=>{ n._rep=rep[i]; });
+  }
+  // per-voice prominence: which voice is "the tune" this song. Register is
+  // RANK-based (top line ≈ lead — the skyline insight) so a high melody isn't
+  // out-voted by a repetitive mid/low accompaniment; repetition & regularity
+  // break ties. Bass-as-hook still survives — it's selected as the 2nd line.
+  const sortedByPitch=[...voices].sort((a,b)=>a.meanPitch-b.meanPitch);
+  const denom=Math.max(1,sortedByPitch.length-1);
+  sortedByPitch.forEach((v,i)=>{ v._regRank=i/denom; });   // 0 = lowest, 1 = highest
+  for(const v of voices){
+    v.prominence = 0.48*v._regRank + 0.24*v._repMean + 0.28*v._regular;
+  }
+  for(const v of voices){
+    const vm=v.meanPitch, vsp=Math.max(6,v.span);
+    for(const n of v.notes){
+      const reg = Math.min(1, Math.abs(n.midi-vm)/vsp);     // contour extremity within voice
+      const dur = durMax>0 ? Math.min(1,n.durationSec/durMax) : 0.5;
+      const vel = velFlat ? 0.5 : ( (velMax>velMin) ? (((n.vel??80)-velMin)/(velMax-velMin)) : 0.5 );
+      n._salience =
+          0.20*(n._metric??0.4)
+        + 0.28*(n._rep??0)
+        + 0.15*reg
+        + 0.12*dur
+        + (velFlat?0.0:0.10)*vel
+        + 0.15*v.prominence;
+      n._voiceRef=v;
+    }
+  }
+  // normalize to [0,1]
+  let smn=1e9,smx=-1e9; for(const n of notes){ smn=Math.min(smn,n._salience); smx=Math.max(smx,n._salience); }
+  for(const n of notes){ n.salience = smx>smn ? (n._salience-smn)/(smx-smn) : 0.5; }
+}
+function voiceIOIstd(v){
+  if(v.notes.length<3) return 1;
+  const io=[]; for(let i=1;i<v.notes.length;i++) io.push(v.notes[i].startSec-v.notes[i-1].startSec);
+  const m=io.reduce((a,b)=>a+b,0)/io.length; const sd=Math.sqrt(io.reduce((a,b)=>a+(b-m)**2,0)/io.length);
+  return m>0 ? Math.min(1.5, sd/m) : 1;
+}
+
+// ── Stage 5 · select ≤2 monophonic lines (lead + bass) ──
+function selectLines(voices){
+  const usable=voices.filter(v=>v.notes.length>=3);
+  if(!usable.length){ const any=voices.slice().sort((a,b)=>b.notes.length-a.notes.length)[0];
+    return { lead: any?[...any.notes].sort((a,b)=>a.startSec-b.startSec):[], bass:[] }; }
+  const maxN=Math.max(...usable.map(v=>v.notes.length));
+  // LEAD = the highest-register voice substantial enough to carry the tune.
+  // Register is decisive (the melody is almost always the top line — the
+  // skyline insight); the density floor rejects a sparse high blip (octave
+  // bleed). Prominence (repetition/regularity) only breaks near-ties in pitch.
+  const leadPool=usable.filter(v=>v.notes.length>=Math.max(4,0.25*maxN));
+  const pool=leadPool.length?leadPool:usable;
+  let leadV=pool[0];
+  for(const v of pool){
+    if(v.meanPitch > leadV.meanPitch+1.5) leadV=v;                       // clearly higher → lead
+    else if(Math.abs(v.meanPitch-leadV.meanPitch)<=1.5 && v.prominence>leadV.prominence) leadV=v; // tie → more prominent
+  }
+  // BASS = the lowest substantial voice that isn't the lead (its own rhythm kept)
+  const others=usable.filter(v=>v!==leadV);
+  const bassV=others.length ? others.reduce((lo,v)=>v.meanPitch<lo.meanPitch?v:lo) : null;
+  let lead=[...leadV.notes].sort((a,b)=>a.startSec-b.startSec);
+  let bass=bassV ? [...bassV.notes].sort((a,b)=>a.startSec-b.startSec) : [];
+  for(const n of lead) n.voice='right';
+  for(const n of bass) n.voice='left';
+  // no-cross: drop a bass note sounding above a concurrent lead note
+  if(bass.length && lead.length){
+    bass=bass.filter(b=>{
+      const concurrent=lead.find(l=> l.startSec<=b.startSec+0.03 && l.startSec+l.durationSec>b.startSec );
+      return !concurrent || b.midi < concurrent.midi;
+    });
+  }
+  return {lead, bass};
+}
+
+// ── Stage 6 · difficulty thinning (the knob) ──
+function thin(notes, difficulty, durationSec){
+  if(difficulty==='hard' || !notes.length) return [...notes].sort((a,b)=>a.startSec-b.startSec);
+  const target = (difficulty==='easy'?2.1:4.0) * durationSec;     // notes target
+  // rhythmic skeleton: strong-beat or strongly-repeated notes always survive
+  const keep=new Set();
+  for(const n of notes){ if((n._metric??0)>0.72 || (n._rep??0)>0.6) keep.add(n); }
+  const rest=notes.filter(n=>!keep.has(n)).sort((a,b)=>(b.salience??0)-(a.salience??0));
+  let i=0; while(keep.size<target && i<rest.length){ keep.add(rest[i++]); }
+  return [...keep].sort((a,b)=>a.startSec-b.startSec);
+}
+
+function densityOf(notes, dur){ return dur>0 ? notes.length/dur : 0; }
+
+function detectBaked(parsed){
+  const out=[];
+  for(const p of (parsed.parts||[])){
+    if(/melody|lead|vocal|easy|simple/i.test(p.name||'') && p.notes && p.notes.length){
+      out.push({ kind:'baked-melody', name:'File · '+p.name, notes:[...p.notes].sort((a,b)=>a.startSec-b.startSec) });
+    }
+  }
+  return out;
+}
+
+function deriveVersions(parsed){
+  const base=(parsed.notes||[]).slice().sort((a,b)=>a.startSec-b.startSec);
+  const durationSec = parsed.duration || (base.length? Math.max(...base.map(n=>n.startSec+n.durationSec)) : 0) || 1;
+  if(base.length<4){
+    return { title:parsed.title, durationSec, versions:[
+      { id:'full', name:'Full', kind:'full', density:densityOf(base,durationSec), notes:base } ]};
+  }
+  estimateMeterGrid(base);
+  const voices=separateVoices(base);
+  scoreNotes(base, voices);
+  const {lead, bass}=selectLines(voices);
+  const core = thin(lead, 'easy', durationSec);
+  const two  = thin([...lead, ...bass].sort((a,b)=>a.startSec-b.startSec), 'medium', durationSec);
+
+  let versions=[];
+  if(core.length) versions.push({ id:'core', name:'Easy · Core', kind:'derived-core', notes:core });
+  if(two.length && two.length>core.length) versions.push({ id:'2voice', name:'Medium · Two-Voice', kind:'derived-2voice', notes:two });
+  versions.push({ id:'full', name:'Hard · Full', kind:'full', notes:base });
+  versions.push(...detectBaked(parsed));
+
+  // de-dup degenerate versions (same count), compute density, rank ascending
+  const seen=new Set();
+  versions = versions.filter(v=>{ const k=v.kind+':'+v.notes.length; if(seen.has(k))return false; seen.add(k); return true; });
+  for(const v of versions){ v.density=densityOf(v.notes,durationSec); }
+  versions.sort((a,b)=>a.density-b.density);
+  return { title:parsed.title, durationSec, versions };
+}
+
+/* ════════════════════════════════════════════════════════════
+   2.5 · TKG KEYBOARD MAP + DAG SOLVER + SLICES
+   The heart of TKG. Each hand is a one-octave "slice" you move
+   independently with the shift keys. The DAG solver assigns every
+   note a hand + the COMPUTER KEY you press, plus the schedule of
+   slice shifts — never letting the hands cross. The letter that
+   rides each falling note is that computer key, not the pitch.
+   Standard mapping ported verbatim from the original repo.
+   ════════════════════════════════════════════════════════════ */
+const NOTE_IDX = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
+// Standard TKG layout — both hands span a full chromatic octave.
+const MAP = {
+  left:  { q:'C#', w:'D#', e:'F#', r:'G#', t:'A#', a:'C', s:'D', d:'E', f:'F', x:'G', c:'A', v:'B' },
+  right: { y:'C#', u:'D#', i:'F#', o:'G#', p:'A#', j:'C', k:'D', l:'E', ';':'F', n:'G', m:'A', ',':'B' },
+};
+const KEY_HAND = {};                         // computer key → 'left'|'right'
+for(const k in MAP.left)  KEY_HAND[k]='left';
+for(const k in MAP.right) KEY_HAND[k]='right';
+const LKEYS = Object.entries(MAP.left ).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+const RKEYS = Object.entries(MAP.right).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+// Shift keys that move each slice (octave only — both hands are full-range).
+const SHIFT = {
+  leftUp:  {key:'tab',     hand:'left',  dir:+1, glyph:'⭡', tag:'TAB'},
+  leftDn:  {key:'shift_l', hand:'left',  dir:-1, glyph:'⭣', tag:'⇧L'},
+  rightUp: {key:'enter',   hand:'right', dir:+1, glyph:'⭡', tag:'⏎'},
+  rightDn: {key:'shift_r', hand:'right', dir:-1, glyph:'⭣', tag:'⇧R'},
+};
+const KEY_LABEL = {tab:'TAB', shift_l:'⇧', shift_r:'⇧', enter:'⏎', ';':';', ',':','};
+const keyLabel = k => KEY_LABEL[k] || k.toUpperCase();
+
+// Lowest playable key for a midi note in `hand` at octave `oct` (or null).
+function keyForMidi(midi, hand, oct){
+  const keys = hand==='left'?LKEYS:RKEYS;
+  const target = midi - (oct+1)*12;          // semitone within the octave window
+  if(target<0 || target>11) return null;
+  const f = keys.find(k=>k.ni===target);
+  return f ? f.key : null;
+}
+
+/* Beam-search Viterbi over (leftOctave, rightOctave) state — the original
+   dagSolver cost model, trimmed to octave shifts since both hands are
+   full-range. No crossing: right-hand lowest ≥ left-hand highest. */
+function solvePlan(notes){
+  const BEAM_K=200;
+  if(!notes.length) return {plan:[], initialState:{leftOctave:4,rightOctave:5}, stateTimeline:[], handsUsed:new Set()};
+
+  // group onsets within 30ms
+  const events=[]; let cur={notes:[{...notes[0],origIdx:0}]};
+  for(let i=1;i<notes.length;i++){
+    if(notes[i].startSec - cur.notes[0].startSec < 0.03) cur.notes.push({...notes[i],origIdx:i});
+    else { events.push(cur); cur={notes:[{...notes[i],origIdx:i}]}; }
+  }
+  events.push(cur);
+  for(const ev of events){ if(ev.notes.length>9){ ev.notes.sort((a,b)=>a.midi-b.midi); ev.notes=ev.notes.slice(0,9); } }
+
+  function handStates(handNotes, hand){
+    if(!handNotes.length) return [{oct:-1, assigns:[]}];
+    const out=[];
+    for(let oct=0;oct<=7;oct++){
+      const assigns=[]; const used=new Set(); let ok=true;
+      for(const note of handNotes){
+        const k=keyForMidi(note.midi,hand,oct);
+        if(!k || used.has(k)){ ok=false; break; }
+        used.add(k); assigns.push({origIdx:note.origIdx, hand, key:k, midi:note.midi, startSec:note.startSec, durationSec:note.durationSec});
+      }
+      if(ok) out.push({oct, assigns});
+    }
+    return out;
+  }
+  function eventSolutions(ev){
+    const n=ev.notes.length, out=[], lim=1<<n;
+    for(let mask=0;mask<lim;mask++){
+      const L=[],R=[];
+      for(let i=0;i<n;i++){ (mask&(1<<i))?R.push(ev.notes[i]):L.push(ev.notes[i]); }
+      if(L.length>5||R.length>5) continue;
+      if(L.length&&R.length){ if(Math.min(...R.map(x=>x.midi)) < Math.max(...L.map(x=>x.midi))) continue; } // no crossing
+      const ls=handStates(L,'left'), rs=handStates(R,'right');
+      for(const a of ls) for(const b of rs){
+        out.push({ leftOct:a.oct, rightOct:b.oct, needsLeft:L.length>0, needsRight:R.length>0,
+          assigns:[...a.assigns,...b.assigns], leftMidis:L.map(x=>x.midi), rightMidis:R.map(x=>x.midi) });
+      }
+    }
+    return out;
+  }
+  const sols = events.map(eventSolutions);
+
+  const midis=notes.map(n=>n.midi);
+  const mid=Math.round((Math.min(...midis)+Math.max(...midis))/2);
+  const initLO=Math.max(0,Math.min(7,Math.floor(mid/12)-2)), initRO=Math.min(7,initLO+1);
+  const sk=(lo,ro)=>lo+','+ro;
+
+  let beam=new Map([[sk(initLO,initRO),{cost:0,bt:null}]]);
+  for(let lo=Math.max(0,initLO-1);lo<=Math.min(7,initLO+1);lo++)
+    for(let ro=Math.max(0,initRO-1);ro<=Math.min(7,initRO+1);ro++){
+      const key=sk(lo,ro); if(!beam.has(key)) beam.set(key,{cost:5,bt:null}); }
+
+  const hist=[beam];
+  for(let ei=0;ei<events.length;ei++){
+    const cands=sols[ei];
+    const prevT=ei>0?events[ei-1].notes[0].startSec:0, curT=events[ei].notes[0].startSec, gap=curT-prevT;
+    const next=new Map();
+    if(!cands.length){
+      for(const [key,en] of beam) next.set(key,{cost:en.cost,bt:{prevKey:key,sol:null}});
+    } else {
+      for(const [pk,pe] of beam){
+        const [plo,pro]=pk.split(',').map(Number);
+        for(const s of cands){
+          const nlo=s.needsLeft?s.leftOct:plo, nro=s.needsRight?s.rightOct:pro;
+          const shifts=Math.abs(nlo-plo)+Math.abs(nro-pro);
+          let cost=shifts*10;
+          if(shifts>0 && gap<0.5) cost+=1000;
+          if(shifts>1 && gap<0.5*shifts) cost+=500*shifts;
+          if(s.needsLeft&&!s.needsRight){ for(const m of s.leftMidis) if(m>mid) cost+=20; }
+          else if(!s.needsLeft&&s.needsRight){ for(const m of s.rightMidis) if(m<mid) cost+=20; }
+          if(s.needsLeft&&s.needsRight && Math.max(...s.leftMidis)===Math.min(...s.rightMidis)) cost+=5;
+          const tot=pe.cost+cost, nk=sk(nlo,nro);
+          if(!next.has(nk)||next.get(nk).cost>tot) next.set(nk,{cost:tot,bt:{prevKey:pk,sol:s}});
+        }
+      }
+    }
+    beam = next.size>BEAM_K ? new Map([...next.entries()].sort((a,b)=>a[1].cost-b[1].cost).slice(0,BEAM_K)) : next;
+    hist.push(beam);
+  }
+
+  let bestKey=null,bestCost=Infinity;
+  for(const [k,e] of beam) if(e.cost<bestCost){bestCost=e.cost;bestKey=k;}
+  if(!bestKey) return {plan:[], initialState:{leftOctave:initLO,rightOctave:initRO}, stateTimeline:[], handsUsed:new Set()};
+
+  const path=[]; let ck=bestKey;
+  for(let ei=events.length-1;ei>=0;ei--){
+    const e=hist[ei+1].get(ck); if(!e||!e.bt) break;
+    path.unshift({stateKey:ck, sol:e.bt.sol, ei}); ck=e.bt.prevKey;
+  }
+  const [slo,sro]=ck.split(',').map(Number);
+  const initialState={leftOctave:slo,rightOctave:sro};
+  const plan=[], timeline=[{timeSec:0,leftOctave:slo,rightOctave:sro}];
+  const covered=new Set(); let pLO=slo,pRO=sro;
+
+  for(const step of path){
+    const [nlo,nro]=step.stateKey.split(',').map(Number);
+    const curT=events[step.ei].notes[0].startSec;
+    const shifts=[]; let t;
+    t=pLO; while(t<nlo){ shifts.push({...SHIFT.leftUp }); t++; } while(t>nlo){ shifts.push({...SHIFT.leftDn }); t--; }
+    t=pRO; while(t<nro){ shifts.push({...SHIFT.rightUp}); t++; } while(t>nro){ shifts.push({...SHIFT.rightDn}); t--; }
+    shifts.forEach((sh,si)=>{ sh.type='shift'; sh.timeSec=Math.max(0,curT-(shifts.length-si)*0.45); plan.push(sh); });
+    if(step.sol) for(const a of step.sol.assigns){ plan.push({type:'note',noteIndex:a.origIdx,hand:a.hand,key:a.key,midi:a.midi,startSec:a.startSec,durationSec:a.durationSec}); covered.add(a.origIdx); }
+    timeline.push({timeSec:curT,leftOctave:nlo,rightOctave:nro}); pLO=nlo; pRO=nro;
+  }
+  for(let i=0;i<notes.length;i++) if(!covered.has(i)) plan.push({type:'skip',noteIndex:i,midi:notes[i].midi,startSec:notes[i].startSec});
+  plan.sort((a,b)=>(a.timeSec??a.startSec??0)-(b.timeSec??b.startSec??0));
+  const handsUsed = new Set(plan.filter(e=>e.type==='note').map(e=>e.hand));
+  return {plan, initialState, stateTimeline:timeline, handsUsed};
+}
+
+/* Run the solver on whatever notes are currently "yours" and write the
+   hand/key labels + the slice timeline + shift cues back onto Song. */
+function resolvePlan(){
+  for(const n of Song.notes){ n.hand=null; n.key=null; n.skip=false; n.backing=false; }
+  const ver = Song.version;
+  const active = (ver? ver.notes : Song.notes).slice().sort((a,b)=>a.startSec-b.startSec);
+  const activeSet = new Set(active);
+  if(!active.length){ Song.activeNotes=[]; Song.slicePlan=[]; Song.initSlice={L:4,R:5}; Song.shiftCues=[]; Song.handsUsed=new Set(['left','right']); return; }
+  const {plan, initialState, stateTimeline, handsUsed} = solvePlan(active);
+  for(const e of plan){
+    if(e.type==='note'){ const n=active[e.noteIndex]; n.hand=e.hand; n.key=e.key; }
+    else if(e.type==='skip'){ const n=active[e.noteIndex]; if(n) n.skip=true; }
+  }
+  Song.slicePlan = stateTimeline;
+  Song.initSlice = {L:initialState.leftOctave, R:initialState.rightOctave};
+  Song.shiftCues = plan.filter(e=>e.type==='shift');
+  Song.handsUsed = handsUsed && handsUsed.size ? handsUsed : new Set(['left','right']);
+  // Notes two hands can't reach (dense inner voices) are left to the engine —
+  // they don't fall and you're not asked to play them, but they still sound.
+  Song.activeNotes = active.filter(n=>!n.skip);
+  // Backing = the rest of the full song (everything not in your version) + the
+  // notes the solver had to skip. The engine plays these in tandem with you so
+  // the song always sounds whole.
+  for(const n of Song.notes){ if(!activeSet.has(n)) n.backing=true; }
+  seedUserSlice(Transport.songTime);
+}
+
+/* Slice position from the solved timeline (step function) at time t. */
+function sliceAt(t){
+  let L=Song.initSlice?Song.initSlice.L:4, R=Song.initSlice?Song.initSlice.R:5;
+  if(Song.slicePlan) for(const s of Song.slicePlan){ if(s.timeSec<=t+1e-6){ L=s.leftOctave; R=s.rightOctave; } else break; }
+  return {L,R};
+}
+const userSlice={L:4,R:5};
+function seedUserSlice(t){ const s=sliceAt(t); userSlice.L=s.L; userSlice.R=s.R; }
+// ONE source of truth for a hand's octave — what you SEE highlighted is exactly
+// what will SOUND. In PLAY you drive it; in LISTEN it follows the solved plan
+// (and userSlice is kept synced so a stray key still sounds at the shown octave).
+function currentSlice(){
+  if(UI.mode==='play') return userSlice;
+  const s=sliceAt(Transport.songTime); userSlice.L=s.L; userSlice.R=s.R; return s;
+}
+
+/* ════════════════════════════════════════════════════════════
+   3 · AUDIO ENGINE + VoiceManager
+   Every sounding note is a Voice with a UNIQUE id (never keyed by
+   MIDI, so a re-press can't orphan the previous one). A per-frame
+   watchdog force-releases any voice past its end or older than a
+   hard ceiling; allNotesOff() is the panic button. Together these
+   kill stuck/ghost notes regardless of missed key-ups, tab blur,
+   or seek/pause races.
+   ════════════════════════════════════════════════════════════ */
+const Audio = (()=>{
+  let ctx=null, master=null, verb=null;
+  const voices=new Map();         // voiceId -> Voice
+  const keyVoice=new Map();       // input key (or midi) -> voiceId  (held notes)
+  let nextId=1;
+  const MAX_VOICE_SEC=12;         // absolute ceiling — nothing rings longer
+
+  function ensure(){
+    if(ctx) return;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value=0.75;
+    const comp = ctx.createDynamicsCompressor();
+    verb = ctx.createConvolver(); verb.buffer = makeImpulse(1.4, 2.2);
+    const verbGain = ctx.createGain(); verbGain.gain.value=0.18;
+    master.connect(comp); comp.connect(ctx.destination);
+    master.connect(verb); verb.connect(verbGain); verbGain.connect(ctx.destination);
+  }
+  function makeImpulse(seconds, decay){
+    const rate=ctx.sampleRate, len=rate*seconds, buf=ctx.createBuffer(2,len,rate);
+    for(let c=0;c<2;c++){ const d=buf.getChannelData(c);
+      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); }
+    return buf;
+  }
+  function resume(){ ensure(); if(ctx.state==='suspended') ctx.resume(); }
+  function now(){ ensure(); return ctx.currentTime; }
+  function setVolume(v){ ensure(); master.gain.value=v; }
+
+  // build the oscillator stack for one voice
+  function build(midi, vel){
+    const f=midiToFreq(midi), t=ctx.currentTime;
+    const o1=ctx.createOscillator(),o2=ctx.createOscillator(),o3=ctx.createOscillator();
+    o1.type='triangle';o2.type='sine';o3.type='sine';
+    o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
+    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
+    g.gain.linearRampToValueAtTime(a*0.75,t+0.12);
+    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
+    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
+    o1.start(t);o2.start(t);o3.start(t);
+    return {o1,o2,o3,g};
+  }
+  function hardStop(v, when){ try{ const s=when??ctx.currentTime; v.o1.stop(s);v.o2.stop(s);v.o3.stop(s);
+    v.o1.disconnect();v.o2.disconnect();v.o3.disconnect();v.g.disconnect(); }catch(e){} }
+
+  function release(voiceId, immediate){
+    const v=voices.get(voiceId); if(!v) return; voices.delete(voiceId);
+    if(v.key!=null && keyVoice.get(v.key)===voiceId) keyVoice.delete(v.key);
+    const t=ctx.currentTime, rel=immediate?0.02:0.16;
+    try{ v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value,t);
+         v.g.gain.linearRampToValueAtTime(0.0001,t+rel); }catch(e){}
+    hardStop(v, t+rel+0.05);
+  }
+
+  // scheduled playback note (known start + duration): self-terminating + watchdog-guarded
+  function strike(midi, when, dur, vel=0.8){
+    ensure();
+    const t=Math.max(when, ctx.currentTime);
+    const f=midiToFreq(midi);
+    const o1=ctx.createOscillator(),o2=ctx.createOscillator(),o3=ctx.createOscillator();
+    o1.type='triangle';o2.type='sine';o3.type='sine';
+    o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
+    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
+    g.gain.linearRampToValueAtTime(a*0.7,t+0.10);
+    const rel=Math.max(dur,0.08);
+    g.gain.setTargetAtTime(0.0001, t+rel, 0.18);
+    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
+    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
+    o1.start(t);o2.start(t);o3.start(t);
+    const id=nextId++; const v={o1,o2,o3,g,key:null,held:false,endByCtx:t+rel+1.2,bornCtx:ctx.currentTime};
+    voices.set(id,v); hardStop(v, t+rel+1.2);   // schedule absolute stop too
+    return id;
+  }
+
+  // live held note (user playing). `key` = the input key id so re-press releases the prior voice.
+  function noteOn(midi, vel=0.85, key=null){
+    ensure(); resume();
+    if(key!=null && keyVoice.has(key)) release(keyVoice.get(key), true);   // retrigger: kill prior
+    const built=build(midi, vel);
+    const id=nextId++; const v={...built, key, held:true, endByCtx:Infinity, bornCtx:ctx.currentTime};
+    voices.set(id,v); if(key!=null) keyVoice.set(key,id);
+    return id;
+  }
+  function noteOff(key){
+    if(key!=null && keyVoice.has(key)){ release(keyVoice.get(key), false); return; }
+  }
+  function allNotesOff(immediate=true){
+    for(const id of [...voices.keys()]) release(id, immediate);
+    keyVoice.clear();
+  }
+  // per-frame watchdog: nothing held rings past its end; nothing rings past the ceiling
+  function tick(){
+    if(!ctx) return; const tc=ctx.currentTime;
+    for(const [id,v] of voices){
+      if((!v.held && tc>v.endByCtx+0.1) || (tc - v.bornCtx > MAX_VOICE_SEC)) release(id, true);
+    }
+  }
+  function liveCount(){ return voices.size; }
+  return {resume,now,setVolume,strike,noteOn,noteOff,allNotesOff,tick,liveCount};
+})();
+
+/* ════════════════════════════════════════════════════════════
+   4 · SONG STATE  +  analysis pipeline
+   ════════════════════════════════════════════════════════════ */
+const Song = {
+  notes:[],            // full song, all notes (each: {midi,startSec,durationSec,vel,channel,_i, hand,key,skip,backing,voice,salience})
+  parts:[],
+  duration:0,
+  title:'',
+  versions:[],         // [{id,name,kind,density,notes:[refs into Song.notes]}]
+  version:null,        // the currently selected version
+};
+
+function analyze(parsed, title){
+  const notes = parsed.notes.map((n,i)=>({...n, _i:i}));
+  const span = notes.length ? Math.max(...notes.map(n=>n.startSec+n.durationSec)) : 0;
+  Song.notes = notes;
+  Song.parts = parsed.parts || [];
+  Song.duration = span;
+  Song.title = title;
+  // Derive density-ranked playable versions from the full note set. Their .notes
+  // are references back into Song.notes, so identity is preserved (backing = the
+  // rest of the song the engine plays in tandem).
+  const dv = deriveVersions({ notes, parts:Song.parts, duration:span, title });
+  Song.versions = dv.versions;
+  Song.version  = dv.versions[0] || null;        // default = sparsest (Easy · Core)
+  resolvePlan();
+  return { versions: dv.versions };
+}
+
+function selectVersion(id){
+  const v = Song.versions.find(x=>x.id===id) || Song.versions[0];
+  if(!v) return;
+  Song.version = v;
+  Transport.pause(); Transport.seek(0);
+  resolvePlan();
+  draw();
+}
+
+/* ════════════════════════════════════════════════════════════
+   5 · TRANSPORT  (audio-locked clock + lookahead scheduler)
+   ════════════════════════════════════════════════════════════ */
+const Transport = {
+  playing:false, rate:1.0, songTime:0,
+  anchorCtx:0, anchorSong:0, schedPtr:0, schedTimer:null,
+
+  play(){
+    if(!Song.notes.length) return;
+    Audio.resume();
+    if(this.songTime>=Song.duration) this.songTime=0;
+    this.playing=true; this._anchor(); this._resetPtr();
+    if(!this.schedTimer) this.schedTimer=setInterval(()=>this._tick(),25);
+    setPlayBtn(true);
+  },
+  pause(){ this.playing=false; setPlayBtn(false); Audio.allNotesOff(); },
+  toggle(){ this.playing?this.pause():this.play(); },
+  restart(){ Audio.allNotesOff(); this.seek(0); if(!this.playing) draw(); },
+  seek(t){ Audio.allNotesOff(); this.songTime=clamp(t,0,Song.duration||0); if(this.playing){this._anchor();this._resetPtr();} if(typeof UI!=='undefined'&&UI.mode==='play') seedUserSlice(this.songTime); },
+
+  _anchor(){ this.anchorCtx=Audio.now(); this.anchorSong=this.songTime; },
+  _resetPtr(){ this.schedPtr=0; while(this.schedPtr<Song.notes.length && Song.notes[this.schedPtr].startSec < this.songTime) this.schedPtr++; },
+  _ctxTime(start){ return this.anchorCtx + (start - this.anchorSong)/this.rate; },
+
+  _tick(){
+    if(!this.playing) return;
+    this.songTime = this.anchorSong + (Audio.now()-this.anchorCtx)*this.rate;
+    const ahead = Audio.now()+0.12;
+    while(this.schedPtr<Song.notes.length){
+      const n=Song.notes[this.schedPtr];
+      const when=this._ctxTime(n.startSec);
+      if(when>ahead) break;
+      // ENGINE plays a note when:
+      //  • LISTEN → everything (full song auto-plays), OR
+      //  • PLAY  → it's backing (not in your version) or a note two hands
+      //            couldn't reach (n.skip) — so the song stays whole while you
+      //            play your version's notes yourself.
+      if(UI.mode==='listen' || n.backing || n.skip){
+        Audio.strike(n.midi, when, n.durationSec/this.rate, clamp((n.vel||90)/127,0.2,1));
+      }
+      this.schedPtr++;
+    }
+    if(this.songTime>=Song.duration+0.5){ this.pause(); this.songTime=Song.duration; }
+  }
+};
+
+/* a note is "yours to play" if it's in the selected version and not a skip */
+function isYours(n){ return !n.backing && !n.skip; }
+
+/* ════════════════════════════════════════════════════════════
+   6 · PIANO GEOMETRY + CANVAS RENDERER
+   ════════════════════════════════════════════════════════════ */
+const cvs = document.getElementById('stage');
+const g = cvs.getContext('2d');
+let W=0,H=0,DPR=1;
+let pianoTop=0, pianoH=0, whiteW=0, blackW=0, blackH=0;
+let geom = {};      // midi -> {cx, noteW, x, w, h, isBlk}
+const LO=21, HI=108;
+let FALL=200;       // px per song-second at rate 1 (recomputed on resize)
+
+function layout(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  const wrap=document.getElementById('stageWrap');
+  W=wrap.clientWidth; H=wrap.clientHeight;
+  cvs.width=W*DPR; cvs.height=H*DPR; cvs.style.width=W+'px'; cvs.style.height=H+'px';
+  g.setTransform(DPR,0,0,DPR,0,0);
+
+  pianoH = clamp(H*0.16, 84, 150);
+  pianoTop = H - pianoH;
+  // count white keys
+  let whites=0; for(let m=LO;m<=HI;m++) if(!isBlack(m)) whites++;
+  whiteW = W/whites; blackW = whiteW*0.62; blackH=pianoH*0.62;
+
+  geom={}; let wi=0;
+  for(let m=LO;m<=HI;m++){
+    if(!isBlack(m)){
+      const x=wi*whiteW;
+      geom[m]={isBlk:false, x, w:whiteW, y:pianoTop, h:pianoH, cx:x+whiteW/2, noteW:whiteW*0.84};
+      wi++;
+    } else {
+      const x=wi*whiteW - blackW/2;
+      geom[m]={isBlk:true, x, w:blackW, y:pianoTop, h:blackH, cx:x+blackW/2, noteW:blackW*0.92};
+    }
+  }
+  // travel time ~ 3.0s at rate 1 across the lane above the piano
+  FALL = pianoTop / 3.0;
+}
+
+const activeKeys = new Map();   // midi -> {color, until} currently sounding (from song)
+const pressed = new Map();      // midi -> true (user)
+const hitFlash = new Map();     // midi -> ts of correct hit
+
+function draw(){
+  g.clearRect(0,0,W,H);
+  // backdrop
+  g.fillStyle='#050810'; g.fillRect(0,0,W,H);
+  drawLaneGuides();
+
+  const t = Transport.songTime;
+  const laneTop=0, hitY=pianoTop;
+  const slice = currentSlice();
+
+  drawSliceLanes(slice);          // faint corridors showing where each hand sits
+
+  // gather currently sounding (for key glow)
+  activeKeys.clear();
+
+  // ── falling notes: ONLY the notes that are "yours" drop ──
+  const onscreen=[];
+  const list = Song.activeNotes || [];
+  for(const n of list){
+    const by = hitY - (n.startSec - t)*FALL;            // bottom edge
+    const ty = by - n.durationSec*FALL;                 // top edge
+    if(by < laneTop-40 || ty > hitY+4) continue;        // offscreen
+    onscreen.push({n,ty,by});
+    if(t>=n.startSec && t<=n.startSec+n.durationSec) activeKeys.set(n.midi, n.hand||'right');
+  }
+  for(const o of onscreen) drawNote(o.n,o.ty,o.by);
+
+  // hit line
+  g.save();
+  g.shadowBlur=14; g.shadowColor='rgba(255,138,43,.5)';
+  g.fillStyle='rgba(255,138,43,.55)'; g.fillRect(0,hitY-1.5,W,3);
+  g.restore();
+
+  drawPiano(slice);
+  drawSliceTabs(slice);           // the L / R hand markers sitting on the keys
+  if(UI.mode==='play') drawShiftCues(t);
+  if(Song.duration) drawProgress(t);
+}
+
+const HAND = {
+  left:  { fill:'#1a8fff', fillBright:'#5bb8ff', glow:'rgba(26,143,255,.55)', glowBright:'rgba(59,165,255,.85)', edge:'#bfe0ff', ink:'#04101f' },
+  right: { fill:'#ff8a2b', fillBright:'#ffb060', glow:'rgba(255,138,43,.55)', glowBright:'rgba(255,170,85,.85)', edge:'#ffd9b0', ink:'#1a0e02' },
+};
+
+/* faint vertical corridor for each hand's current one-octave slice */
+function drawSliceLanes(slice){
+  const used = Song.handsUsed || new Set(['left','right']);
+  g.save();
+  for(const hand of ['left','right']){
+    if(!used.has(hand)) continue;
+    const oct = hand==='left'?slice.L:slice.R;
+    const lo=clamp((oct+1)*12,LO,HI), hi=clamp((oct+1)*12+11,LO,HI);
+    if(!geom[lo]||!geom[hi]) continue;
+    const x0=geom[lo].x, x1=geom[hi].x + geom[hi].w;
+    const grad=g.createLinearGradient(0,0,0,pianoTop);
+    const c=hand==='left'?'26,143,255':'255,138,43';
+    grad.addColorStop(0,`rgba(${c},0)`); grad.addColorStop(1,`rgba(${c},.07)`);
+    g.fillStyle=grad; g.fillRect(x0,0,x1-x0,pianoTop);
+    g.strokeStyle=`rgba(${c},.10)`; g.lineWidth=1;
+    g.beginPath(); g.moveTo(x0,0); g.lineTo(x0,pianoTop); g.moveTo(x1,0); g.lineTo(x1,pianoTop); g.stroke();
+  }
+  g.restore();
+}
+
+function drawLaneGuides(){
+  // faint vertical "tracks": a line at every C, octave shading
+  g.save();
+  for(let m=LO;m<=HI;m++){
+    if(noteName(m)==='C'){
+      const x=geom[m].x;
+      g.strokeStyle='rgba(26,143,255,.05)'; g.lineWidth=1;
+      g.beginPath(); g.moveTo(x,0); g.lineTo(x,pianoTop); g.stroke();
+    }
+  }
+  g.restore();
+}
+
+function roundRect(x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  g.beginPath();
+  g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+}
+
+function drawNote(n, ty, by){
+  const ge=geom[n.midi]; if(!ge) return;
+  const hitY=pianoTop;
+  const w=ge.noteW, x=ge.cx - w/2;
+  const sounding = (Transport.songTime>=n.startSec && Transport.songTime<=n.startSec+n.durationSec);
+  const drawBy = Math.min(by, hitY);
+  const top = Math.max(ty, -20);
+  const h = drawBy - top;
+  if(h<=0.5) return;
+
+  const hand = n.hand || 'right';
+  const pal = HAND[hand];
+  let fill, glow;
+  if(n.skip){ fill='rgba(120,130,150,.30)'; glow='rgba(120,130,150,.18)'; }
+  else { fill = sounding ? pal.fillBright : pal.fill; glow = sounding ? pal.glowBright : pal.glow; }
+
+  g.save();
+  g.shadowBlur = sounding?16:11; g.shadowColor=glow;
+  g.fillStyle=fill; roundRect(x,top,w,h,Math.min(7,w/2)); g.fill();
+  g.shadowBlur=0;
+  g.lineWidth=1; g.strokeStyle=pal.edge; g.globalAlpha=n.skip?0.4:0.9;
+  roundRect(x,top,w,h,Math.min(7,w/2)); g.stroke();
+  g.restore();
+
+  // ── the COMPUTER KEY rides the note, pinned at both ends, moving with it ──
+  const label = n.skip ? '·' : keyLabel(n.key);
+  const fs = clamp(w*0.66, 9, 16);
+  g.save();
+  g.font=`700 ${fs}px 'Share Tech Mono', monospace`;
+  g.textAlign='center'; g.textBaseline='middle';
+  const ink = n.skip ? 'rgba(220,228,240,.7)' : pal.ink;
+  const enoughRoom = (drawBy - ty) > fs*2.4;   // tall enough to show both ends
+  const drawLetterAt=(yy)=>{
+    if(yy<2 || yy>hitY-1) return;
+    g.shadowBlur=5; g.shadowColor='rgba(0,0,0,.5)';
+    g.fillStyle = ink;
+    g.fillText(label, ge.cx, yy);
+  };
+  if(enoughRoom){
+    drawLetterAt(ty + fs*0.85);                 // beginning of the note
+    drawLetterAt(Math.min(by,hitY) - fs*0.85);  // end of the note
+  } else {
+    drawLetterAt((Math.max(ty,0)+Math.min(by,hitY))/2);
+  }
+  g.restore();
+}
+
+/* slice markers + key tint live in drawPiano/drawSliceTabs below */
+function drawSliceTabs(slice){
+  const used = Song.handsUsed || new Set(['left','right']);
+  for(const hand of ['left','right']){
+    if(!used.has(hand)) continue;
+    const oct = hand==='left'?slice.L:slice.R;
+    const lo=clamp((oct+1)*12,LO,HI), hi=clamp((oct+1)*12+11,LO,HI);
+    if(!geom[lo]||!geom[hi]) continue;
+    const x0=geom[lo].x, x1=geom[hi].x+geom[hi].w, cx=(x0+x1)/2;
+    const pal=HAND[hand]; const y=pianoTop-12;
+    // bracket spanning the octave
+    g.save();
+    g.strokeStyle=pal.fill; g.lineWidth=2; g.shadowBlur=8; g.shadowColor=pal.glow;
+    g.beginPath(); g.moveTo(x0+1,y+8); g.lineTo(x0+1,y); g.lineTo(x1-1,y); g.lineTo(x1-1,y+8); g.stroke();
+    // label pill
+    const txt = (hand==='left'?'L ':'R ')+'C'+(oct);
+    g.font="700 10px 'Orbitron', sans-serif"; g.textAlign='center'; g.textBaseline='middle';
+    const tw=g.measureText(txt).width+12;
+    g.fillStyle=pal.fill; g.shadowBlur=10;
+    roundRect(cx-tw/2,y-13,tw,13,6); g.fill();
+    g.shadowBlur=0; g.fillStyle=pal.ink; g.fillText(txt,cx,y-6.5);
+    g.restore();
+  }
+}
+
+/* falling shift cues — left-hand on the left rail, right-hand on the right.
+   When one reaches the line it's your signal to shift that slice. */
+function drawShiftCues(t){
+  const cues=Song.shiftCues||[]; const hitY=pianoTop;
+  for(const c of cues){
+    const by = hitY - (c.timeSec - t)*FALL;
+    if(by<-30 || by>hitY+30) continue;
+    const left = c.hand==='left';
+    const railX = left ? 22 : W-22;
+    const pal=HAND[c.hand];
+    const near = Math.abs(by-hitY)<14;
+    g.save();
+    g.translate(railX, by);
+    g.shadowBlur=near?16:9; g.shadowColor=pal.glow;
+    g.fillStyle=near?pal.fillBright:pal.fill;
+    roundRect(-16,-11,32,22,7); g.fill();
+    g.shadowBlur=0; g.fillStyle=pal.ink;
+    g.font="700 13px 'Share Tech Mono', monospace"; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(c.dir>0?'▲':'▼', 0, -0.5);
+    g.font="700 7px 'Orbitron',sans-serif"; g.fillText(c.tag, 0, 7);
+    g.restore();
+  }
+  // rail labels (only for hands this arrangement actually uses)
+  const used = Song.handsUsed || new Set(['left','right']);
+  g.save();
+  g.font="700 8px 'Orbitron',sans-serif"; g.textAlign='center'; g.globalAlpha=.5;
+  if(used.has('left')) { g.fillStyle=HAND.left.fill;  g.fillText('SHIFT L', 22, 14); }
+  if(used.has('right')){ g.fillStyle=HAND.right.fill; g.fillText('SHIFT R', W-22, 14); }
+  g.restore();
+}
+
+function inSlice(m, slice){
+  const used = Song.handsUsed || new Set(['left','right']);
+  if(used.has('left')  && m>= (slice.L+1)*12 && m<=(slice.L+1)*12+11) return 'left';
+  if(used.has('right') && m>= (slice.R+1)*12 && m<=(slice.R+1)*12+11) return 'right';
+  return null;
+}
+function drawPiano(slice){
+  const namesOn = UI.keyNames;
+  // white keys
+  for(let m=LO;m<=HI;m++){
+    const ge=geom[m]; if(ge.isBlk) continue;
+    const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
+    let topCol='#f3f6fb', botCol='#c4ccd8';
+    if(hand==='right'){ topCol='#ffd9b0'; botCol='#ff8a2b'; }
+    else if(hand==='left'){ topCol='#bfe0ff'; botCol='#1a8fff'; }
+    const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
+    grad.addColorStop(0,topCol); grad.addColorStop(1,botCol);
+    g.fillStyle=grad; g.fillRect(ge.x,ge.y,ge.w-1,ge.h);
+    // slice tint (only when key isn't already lit)
+    const sl=inSlice(m,slice);
+    if(sl && !hand){ g.fillStyle = sl==='left'?'rgba(26,143,255,.13)':'rgba(255,138,43,.13)'; g.fillRect(ge.x,ge.y,ge.w-1,ge.h); }
+    if(hand){ g.save(); g.shadowBlur=18; g.shadowColor=(hand==='left')?'rgba(26,143,255,.8)':'rgba(255,138,43,.85)';
+      g.fillStyle='rgba(255,255,255,0.001)'; g.fillRect(ge.x,ge.y,ge.w-1,6); g.restore(); }
+    g.strokeStyle='#2a3242'; g.lineWidth=1; g.strokeRect(ge.x+0.5,ge.y+0.5,ge.w-1,ge.h-1);
+    if(namesOn && noteName(m)==='C'){
+      g.fillStyle='rgba(40,55,80,.8)'; g.font="600 9px 'Share Tech Mono', monospace";
+      g.textAlign='center'; g.textBaseline='alphabetic';
+      g.fillText('C'+octaveOf(m), ge.cx, ge.y+ge.h-6);
+    }
+  }
+  // black keys on top
+  for(let m=LO;m<=HI;m++){
+    const ge=geom[m]; if(!ge.isBlk) continue;
+    const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
+    let top='#23282f', bot='#05070b';
+    if(hand==='right'){ top='#ffb060'; bot='#a8500f'; }
+    else if(hand==='left'){ top='#5bb8ff'; bot='#0d4a8a'; }
+    else { const sl=inSlice(m,slice); if(sl){ top = sl==='left'?'#1d3550':'#4a3320'; bot='#05070b'; } }
+    const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
+    grad.addColorStop(0,top); grad.addColorStop(1,bot);
+    if(hand){ g.save(); g.shadowBlur=16; g.shadowColor=(hand==='left')?'rgba(26,143,255,.8)':'rgba(255,138,43,.85)'; }
+    g.fillStyle=grad; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.fill();
+    if(hand) g.restore();
+    g.strokeStyle='#000'; g.lineWidth=1; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.stroke();
+  }
+  // top felt strip
+  g.fillStyle='#1a0e0e'; g.fillRect(0,pianoTop-2,W,2);
+}
+
+function drawProgress(t){
+  const frac=clamp(t/Song.duration,0,1);
+  g.fillStyle='rgba(26,143,255,.12)'; g.fillRect(0,0,W,2);
+  g.save(); g.shadowBlur=8; g.shadowColor='rgba(255,138,43,.6)';
+  g.fillStyle='#ff8a2b'; g.fillRect(0,0,W*frac,2); g.restore();
+}
+
+/* ════════════════════════════════════════════════════════════
+   7 · INPUT  (click piano · computer keys · Web MIDI)
+   ════════════════════════════════════════════════════════════ */
+function midiAtPoint(px,py){
+  if(py<pianoTop) return null;
+  // black keys first (on top)
+  for(let m=LO;m<=HI;m++){ const ge=geom[m]; if(!ge.isBlk) continue;
+    if(px>=ge.x && px<=ge.x+ge.w && py<=ge.y+ge.h) return m; }
+  for(let m=LO;m<=HI;m++){ const ge=geom[m]; if(ge.isBlk) continue;
+    if(px>=ge.x && px<=ge.x+ge.w) return m; }
+  return null;
+}
+function userOn(midi, hand, voiceKey){
+  if(midi==null) return;
+  pressed.set(midi, hand||'right'); Audio.noteOn(midi, 0.85, voiceKey ?? ('m'+midi));
+  // hit credit: did you press the right KEY near a falling note's onset?
+  const t=Transport.songTime;
+  for(const n of (Song.activeNotes||[])){
+    const match = (voiceKey && KEY_HAND[voiceKey]) ? (n.key===voiceKey) : (n.midi===midi);
+    if(match && Math.abs(n.startSec-t)<0.18){ hitFlash.set(midi,performance.now()); break; }
+  }
+}
+function userOff(midi, voiceKey){ if(midi!=null) pressed.delete(midi); Audio.noteOff(voiceKey ?? ('m'+midi)); }
+
+let mouseDownMidi=null;
+cvs.addEventListener('pointerdown',e=>{
+  Audio.resume();
+  const r=cvs.getBoundingClientRect();
+  const py=e.clientY-r.top;
+  if(py<pianoTop) return;   // clicks above the keys are handled by the scrub strip
+  const m=midiAtPoint(e.clientX-r.left, py);
+  if(m!=null){ mouseDownMidi=m; userOn(m,null,'mouse'); cvs.setPointerCapture(e.pointerId); }
+});
+cvs.addEventListener('pointerup',e=>{ if(mouseDownMidi!=null){ userOff(mouseDownMidi,'mouse'); mouseDownMidi=null; } });
+cvs.addEventListener('pointercancel',()=>{ if(mouseDownMidi!=null){ userOff(mouseDownMidi,'mouse'); mouseDownMidi=null; } });
+// click the very top strip to scrub
+cvs.addEventListener('click',e=>{
+  const r=cvs.getBoundingClientRect(), py=e.clientY-r.top;
+  if(py<=10 && Song.duration){ Transport.seek((e.clientX-r.left)/W*Song.duration); if(!Transport.playing) draw(); }
+});
+
+/* Computer keyboard = the TKG instrument. You press the key shown on the
+   falling note; it sounds at your slice's CURRENT octave for that hand. The
+   shift keys move each slice independently — the whole point of TKG. */
+function shiftSlice(hand, dir){
+  if(hand==='left')  userSlice.L = clamp(userSlice.L+dir, 0, 7);
+  else               userSlice.R = clamp(userSlice.R+dir, 0, 7);
+}
+function midiForGameKey(k){
+  const hand = KEY_HAND[k]; if(!hand) return null;
+  const name = (hand==='left'?MAP.left:MAP.right)[k];
+  const s = currentSlice();                       // displayed == audible
+  const oct = hand==='left'?s.L:s.R;
+  return { midi: clamp((oct+1)*12 + NOTE_IDX[name], 21, 108), hand };
+}
+const down=new Map();         // key → midi currently held (for release + visuals)
+window.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); Transport.toggle(); return; }
+  if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } return; }
+  // shift keys (always live so you can position before pressing play)
+  if(e.code==='Tab'){        e.preventDefault(); if(!e.repeat) shiftSlice('left', +1);  return; }
+  if(e.code==='Enter'){      e.preventDefault(); if(!e.repeat) shiftSlice('right',+1);  return; }
+  if(e.code==='ShiftLeft'){  e.preventDefault(); if(!e.repeat) shiftSlice('left', -1);  return; }
+  if(e.code==='ShiftRight'){ e.preventDefault(); if(!e.repeat) shiftSlice('right',-1);  return; }
+  if(e.repeat) return;
+  const k=e.key.toLowerCase();
+  if(KEY_HAND[k] && !down.has(k)){
+    Audio.resume();
+    const r=midiForGameKey(k); if(!r) return;
+    down.set(k, r.midi); userOn(r.midi, r.hand, k);
+    if(MapView.open) MapView.light(k, r.midi, true);
+  }
+});
+window.addEventListener('keyup',e=>{
+  const k=e.key.toLowerCase();
+  if(down.has(k)){ userOff(down.get(k), k); if(MapView.open) MapView.light(k, down.get(k), false); down.delete(k); }
+});
+// Panic: never let a note ring after focus/visibility loss (eaten key-ups).
+function panicRelease(){ Audio.allNotesOff(); pressed.clear(); down.clear(); mouseDownMidi=null; }
+window.addEventListener('blur', panicRelease);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) panicRelease(); });
+window.addEventListener('pagehide', panicRelease);
+
+// Web MIDI (real keyboard = truest "physical piano on your computer")
+if(navigator.requestMIDIAccess){
+  navigator.requestMIDIAccess().then(acc=>{
+    const bind=p=>p.onmidimessage=ev=>{
+      const [st,d1,d2]=ev.data, cmd=st&0xf0;
+      if(cmd===0x90 && d2>0) userOn(d1,null,'midi'+d1);
+      else if(cmd===0x80 || (cmd===0x90&&d2===0)) userOff(d1,'midi'+d1);
+    };
+    acc.inputs.forEach(bind);
+    acc.onstatechange=e=>{ if(e.port.type==='input'&&e.port.state==='connected') bind(e.port); };
+    if(acc.inputs.size) flash('MIDI device ready');
+  }).catch(()=>{});
+}
+
+/* ════════════════════════════════════════════════════════════
+   8 · UI STATE + WIRING
+   ════════════════════════════════════════════════════════════ */
+const UI = { mode:'play', keyNames:true };
+
+const $=id=>document.getElementById(id);
+function setPlayBtn(p){ $('playBtn').textContent = p?'⏸ PAUSE':'▶ PLAY'; $('playBtn').classList.toggle('on',p); }
+
+function flash(msg, big){
+  const el=$('insight'); el.innerHTML=msg; el.classList.add('show');
+  clearTimeout(flash._t); flash._t=setTimeout(()=>el.classList.remove('show'), big?4200:1800);
+}
+
+/* Difficulty / version buttons — built from the extractor's density-ranked
+   versions. Pick one BEFORE you play; ranked sparsest→busiest so you can play
+   the Core or step up to harder. */
+function buildVersionButtons(){
+  const row=$('verRow'); row.innerHTML='';
+  for(const v of Song.versions){
+    const b=document.createElement('button');
+    b.className='tk ver'+(v===Song.version?' sel':'');
+    b.dataset.id=v.id;
+    b.innerHTML=`<span class="vname">${v.name}</span><span class="vden">${v.density.toFixed(1)} n/s · ${v.notes.length}</span>`;
+    b.onclick=()=>{ selectVersion(v.id); document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===v.id));
+      flash(`<b>${v.name}</b> — ${v.density.toFixed(1)} notes/sec`); };
+    row.appendChild(b);
+  }
+}
+
+$('playBtn').onclick=()=>Transport.toggle();
+$('restartBtn').onclick=()=>Transport.restart();
+$('loadBtn').onclick=()=>$('fileInput').click();
+$('demoBtn').onclick=()=>loadDemo();
+$('fileInput').onchange=e=>{ const f=e.target.files[0]; if(f) loadFile(f); };
+$('mapBtn').onclick=()=>MapView.toggle();
+
+document.querySelectorAll('#modeSeg button').forEach(b=>{
+  b.onclick=()=>{ document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel'); UI.mode=b.dataset.mode;
+    if(UI.mode==='play') seedUserSlice(Transport.songTime);
+    flash(UI.mode==='play'?'PLAY MODE · press the keys shown · move your slices with Tab / ⇧ (left) and ⏎ / ⇧ (right)':'LISTEN MODE · sit back — the whole song plays and the slices glide'); };
+});
+
+const speedEl=$('speed');
+speedEl.oninput=()=>{ const r=speedEl.value/100; Transport.rate=r;
+  if(Transport.playing){ Transport.anchorSong=Transport.songTime; Transport.anchorCtx=Audio.now(); }
+  $('speedVal').textContent=r.toFixed(2)+'×'; };
+$('vol').oninput=()=>Audio.setVolume($('vol').value/100);
+$('namesChk').onchange=()=>UI.keyNames=$('namesChk').checked;
+
+/* ── Keyboard-map viewer ──────────────────────────────────────
+   Computer keyboard on top, piano beneath. Mapped keys are fully
+   opaque & hand-coloured; unmapped keys are dimmed. Press a letter
+   and it lights BOTH the letter and its piano key. A separate toggle
+   draws simple straight lines for the whole mapping. */
+const MapView = (()=>{
+  const KB_ROWS = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l',';'],
+    ['z','x','c','v','b','n','m',',','.','/'],
+  ];
+  let built=false, linesOn=false;
+  const keyCell=new Map();   // letter -> element
+  const pianoCell=new Map(); // midi -> element
+
+  function build(){
+    const kb=$('mapKb'); kb.innerHTML='';
+    for(const row of KB_ROWS){
+      const r=document.createElement('div'); r.className='mapRow';
+      for(const k of row){
+        const c=document.createElement('div');
+        const hand=KEY_HAND[k];
+        c.className='mapKey'+(hand?(' mapped '+hand):' dim');
+        c.textContent = (k===';'?';':k.toUpperCase());
+        c.dataset.k=k; keyCell.set(k,c); r.appendChild(c);
+      }
+      kb.appendChild(r);
+    }
+  }
+  function buildPiano(){
+    const s=currentSlice();
+    const loOct=Math.min(s.L,s.R), hiOct=Math.max(s.L,s.R);
+    const lo=(loOct+1)*12, hi=(hiOct+1)*12+11;
+    const pno=$('mapPiano'); pno.innerHTML=''; pianoCell.clear();
+    const whites=[]; for(let m=lo;m<=hi;m++){ if(![1,3,6,8,10].includes(m%12)) whites.push(m); }
+    const wW=100/whites.length;
+    // white keys
+    whites.forEach((m,idx)=>{
+      const el=document.createElement('div'); el.className='mapWhite';
+      const hand = (m>=(s.L+1)*12&&m<=(s.L+1)*12+11)?'left':((m>=(s.R+1)*12&&m<=(s.R+1)*12+11)?'right':null);
+      if(hand) el.classList.add('in-'+hand); else el.classList.add('dim');
+      el.style.left=(idx*wW)+'%'; el.style.width=wW+'%';
+      if(m%12===0){ const lab=document.createElement('span'); lab.className='mapClab'; lab.textContent='C'+(Math.floor(m/12)-1); el.appendChild(lab); }
+      pno.appendChild(el); pianoCell.set(m,el);
+    });
+    // black keys
+    for(let m=lo;m<=hi;m++){ if(![1,3,6,8,10].includes(m%12)) continue;
+      const leftWhite=m-1; const wi=whites.indexOf(leftWhite); if(wi<0) continue;
+      const el=document.createElement('div'); el.className='mapBlack';
+      const hand = (m>=(s.L+1)*12&&m<=(s.L+1)*12+11)?'left':((m>=(s.R+1)*12&&m<=(s.R+1)*12+11)?'right':null);
+      if(hand) el.classList.add('in-'+hand); else el.classList.add('dim');
+      el.style.left=((wi+1)*wW - wW*0.3)+'%'; el.style.width=(wW*0.6)+'%';
+      pno.appendChild(el); pianoCell.set(m,el);
+    }
+    drawLines();
+  }
+  function drawLines(){
+    const svg=$('mapSvg'); svg.innerHTML=''; if(!linesOn) return;
+    const host=$('mapBody').getBoundingClientRect();
+    svg.setAttribute('viewBox',`0 0 ${host.width} ${host.height}`);
+    for(const [k,cell] of keyCell){
+      const hand=KEY_HAND[k]; if(!hand) continue;
+      const r=midiForGameKey(k); if(!r) continue;
+      const pc=pianoCell.get(r.midi); if(!pc) continue;
+      const a=cell.getBoundingClientRect(), b=pc.getBoundingClientRect();
+      const x1=a.left+a.width/2-host.left, y1=a.bottom-host.top;
+      const x2=b.left+b.width/2-host.left, y2=b.top-host.top;
+      const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
+      ln.setAttribute('x1',x1);ln.setAttribute('y1',y1);ln.setAttribute('x2',x2);ln.setAttribute('y2',y2);
+      ln.setAttribute('stroke', hand==='left'?'rgba(26,143,255,.5)':'rgba(255,138,43,.5)');
+      ln.setAttribute('stroke-width','1.5'); svg.appendChild(ln);
+    }
+  }
+  function light(k,midi,on){
+    const c=keyCell.get(k); if(c) c.classList.toggle('lit',on);
+    const p=pianoCell.get(midi); if(p) p.classList.toggle('lit',on);
+  }
+  return {
+    open:false,
+    toggle(){ this.open?this.hide():this.show(); },
+    show(){ if(!built){build();built=true;} buildPiano(); $('mapOverlay').classList.add('open'); this.open=true; },
+    hide(){ $('mapOverlay').classList.remove('open'); this.open=false; },
+    light,
+    toggleLines(){ linesOn=!linesOn; $('mapLinesBtn').classList.toggle('sel',linesOn); drawLines(); },
+  };
+})();
+$('mapClose').onclick=()=>MapView.hide();
+$('mapLinesBtn').onclick=()=>MapView.toggleLines();
+$('mapOverlay').addEventListener('click',e=>{ if(e.target.id==='mapOverlay') MapView.hide(); });
+
+// drag-drop
+const wrap=document.getElementById('stageWrap');
+['dragenter','dragover'].forEach(ev=>wrap.addEventListener(ev,e=>{e.preventDefault();$('dropHint').classList.add('show');}));
+['dragleave','drop'].forEach(ev=>wrap.addEventListener(ev,e=>{e.preventDefault();$('dropHint').classList.remove('show');}));
+wrap.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+function versionSummary(){
+  return Song.versions.map(v=>v.name.split('·').pop().trim()+' '+v.density.toFixed(1)).join(' · ');
+}
+function loadFile(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const parsed=parseMidi(reader.result);
+      if(!parsed.notes.length){ flash('No playable notes found in that file'); return; }
+      Transport.pause(); Transport.seek(0);
+      analyze(parsed, file.name.replace(/\.midi?$/i,''));
+      $('songName').textContent = Song.title;
+      buildVersionButtons();
+      flash(`Loaded <b>${Song.title}</b> · ${Song.versions.length} difficulties · now playing <b>${Song.version?.name||'—'}</b>`, true);
+      draw();
+    }catch(err){ flash('Could not read MIDI: '+err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ════════════════════════════════════════════════════════════
+   9 · DEMO SONG  — clear top-line melody (ch0) over block-chord
+   accompaniment (ch1) + bass, so melody isolation is visible.
+   I–vi–IV–V in C, 100 BPM.
+   ════════════════════════════════════════════════════════════ */
+function buildDemo(){
+  const BPM=100, spb=60/BPM;           // seconds per beat
+  const notes=[];
+  const add=(midi,beat,beats,ch,vel=92)=>notes.push({midi,startSec:beat*spb,durationSec:beats*spb*0.96,vel,channel:ch});
+
+  // melody (channel 0) — singable, mostly stepwise, register C5..A5
+  const mel=[ // [midi, startBeat, beats]
+    [76,0,1],[77,1,1],[79,2,2],            // E F G–
+    [77,4,1],[76,5,1],[74,6,2],            // F E D–
+    [72,8,1],[74,9,1],[76,10,1],[77,11,1], // C D E F
+    [79,12,2],[76,14,2],                   // G– E–
+    [81,16,1],[79,17,1],[77,18,2],         // A G F–
+    [76,20,1],[74,21,1],[72,22,2],         // E D C–
+    [74,24,1],[76,25,1],[77,26,1],[79,27,1],
+    [81,28,2],[79,30,2],                   // A– G–
+  ];
+  for(const [m,b,d] of mel) add(m,b,d,0,100);
+
+  // accompaniment (channel 1) — block triads on each beat; one chord per 2 beats
+  const prog=[ // [rootMidi triad notes], 2 beats each, 16 slots
+    [60,64,67],[60,64,67], // C
+    [57,60,64],[57,60,64], // Am
+    [53,57,60],[53,57,60], // F
+    [55,59,62],[55,59,62], // G
+    [60,64,67],[60,64,67], // C
+    [57,60,64],[57,60,64], // Am
+    [53,57,60],[53,57,60], // F
+    [55,59,62],[55,59,62], // G
+  ];
+  prog.forEach((chord,i)=>{ const b=i*2;
+    chord.forEach(m=>{ add(m,b,1,1,68); add(m,b+1,1,1,60); }); // gentle two hits per chord
+  });
+  // bass (channel 1, low) — one per bar
+  const bass=[36,33,29,31,36,33,29,31];
+  bass.forEach((m,i)=>add(m,i*4,4,1,80));
+
+  notes.sort((a,b)=>a.startSec-b.startSec);
+  return { notes, parts:[
+    {channel:0,name:'Channel 1',notes:notes.filter(n=>n.channel===0)},
+    {channel:1,name:'Channel 2',notes:notes.filter(n=>n.channel===1)},
+  ]};
+}
+
+function loadDemo(){
+  Transport.pause(); Transport.seek(0);
+  const parsed=buildDemo();
+  analyze(parsed,'DEMO · "FIRST LIGHT"');
+  $('songName').textContent=Song.title;
+  buildVersionButtons();
+  flash(`Demo loaded · pick a difficulty below · now on <b>${Song.version?.name||'—'}</b> · the letters are the keys you press`, true);
+  draw();
+}
+
+/* ════════════════════════════════════════════════════════════
+   10 · MAIN LOOP + CLOCK
+   ════════════════════════════════════════════════════════════ */
+function frame(){ Audio.tick(); draw(); requestAnimationFrame(frame); }   // tick() = ghost-note watchdog
+window.addEventListener('resize', ()=>{ layout(); draw(); });
+
+function tickClock(){ const n=new Date();
+  $('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+tickClock(); setInterval(tickClock,10000);
+
+// boot
+layout();
+loadDemo();
+frame();
+setTimeout(()=>flash('<b>PLAY mode</b> · press the letter on each note · move your two hands with <b>Tab/⏎</b> (up) &amp; <b>⇧L/⇧R</b> (down) · tap <b>MAP</b> to see the keyboard', true), 800);
+</script>
+</body>
+</html>
