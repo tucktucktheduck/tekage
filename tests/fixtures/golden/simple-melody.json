@@ -1,0 +1,28 @@
+{
+  "versions": [
+    {
+      "id": "core",
+      "kind": "derived-core",
+      "count": 8,
+      "density": 2.025
+    },
+    {
+      "id": "full",
+      "kind": "full",
+      "count": 8,
+      "density": 2.025
+    }
+  ],
+  "sparsest": {
+    "id": "core",
+    "assignments": 9,
+    "hands": [
+      "left",
+      "right"
+    ],
+    "initial": {
+      "leftOctave": 4,
+      "rightOctave": 4
+    }
+  }
+}

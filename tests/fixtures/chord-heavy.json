@@ -1,0 +1,174 @@
+{
+  "title": "Chord Heavy",
+  "notes": [
+    {
+      "midi": 60,
+      "startSec": 0,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 0,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 0,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 65,
+      "startSec": 0.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 69,
+      "startSec": 0.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 0.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 1.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 71,
+      "startSec": 1.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 74,
+      "startSec": 1.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 60,
+      "startSec": 2.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 2.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 2.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 62,
+      "startSec": 3,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 66,
+      "startSec": 3,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 69,
+      "startSec": 3,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 3.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 71,
+      "startSec": 3.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 74,
+      "startSec": 3.75,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 65,
+      "startSec": 4.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 69,
+      "startSec": 4.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 4.5,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 60,
+      "startSec": 5.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 5.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 5.25,
+      "durationSec": 0.7,
+      "vel": 85,
+      "channel": 0
+    }
+  ],
+  "duration": 5.95
+}

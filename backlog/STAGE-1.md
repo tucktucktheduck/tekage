@@ -19,8 +19,8 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Docs:** 01, 10, 12.
 - **Acceptance:** `node tests/run-headless.js` runs against `src/`; `npx playwright
   test` loads `tkg.html` with **zero console errors**; `./scripts/verify.sh` green.
-- [ ] modular `src/` with banners  [ ] bundle → tkg.html  [ ] fixtures+golden
-  [ ] headless on src/  [ ] playwright smoke  [ ] verify.sh green
+- [x] modular `src/` with banners  [x] bundle → tkg.html  [x] fixtures+golden
+  [x] headless on src/  [x] playwright smoke  [x] verify.sh green
 
 ### T1 · Port VoiceManager (ghost-note kill)
 - **Goal:** move the reference VoiceManager into `src/runtime/audio` unchanged in

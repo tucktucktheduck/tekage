@@ -1,0 +1,34 @@
+{
+  "versions": [
+    {
+      "id": "core",
+      "kind": "derived-core",
+      "count": 36,
+      "density": 2.086
+    },
+    {
+      "id": "2voice",
+      "kind": "derived-2voice",
+      "count": 55,
+      "density": 3.187
+    },
+    {
+      "id": "full",
+      "kind": "full",
+      "count": 96,
+      "density": 5.562
+    }
+  ],
+  "sparsest": {
+    "id": "core",
+    "assignments": 37,
+    "hands": [
+      "left",
+      "right"
+    ],
+    "initial": {
+      "leftOctave": 4,
+      "rightOctave": 5
+    }
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "title": "Octave Jump",
+  "notes": [
+    {
+      "midi": 60,
+      "startSec": 0,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 0.4,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 62,
+      "startSec": 0.8,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 74,
+      "startSec": 1.2000000000000002,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 1.6,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 76,
+      "startSec": 2,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 65,
+      "startSec": 2.4000000000000004,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 77,
+      "startSec": 2.8000000000000003,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 3.2,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 79,
+      "startSec": 3.6,
+      "durationSec": 0.35,
+      "vel": 80,
+      "channel": 0
+    }
+  ],
+  "duration": 3.95
+}

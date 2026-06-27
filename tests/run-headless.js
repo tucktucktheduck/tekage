@@ -1,11 +1,12 @@
 // tests/run-headless.js — engine assertions for the autonomous loop.
-// STARTING POINT: runs against the visual-identity reference tekage-synth.html
-// (passes today). Stage-1 task T0 re-points these assertions at the new src/
-// modules once the engine is split out. Keep it exiting non-zero on any failure.
+// Sources the engine from the modular src/ files (concatenated in manifest order),
+// NOT from tekage-synth.html. Keep it exiting non-zero on any failure.
+// Set TKG_GEN_GOLDEN=1 to (re)write the golden fixture outputs instead of checking.
 
 const fs=require('fs');
-const html=fs.readFileSync('tekage-synth.html','utf8');
-let src=html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const path=require('path');
+const manifest=JSON.parse(fs.readFileSync('src/manifest.json','utf8'));
+let src=manifest.order.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 
 const noop=()=>{};
 function fakeEl(){ return new Proxy({style:{},classList:{add:noop,remove:noop,toggle:noop,contains:()=>false},
@@ -79,5 +80,29 @@ try{
 }catch(e){ err=e; }
 ok(!err, 'no exceptions across '+drew+' frames'+(err?(' -- '+err.message):''));
 
-console.log('\n'+(fails?('x '+fails+' CHECK(S) FAILED'):'ALL CHECKS PASSED'));
+// ── GOLDEN FIXTURES — deterministic extraction + solver outputs ──
+console.log('\n— GOLDEN FIXTURES (extraction + solver determinism) —');
+const GEN = process.env.TKG_GEN_GOLDEN === '1';
+const round = (x)=>Math.round(x*1000)/1000;
+const goldDir = path.join('tests','fixtures','golden');
+if(GEN) fs.mkdirSync(goldDir,{recursive:true});
+const fixNames = fs.readdirSync('tests/fixtures').filter(f=>f.endsWith('.json')).sort();
+for(const file of fixNames){
+  const name = file.replace(/\.json$/,'');
+  const parsed = JSON.parse(fs.readFileSync(path.join('tests/fixtures',file),'utf8'));
+  const dv = P.deriveVersions(parsed);
+  const sparsest = dv.versions[0];
+  const sp = P.solvePlan(sparsest.notes);
+  const summary = {
+    versions: dv.versions.map(v=>({id:v.id, kind:v.kind, count:v.notes.length, density:round(v.density)})),
+    sparsest: { id:sparsest.id, assignments:(sp.plan||[]).length, hands:[...(sp.handsUsed||[])].sort(), initial:sp.initialState }
+  };
+  const goldPath = path.join(goldDir, name+'.json');
+  if(GEN){ fs.writeFileSync(goldPath, JSON.stringify(summary,null,2)+'\n','utf8'); console.log('  wrote golden:',name); continue; }
+  let gold=null; try{ gold=JSON.parse(fs.readFileSync(goldPath,'utf8')); }catch(_){ }
+  ok(gold!==null, 'golden exists for '+name);
+  if(gold) ok(JSON.stringify(summary)===JSON.stringify(gold), 'golden matches for '+name+' ('+summary.versions.length+' versions)');
+}
+
+console.log('\n'+(GEN?'golden files written.':(fails?('x '+fails+' CHECK(S) FAILED'):'ALL CHECKS PASSED')));
 process.exit(fails?1:0);

@@ -1,0 +1,15 @@
+{
+  "name": "tkg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TKG - a piano rhythm game played on the QWERTY keyboard",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node tests/run-headless.js",
+    "test:ui": "playwright test",
+    "fixtures": "node scripts/gen-fixtures.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

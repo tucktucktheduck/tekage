@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEKAGE · SYNTH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════
+   TEKAGE · SYNTH  — retro-futuristic falling-note trainer
+   Palette / fonts / glow language carried over from Tekage.
+   ════════════════════════════════════════════════════════════ */
+:root{
+  --blue:#1a8fff; --blue-dim:#0d4a8a; --blue-glow:#3ba5ff;
+  --orange:#ff8a2b; --orange-dim:#8a4a10; --orange-glow:#ffaa55;
+  --bg:#050810; --panel:#0a0e1a; --border:#1a2040; --dim:#3a5070;
+  --ok:#22cc66;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:var(--blue);
+  font-family:'Share Tech Mono',monospace;-webkit-font-smoothing:antialiased;}
+body{display:flex;flex-direction:column;}
+
+/* ── Top HUD ── */
+#hud{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;background:linear-gradient(180deg,#0a0e1a,#070a12);
+  border-bottom:1px solid var(--border);position:relative;z-index:30;}
+#hud::after{content:'';position:absolute;left:0;bottom:-1px;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue-dim),transparent);opacity:.5;}
+.logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:20px;letter-spacing:4px;
+  color:var(--orange);text-shadow:0 0 16px rgba(255,138,43,.4);}
+.logo small{color:var(--blue);font-size:11px;letter-spacing:3px;text-shadow:0 0 10px rgba(26,143,255,.4);margin-left:6px;}
+.hud-right{display:flex;align-items:center;gap:16px;font-size:11px;color:var(--dim);letter-spacing:1px;}
+.online{color:var(--ok);text-shadow:0 0 6px rgba(34,204,102,.5);}.online::before{content:'● ';}
+.clock{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--blue);
+  border:1px solid var(--border);padding:2px 10px;border-radius:3px;text-shadow:0 0 6px rgba(26,143,255,.25);}
+
+/* ── Stage / canvas ── */
+#stageWrap{flex:1 1 auto;position:relative;overflow:hidden;background:var(--bg);}
+#stage{display:block;width:100%;height:100%;}
+/* CRT overlays */
+#stageWrap::before{content:'';position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.10) 2px,rgba(0,0,0,.10) 4px);}
+#stageWrap::after{content:'';position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 40%,transparent 55%,rgba(0,0,0,.45) 100%);}
+.scanbar{position:absolute;left:0;width:100%;height:3px;z-index:7;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(26,143,255,.05),transparent);animation:scan 7s linear infinite;}
+@keyframes scan{0%{transform:translateY(-10%)}100%{transform:translateY(100vh)}}
+.corner{position:absolute;width:18px;height:18px;border:1px solid var(--border);z-index:8;pointer-events:none;}
+.corner.tl{top:8px;left:8px;border-right:none;border-bottom:none;}
+.corner.tr{top:8px;right:8px;border-left:none;border-bottom:none;}
+.corner.bl{bottom:8px;left:8px;border-right:none;border-top:none;}
+.corner.br{bottom:8px;right:8px;border-left:none;border-top:none;}
+
+/* drop hint */
+#dropHint{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+  pointer-events:none;opacity:0;transition:opacity .2s;}
+#dropHint.show{opacity:1;}
+#dropHint div{border:2px dashed var(--orange);border-radius:14px;padding:30px 50px;
+  font-family:'Orbitron';letter-spacing:3px;color:var(--orange);text-shadow:0 0 14px rgba(255,138,43,.4);
+  background:rgba(255,138,43,.04);}
+
+/* ── Control teklet (bottom dock) ── */
+#dock{flex:0 0 auto;position:relative;z-index:20;
+  background:linear-gradient(180deg,#0c1020,#070a12);
+  border-top:1px solid var(--border);padding:10px 16px 12px;
+  display:flex;align-items:center;gap:10px;}
+#dock::before{content:'';position:absolute;left:0;top:-1px;width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--orange-dim),transparent);opacity:.5;}
+
+.dockL,.dockR{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;}
+.dockGap{flex:1 1 64px;min-width:64px;}            /* clear center zone (Wispr Flow) */
+
+.grp{display:flex;align-items:center;gap:8px;}
+.sep{width:1px;height:30px;background:var(--border);}
+
+/* difficulty / version buttons */
+.ver-grp{flex-direction:column;align-items:flex-start;gap:4px;}
+#verRow{display:flex;gap:6px;flex-wrap:wrap;}
+button.tk.ver{display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1;
+  padding:6px 11px;letter-spacing:1px;}
+button.tk.ver .vname{font-size:10px;}
+button.tk.ver .vden{font-family:'Share Tech Mono';font-weight:400;font-size:8px;letter-spacing:0;color:var(--dim);}
+button.tk.ver.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);
+  box-shadow:0 0 12px rgba(255,138,43,.18) inset;}
+button.tk.ver.sel .vden{color:#ffba7a;}
+
+/* keyboard-map viewer */
+#mapOverlay{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+  background:rgba(4,6,12,.74);backdrop-filter:blur(3px);}
+#mapOverlay.open{display:flex;}
+#mapPanel{width:min(880px,94vw);background:linear-gradient(180deg,#0d1426,#080b14);
+  border:1px solid var(--border);border-radius:14px;padding:16px 18px 20px;
+  box-shadow:0 24px 80px rgba(0,0,0,.6),0 0 0 1px rgba(26,143,255,.08);}
+.mapHead{display:flex;align-items:center;justify-content:space-between;
+  font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:3px;color:#cfe3ff;}
+.mapHeadBtns{display:flex;gap:8px;}
+#mapLinesBtn.sel{border-color:var(--blue);color:var(--blue);background:rgba(26,143,255,.10);}
+.mapHint{font-family:'Rajdhani';font-weight:500;font-size:12.5px;color:#8aa2c2;margin:8px 0 14px;letter-spacing:.3px;}
+#mapBody{position:relative;}
+#mapKb{display:flex;flex-direction:column;gap:6px;align-items:center;}
+.mapRow{display:flex;gap:6px;justify-content:center;}
+.mapKey{width:40px;height:40px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron';font-weight:700;font-size:13px;border:1px solid #1e2740;
+  background:#0e1424;color:#3a465e;transition:transform .05s,box-shadow .12s,background .12s;}
+.mapKey.dim{opacity:.32;}
+.mapKey.mapped{color:#dce8fb;background:#16203a;border-color:#2a3a5e;}
+.mapKey.mapped.left{border-color:rgba(26,143,255,.55);box-shadow:0 1px 0 rgba(26,143,255,.25) inset;}
+.mapKey.mapped.right{border-color:rgba(255,138,43,.55);box-shadow:0 1px 0 rgba(255,138,43,.25) inset;}
+.mapKey.lit{transform:translateY(1px);}
+.mapKey.mapped.left.lit{background:#1a8fff;color:#fff;box-shadow:0 0 16px rgba(26,143,255,.8);}
+.mapKey.mapped.right.lit{background:#ff8a2b;color:#1a0e04;box-shadow:0 0 16px rgba(255,138,43,.85);}
+#mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
+  background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
+.mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
+  border-right:1px solid #2a3242;box-sizing:border-box;}
+.mapWhite.dim{background:linear-gradient(180deg,#2a3140,#1b2130);}
+.mapWhite.in-left{background:linear-gradient(180deg,#cfe7ff,#7cc0ff);}
+.mapWhite.in-right{background:linear-gradient(180deg,#ffe2c4,#ffb877);}
+.mapWhite.lit{background:linear-gradient(180deg,#fff,#fff) !important;box-shadow:0 0 22px rgba(255,255,255,.6);}
+.mapBlack{position:absolute;top:0;height:60%;background:linear-gradient(180deg,#222936,#05070b);
+  border-radius:0 0 3px 3px;z-index:3;border:1px solid #000;box-sizing:border-box;}
+.mapBlack.in-left{background:linear-gradient(180deg,#2f5d8c,#0d2748);}
+.mapBlack.in-right{background:linear-gradient(180deg,#7a4a1e,#2a1606);}
+.mapBlack.dim{opacity:.5;}
+.mapBlack.lit{background:linear-gradient(180deg,#fff,#cfe3ff) !important;box-shadow:0 0 18px rgba(255,255,255,.7);}
+.mapClab{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-family:'Share Tech Mono';
+  font-size:8px;color:rgba(40,55,80,.85);}
+#mapSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;}
+
+button.tk{font-family:'Orbitron',sans-serif;font-weight:700;font-size:11px;letter-spacing:2px;
+  color:var(--blue);background:rgba(26,143,255,.03);border:1px solid var(--border);border-radius:5px;
+  padding:8px 12px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+button.tk:hover{border-color:var(--blue);background:rgba(26,143,255,.08);
+  text-shadow:0 0 8px rgba(26,143,255,.35);box-shadow:0 0 14px rgba(26,143,255,.06);}
+button.tk.accent{color:var(--orange);}
+button.tk.accent:hover{border-color:var(--orange);background:rgba(255,138,43,.08);
+  text-shadow:0 0 8px rgba(255,138,43,.4);box-shadow:0 0 14px rgba(255,138,43,.06);}
+button.tk.big{font-size:14px;padding:9px 16px;}
+button.tk.on{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);
+  box-shadow:0 0 14px rgba(255,138,43,.08),inset 0 0 14px rgba(255,138,43,.03);}
+
+.lbl{font-family:'Orbitron',sans-serif;font-weight:700;font-size:9px;letter-spacing:2px;color:var(--dim);text-transform:uppercase;}
+
+select.tk{font-family:'Rajdhani',sans-serif;font-weight:600;font-size:13px;color:#cfe3ff;
+  background:#0a0e1a;border:1px solid var(--border);border-radius:5px;padding:7px 10px;cursor:pointer;
+  max-width:240px;}
+select.tk:focus{outline:none;border-color:var(--blue);}
+
+/* segmented toggle */
+.seg{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.seg button{font-family:'Orbitron';font-weight:700;font-size:10px;letter-spacing:2px;
+  color:var(--dim);background:transparent;border:none;padding:8px 14px;cursor:pointer;transition:all .15s;}
+.seg button.sel{color:var(--orange);background:rgba(255,138,43,.10);text-shadow:0 0 8px rgba(255,138,43,.35);}
+
+/* ── neon sliders (the two signature sliders) ── */
+.slider{display:flex;flex-direction:column;gap:3px;min-width:200px;}
+.slider .top{display:flex;justify-content:space-between;align-items:baseline;}
+.slider .name{font-family:'Orbitron';font-weight:700;font-size:10px;letter-spacing:2px;color:var(--blue);}
+.slider .name.melo{color:var(--orange);}
+.slider .val{font-family:'Share Tech Mono';font-size:11px;color:var(--dim);}
+.slider .ends{display:flex;justify-content:space-between;font-size:8px;color:var(--dim);letter-spacing:1px;margin-top:-1px;}
+input[type=range].neon{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;
+  background:linear-gradient(90deg,var(--blue-dim),#13243f);outline:none;cursor:pointer;}
+input[type=range].neon.melo{background:linear-gradient(90deg,#13243f,var(--orange-dim));}
+input[type=range].neon::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#bfe0ff,var(--blue));border:1px solid #0a2a4a;
+  box-shadow:0 0 10px rgba(26,143,255,.7);cursor:pointer;}
+input[type=range].neon.melo::-webkit-slider-thumb{background:radial-gradient(circle at 38% 32%,#ffd9b0,var(--orange));
+  border-color:#5a3408;box-shadow:0 0 10px rgba(255,138,43,.7);}
+input[type=range].neon::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--blue);
+  border:1px solid #0a2a4a;box-shadow:0 0 10px rgba(26,143,255,.7);cursor:pointer;}
+input[type=range].neon.melo::-moz-range-thumb{background:var(--orange);box-shadow:0 0 10px rgba(255,138,43,.7);}
+
+/* volume mini */
+input[type=range].vol{-webkit-appearance:none;appearance:none;width:90px;height:4px;border-radius:3px;
+  background:#13243f;outline:none;cursor:pointer;}
+input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--blue);box-shadow:0 0 6px rgba(26,143,255,.6);cursor:pointer;}
+
+/* checkbox toggle */
+label.chk{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;}
+label.chk input{accent-color:var(--orange);width:15px;height:15px;cursor:pointer;}
+
+/* insight badge */
+#insight{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:9;
+  font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;
+  background:rgba(8,12,26,.7);border:1px solid var(--border);border-radius:6px;padding:5px 12px;
+  pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;white-space:nowrap;}
+#insight.show{opacity:1;}
+#insight b{color:var(--orange);}
+
+@media (max-width:760px){
+  .slider{min-width:140px;}
+  .logo{font-size:16px;}
+  select.tk{max-width:150px;}
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="logo">TEKAGE <small>// SYNTH</small></div>
+  <div class="hud-right">
+    <span>SYS V2.00</span>
+    <span class="online">ONLINE</span>
+    <span id="songName" style="color:#9fb6d4;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">DEMO · "FIRST LIGHT"</span>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+</div>
+
+<div id="stageWrap">
+  <canvas id="stage"></canvas>
+  <div class="scanbar"></div>
+  <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+  <div id="insight"></div>
+  <div id="dropHint"><div>DROP .MID FILE</div></div>
+</div>
+
+<div id="dock">
+  <div class="dockL">
+    <button class="tk big accent" id="playBtn" title="Play / Pause (Space)">▶ PLAY</button>
+    <button class="tk" id="restartBtn" title="Restart">⟲</button>
+    <button class="tk" id="loadBtn">LOAD MIDI</button>
+    <button class="tk" id="demoBtn">DEMO</button>
+    <button class="tk" id="mapBtn" title="Show the keyboard map">⌨ MAP</button>
+    <input type="file" id="fileInput" accept=".mid,.midi" style="display:none">
+  </div>
+
+  <div class="dockGap"></div>   <!-- clear center zone (Wispr Flow) -->
+
+  <div class="dockR">
+    <div class="grp ver-grp">
+      <span class="lbl">Difficulty</span>
+      <div id="verRow"></div>
+    </div>
+    <div class="grp">
+      <div class="seg" id="modeSeg">
+        <button data-mode="listen">LISTEN</button>
+        <button data-mode="play" class="sel">PLAY</button>
+      </div>
+    </div>
+    <div class="slider">
+      <div class="top"><span class="name">SPEED</span><span class="val" id="speedVal">1.00×</span></div>
+      <input type="range" class="neon" id="speed" min="25" max="125" value="100">
+      <div class="ends"><span>0.25×</span><span>1.25×</span></div>
+    </div>
+    <div class="grp">
+      <span class="lbl">Vol</span>
+      <input type="range" class="vol" id="vol" min="0" max="100" value="75">
+    </div>
+    <label class="chk"><input type="checkbox" id="namesChk" checked> C marks</label>
+  </div>
+</div>
+
+<!-- ── Keyboard-map viewer ── -->
+<div id="mapOverlay">
+  <div id="mapPanel">
+    <div class="mapHead">
+      <span>KEYBOARD MAP</span>
+      <div class="mapHeadBtns">
+        <button class="tk" id="mapLinesBtn">LINES</button>
+        <button class="tk" id="mapClose">CLOSE ✕</button>
+      </div>
+    </div>
+    <div class="mapHint">Lit keys are mapped to a note. Press any letter — it lights the key and its piano note. Left hand = blue, right hand = orange.</div>
+    <div id="mapBody">
+      <div id="mapKb"></div>
+      <div id="mapPiano"></div>
+      <svg id="mapSvg" preserveAspectRatio="none"></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+/*TKG_BUNDLE*/
+</script>
+</body>
+</html>

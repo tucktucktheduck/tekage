@@ -1,0 +1,118 @@
+{
+  "title": "Pop Song",
+  "notes": [
+    {
+      "midi": 72,
+      "startSec": 0,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 48,
+      "startSec": 0,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 74,
+      "startSec": 0.5,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 48,
+      "startSec": 0.5,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 76,
+      "startSec": 1,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 53,
+      "startSec": 1,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 74,
+      "startSec": 1.5,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 53,
+      "startSec": 1.5,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 2,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 55,
+      "startSec": 2,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 71,
+      "startSec": 2.5,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 55,
+      "startSec": 2.5,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 3,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 48,
+      "startSec": 3,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    },
+    {
+      "midi": 76,
+      "startSec": 3.5,
+      "durationSec": 0.45,
+      "vel": 92,
+      "channel": 0
+    },
+    {
+      "midi": 48,
+      "startSec": 3.5,
+      "durationSec": 0.5,
+      "vel": 70,
+      "channel": 0
+    }
+  ],
+  "duration": 4
+}

@@ -1,0 +1,244 @@
+{
+  "title": "Multi Part",
+  "notes": [
+    {
+      "midi": 76,
+      "startSec": 0,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 60,
+      "startSec": 0,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 77,
+      "startSec": 0.5,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 0.5,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 79,
+      "startSec": 1,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 60,
+      "startSec": 1,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 77,
+      "startSec": 1.5,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 1.5,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 76,
+      "startSec": 2,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 59,
+      "startSec": 2,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 74,
+      "startSec": 2.5,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 62,
+      "startSec": 2.5,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 72,
+      "startSec": 3,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 60,
+      "startSec": 3,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    },
+    {
+      "midi": 74,
+      "startSec": 3.5,
+      "durationSec": 0.45,
+      "vel": 95,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 3.5,
+      "durationSec": 0.45,
+      "vel": 65,
+      "channel": 1
+    }
+  ],
+  "parts": [
+    {
+      "channel": 0,
+      "name": "Channel 1 melody",
+      "notes": [
+        {
+          "midi": 76,
+          "startSec": 0,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 77,
+          "startSec": 0.5,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 79,
+          "startSec": 1,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 77,
+          "startSec": 1.5,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 76,
+          "startSec": 2,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 74,
+          "startSec": 2.5,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 72,
+          "startSec": 3,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        },
+        {
+          "midi": 74,
+          "startSec": 3.5,
+          "durationSec": 0.45,
+          "vel": 95,
+          "channel": 0
+        }
+      ]
+    },
+    {
+      "channel": 1,
+      "name": "Channel 2",
+      "notes": [
+        {
+          "midi": 60,
+          "startSec": 0,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 64,
+          "startSec": 0.5,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 60,
+          "startSec": 1,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 64,
+          "startSec": 1.5,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 59,
+          "startSec": 2,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 62,
+          "startSec": 2.5,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 60,
+          "startSec": 3,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        },
+        {
+          "midi": 64,
+          "startSec": 3.5,
+          "durationSec": 0.45,
+          "vel": 65,
+          "channel": 1
+        }
+      ]
+    }
+  ],
+  "duration": 3.95
+}

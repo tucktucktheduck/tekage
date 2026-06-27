@@ -13,3 +13,14 @@
    [DEFAULT: branch + PR]
 5. Richer difficulty rating (shifts + rhythm) — method open; density+stars for now.
 6. Blurt's personality/voice — TBD; placeholder copy from docs/08 for now.
+
+## Logged by the build agent
+- [T0 assumption] "Modular src/" was implemented as the **single-file-now, split-later**
+  model from docs/01 (§"Single-file now, split later"): the engine was cut VERBATIM from
+  tekage-synth.html into src/ files (one per MODULE banner) that the build concatenates in
+  src/manifest.json order — NOT yet ES modules with import/export. This preserved the proven
+  behavior exactly (all baseline checks + goldens green) and avoided a risky logic rewrite.
+  Converting to true ESM (add imports/exports) is a clean follow-up when desired; it just
+  needs build.mjs + tests/run-headless.js updated to load via imports. OK as the stage-1 shape?
+- [Defaults taken] #1 build-in-src/bundle-to-tkg.html = YES (done). #4 git flow = branch
+  `tkg/auto` (commits land there). #3 will stop at STOP-FOR-REVIEW after T11.

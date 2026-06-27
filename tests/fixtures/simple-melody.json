@@ -1,0 +1,62 @@
+{
+  "title": "Simple Melody",
+  "notes": [
+    {
+      "midi": 60,
+      "startSec": 0,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 62,
+      "startSec": 0.5,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 64,
+      "startSec": 1,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 65,
+      "startSec": 1.5,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 67,
+      "startSec": 2,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 69,
+      "startSec": 2.5,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 71,
+      "startSec": 3,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    },
+    {
+      "midi": 72,
+      "startSec": 3.5,
+      "durationSec": 0.45,
+      "vel": 80,
+      "channel": 0
+    }
+  ],
+  "duration": 3.95
+}

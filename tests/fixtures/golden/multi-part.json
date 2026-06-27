@@ -1,0 +1,39 @@
+{
+  "versions": [
+    {
+      "id": "core",
+      "kind": "derived-core",
+      "count": 8,
+      "density": 2.025
+    },
+    {
+      "kind": "baked-melody",
+      "count": 8,
+      "density": 2.025
+    },
+    {
+      "id": "2voice",
+      "kind": "derived-2voice",
+      "count": 16,
+      "density": 4.051
+    },
+    {
+      "id": "full",
+      "kind": "full",
+      "count": 16,
+      "density": 4.051
+    }
+  ],
+  "sparsest": {
+    "id": "core",
+    "assignments": 8,
+    "hands": [
+      "left",
+      "right"
+    ],
+    "initial": {
+      "leftOctave": 5,
+      "rightOctave": 5
+    }
+  }
+}
