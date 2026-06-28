@@ -47,6 +47,12 @@ if(core&&full) ok(core.density<full.density, 'Easy core sparser than Full');
 if(core&&two) ok(core.notes.length<=two.notes.length, 'Core <= Two-Voice (monotonic fidelity)');
 ok(V.every(v=>v.notes.every(n=>P.Song.notes.includes(n))), 'version notes are refs into Song.notes (identity preserved)');
 
+// Test with a tiny song
+const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };
+const tinyV = P.deriveVersions(tiny);
+ok(tinyV.versions.length >= 1, 'tiny song yields at least one version');
+ok(tinyV.versions.some(v => v.id === 'full'), 'a song with fewer than 4 notes still yields a Full version');
+
 console.log('\n— SOLVE / HANDS / BACKING (version='+P.Song.version.name+') —');
 const active=P.Song.activeNotes||[];
 ok(active.length>0, 'active notes present after resolve');
