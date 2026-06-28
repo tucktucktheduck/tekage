@@ -8,3 +8,4 @@
 2026-06-28 T6 - T6 isYours partition coverage - verified node tests/run-headless.js green [model:qwen3-coder:30b]
 2026-06-28 T3a - T3a starsForDensity helper - verified node tests/run-headless.js green [model:qwen3-coder:30b]
 2026-06-28 T3b - T3b starsForDensity test - verified node tests/run-headless.js green [model:qwen3-coder:30b]
+2026-06-28 T3c - T3c version buttons show difficulty stars - verified node tests/run-headless.js green [model:qwen3-coder:30b]
