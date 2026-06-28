@@ -92,7 +92,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Goal:** MODULE banners throughout; update each doc's acceptance boxes; refresh
   `README`/`PROGRESS`. **Docs:** 01.
 - **Acceptance:** grep finds banners per the module map; verify green.
-  [ ] banners  [ ] docs synced
+  [x] banners  [x] docs synced
 
 ---
 

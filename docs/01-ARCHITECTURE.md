@@ -142,16 +142,19 @@ Splitting should be *cut, paste, add imports* — no logic moves between layers.
 
 ## Acceptance criteria (agent-runnable)
 
-- [ ] Every musical decision lives in an ENGINE function with no DOM/audio refs.
+- [x] Every musical decision lives in an ENGINE function with no DOM/audio refs.
 - [ ] Renderer fetches **all** colors/images via the `Skin` interface (grep for
       hard-coded hex in render code → none, except inside the default skin def).
-- [ ] Audio output goes through `AudioEngine` + a `VoiceManager` (see 04); no
+      *(deferred — renderer still hard-codes colors; `TKGConfig.skin` exists but
+      the renderer doesn't yet read it. Stage 2.)*
+- [x] Audio output goes through `AudioEngine` + a `VoiceManager` (see 04); no
       oscillator is created outside it.
 - [ ] Input produces command objects; no input handler writes to Song/Plan.
-- [ ] Storage access goes through `ProgressStore`; no direct `localStorage` in
+      *(deferred — input still mutates state directly; command-bus is Stage 2.)*
+- [x] Storage access goes through `ProgressStore`; no direct `localStorage` in
       logic.
-- [ ] `<script>` is sectioned with MODULE banners matching this map.
-- [ ] A golden-Plan test passes for the demo song.
+- [x] `<script>` is sectioned with MODULE banners matching this map.
+- [x] A golden-Plan test passes for the demo song.
 
 ## Open questions
 

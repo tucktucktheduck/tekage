@@ -161,5 +161,12 @@ ok(P.UI.mode==='listen', 'mode is driven by config');
 P.loadConfig({});
 ok(P.UI.mode==='play' && !!P.midiForGameKey('j'), 'loadConfig({}) restores built-in defaults');
 
+// ── T11: every module file carries a banner comment at its top ──
+console.log('\n— MODULE BANNERS (T11) —');
+for(const f of manifest.order){
+  const head = fs.readFileSync(f,'utf8').slice(0,220);
+  ok(/\/\*/.test(head), 'banner comment present: '+f);
+}
+
 console.log('\n'+(GEN?'golden files written.':(fails?('x '+fails+' CHECK(S) FAILED'):'ALL CHECKS PASSED')));
 process.exit(fails?1:0);

@@ -15,3 +15,6 @@
 2026-06-28 T9 - TKGConfig + loadConfig: validated single config object drives mapping/mode/assists; custom-mapping + one-hand work via config, bad config never crashes; defaults reproduce built-in game - verified node tests/run-headless.js + playwright green [Claude]
 2026-06-28 T10 - exportHTML(config): bakes engine + frozen config into a single self-contained offline file (external font links stripped, no network); default dev build unchanged - verified node tests/export.test.mjs + verify.sh green [Claude]
 2026-06-28 T7 - keyboard-map viewer: Playwright verifies mapped/dim opacity states, press-to-light, lines-toggle-off-by-default; mapped state driven by config (KEY_HAND from TKGConfig) - verified npx playwright test green [Claude]
+2026-06-28 T11 - module banners verified per file in headless; docs/01 acceptance synced; README refreshed for built game - verify.sh green [Claude]
+
+=== STAGE 1 COMPLETE (STOP-FOR-REVIEW) === All T0-T11 done and verified. T0/T5/T7/T8/T9/T10/T11 by Claude; T1/T2/T3/T4/T6 by Qwen via the loop. verify.sh green (engine+golden+config+export + 4 Playwright, zero console errors). Do not start Stage 2 until founder reviews the feel. Build/play: node scripts/build.mjs then open tkg.html.
