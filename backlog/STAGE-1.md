@@ -56,7 +56,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Goal:** one source of truth for live slice; highlighted octave equals the
   octave that sounds, both modes. **Docs:** 02.
 - **Acceptance:** headless: `midiForGameKey(k)` octave == drawn slice octave in
-  play and listen. [ ] unified  [ ] asserted
+  play and listen. [x] unified  [x] asserted
 
 ### T6 · Default PLAY + Rest-of-Song backing
 - **Goal:** default mode PLAY; backing (full minus your version + skips) plays in

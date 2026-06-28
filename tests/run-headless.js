@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,userSlice,draw,Transport};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,userSlice,draw,Transport};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -68,6 +68,21 @@ ok(P.Song.notes.every(n=> (n.backing|| active.includes(n)|| n.skip)), 'every not
 ok(P.isYours({}) === true, 'a plain note (not backing, not skip) is yours');
 ok(P.isYours({backing:true}) === false, 'a backing note is not yours');
 ok(P.isYours({skip:true}) === false, 'a skipped note is not yours');
+
+// ── T5: slice highlight == audible == key-tint (one source of truth) ──
+// midiForGameKey() reads currentSlice(), so the octave a key sounds at must equal
+// the octave the slice is showing — in BOTH play and listen modes.
+console.log('\n— SLICE == AUDIBLE (T5) —');
+const octOf = m => Math.floor(m/12) - 1;
+P.UI.mode = 'play';
+{ const s = P.currentSlice();
+  ok(octOf(P.midiForGameKey('a').midi) === s.L, 'PLAY: left key octave == left slice octave');
+  ok(octOf(P.midiForGameKey('j').midi) === s.R, 'PLAY: right key octave == right slice octave'); }
+P.UI.mode = 'listen';
+{ const s = P.currentSlice();
+  ok(octOf(P.midiForGameKey('a').midi) === s.L, 'LISTEN: left key octave == left slice octave');
+  ok(octOf(P.midiForGameKey('j').midi) === s.R, 'LISTEN: right key octave == right slice octave'); }
+P.UI.mode = 'play';
 
 P.selectVersion('full');
 ok((P.Song.handsUsed&&P.Song.handsUsed.has('left')&&P.Song.handsUsed.has('right')), 'Hard uses BOTH hands (no one-hand collapse)');
