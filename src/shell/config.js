@@ -52,6 +52,7 @@ function applyConfig(c){
   } catch(e){ /* never throw from apply */ }
 }
 
-// Activate defaults at boot — a no-op versus the built-in game, but it makes the
-// runtime genuinely config-driven from the first frame.
-loadConfig(DEFAULT_CONFIG);
+// Activate at boot. An exported file (see exportHTML in scripts/build.mjs) bakes a
+// frozen config onto window.__TKG_CONFIG__; otherwise we use the built-in defaults
+// (a no-op versus the standard game). This makes the runtime config-driven from frame 1.
+loadConfig((typeof window !== 'undefined' && window.__TKG_CONFIG__) ? window.__TKG_CONFIG__ : DEFAULT_CONFIG);

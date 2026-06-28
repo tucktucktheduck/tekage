@@ -86,7 +86,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Goal:** bake engine + inlined assets + frozen config → self-contained
   `tkg.html` that opens offline. **Docs:** 10.
 - **Acceptance:** exported file plays the configured song with the configured look,
-  no network. [ ] export works  [ ] offline play verified
+  no network. [x] export works  [x] offline play verified
 
 ### T11 · Code sectioned + docs updated
 - **Goal:** MODULE banners throughout; update each doc's acceptance boxes; refresh

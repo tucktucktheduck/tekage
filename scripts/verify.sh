@@ -5,6 +5,8 @@ set -uo pipefail
 fail=0
 echo "── engine tests ──"
 node tests/run-headless.js || fail=1
+echo "── export (T10) ──"
+node tests/export.test.mjs || fail=1
 echo "── browser smoke ──"
 if command -v npx >/dev/null 2>&1 && [ -f tests/ui/smoke.spec.js ]; then
   npx playwright test || fail=1
