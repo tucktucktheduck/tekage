@@ -29,7 +29,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Acceptance (assert each):** N noteOn→N live; noteOff(key) releases one;
   re-press retriggers (no orphan); panic→0; 200 presses+panic→0; watchdog reaps
   overdue; blur/visibility/pause/seek/restart/mode/version-change all → 0 live.
-- [ ] ported  [ ] all invariants asserted in headless
+- [x] ported  [x] all invariants asserted in headless
 
 ### T2 · Core-of-song extraction → versions
 - **Goal:** port `deriveVersions` (6 stages) into `src/engine/deriveVersions`,
@@ -38,19 +38,19 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Acceptance:** ≥2 versions ranked ascending by density; Easy<Medium≤Full; Full
   == whole song; version notes are refs into the full set; lead-line accuracy
   reported vs. a labeled fixture; beats raw skyline on the test set.
-- [ ] ported pure  [ ] density-ranked + identity  [ ] lead-accuracy reported
+- [x] ported pure  [x] density-ranked + identity  [ ] lead-accuracy reported
 
 ### T3 · Version picker + difficulty stars
 - **Goal:** pre-play picker, density-ranked, **1–5 stars** per version; play that
   difficulty or higher; can't change mid-play. **Docs:** 07, 11, 02.
 - **Acceptance:** buttons show name + density + stars; selecting re-solves; default
-  = sparsest. [ ] picker  [ ] stars from density  [ ] re-solve on select
+  = sparsest. [x] picker  [x] stars from density  [x] re-solve on select
 
 ### T4 · Two hands stay two hands
 - **Goal:** confirm no one-hand collapse; monophonic line splits across both hands
   by register; octave leaps unpenalized. **Docs:** 02, 11.
 - **Acceptance:** non-trivial version uses both hands; assert `handsUsed` has left
-  AND right. [ ] asserted
+  AND right. [x] asserted
 
 ### T5 · Slice highlight == audible == key-tint
 - **Goal:** one source of truth for live slice; highlighted octave equals the
@@ -62,7 +62,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Goal:** default mode PLAY; backing (full minus your version + skips) plays in
   tandem; LISTEN auto-plays all. **Docs:** 02, 09.
 - **Acceptance:** every note is yours|backing|skip; PLAY sounds backing, LISTEN
-  sounds all. [ ] asserted
+  sounds all. [x] asserted
 
 ### T7 · Keyboard-map viewer (remap-ready)
 - **Goal:** overlay: computer keys (mapped opaque / unmapped dim) + piano beneath;

@@ -18,3 +18,4 @@
 2026-06-28 T11 - module banners verified per file in headless; docs/01 acceptance synced; README refreshed for built game - verify.sh green [Claude]
 
 === STAGE 1 COMPLETE (STOP-FOR-REVIEW) === All T0-T11 done and verified. T0/T5/T7/T8/T9/T10/T11 by Claude; T1/T2/T3/T4/T6 by Qwen via the loop. verify.sh green (engine+golden+config+export + 4 Playwright, zero console errors). Do not start Stage 2 until founder reviews the feel. Build/play: node scripts/build.mjs then open tkg.html.
+CORRECTION: Stage 1 is functionally complete and fully playable, with ONE deferred spec sub-item -- T2's 'lead-accuracy reported vs a labeled fixture (beats raw skyline)'. Extraction is ported and identity/density-verified; the accuracy-evaluation metric (labeled fixture + score vs skyline baseline) is not yet built. Everything else T0-T11 done + verified.
