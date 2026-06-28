@@ -69,10 +69,11 @@ for ($i = 1; $i -le $Iters; $i++) {
   if ($LASTEXITCODE -eq 0) {
     $changed = git status --porcelain
     if ($changed) {
-      git add -A
-      git commit -q -m "tkg($($card.BaseName)): $($c.title) [model:$Model]"
+      # record progress + completion FIRST so they're captured in the same commit
       Add-Content $completedLog $card.BaseName
       Add-Content "backlog/PROGRESS.md" ("{0} {1} - {2} - verified node tests/run-headless.js green [model:{3}]" -f (Get-Date -Format yyyy-MM-dd), $card.BaseName, $c.title, $Model)
+      git add -A
+      git commit -q -m "tkg($($card.BaseName)): $($c.title) [model:$Model]"
       Write-Host "COMMITTED $($card.BaseName) (tests green)." -ForegroundColor Green
     } else {
       Write-Host "Model produced no change for $($card.BaseName) -- not marking done. Stopping." -ForegroundColor Yellow
