@@ -1,0 +1,6 @@
+{
+  "title": "Q2 strike + watchdog",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/runtime/audio.js"],
+  "prompt": "Open tests/run-headless.js and find the VOICEMANAGER ghost-note invariants test block. Note that the test controls the fake audio clock through the variable CTXTIME, and that A.tick() is the per-frame watchdog. Add TWO new assertions to that block. FIRST call A.allNotesOff(true) and set CTXTIME = 0 to reset, then:\n1. After A.strike(72, 0, 0.3, 0.8), assert A.liveCount() equals 1 (a scheduled note registers a voice).\n2. Then set CTXTIME = 30 and call A.tick(); assert A.liveCount() equals 0 (the watchdog reaps the over-age voice).\nUse the existing ok(condition, message) helper. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}

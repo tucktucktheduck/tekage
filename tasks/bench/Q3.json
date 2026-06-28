@@ -1,0 +1,6 @@
+{
+  "title": "Q3 precision minimalism",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/runtime/audio.js"],
+  "prompt": "Open tests/run-headless.js and find the VOICEMANAGER ghost-note invariants test block. Add EXACTLY ONE new assertion to that block and nothing else. The assertion: after calling A.allNotesOff(true) to reset, run a loop that calls A.noteOn fifty times spread across ten distinct keys, then call A.allNotesOff(false), and assert A.liveCount() equals 0. Use the existing ok(condition, message) helper exactly once. Do NOT add any comments. Do NOT modify, reformat, or re-indent any existing line. Do NOT add more than one ok() call. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}

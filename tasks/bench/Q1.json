@@ -1,0 +1,6 @@
+{
+  "title": "Q1 retrigger logic",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/runtime/audio.js"],
+  "prompt": "Open tests/run-headless.js and find the VOICEMANAGER ghost-note invariants test block (it uses const A = P.Audio and the helper ok(condition, message)). Add TWO new assertions to that block. To keep the count predictable, FIRST call A.allNotesOff(true) to reset, then:\n1. After A.noteOn(60,0.8,'q') followed by A.noteOn(62,0.8,'q') (the SAME key 'q' pressed twice), assert A.liveCount() equals 1 (the re-press must replace the prior voice, not orphan it).\n2. Then after A.noteOff('q'), assert A.liveCount() equals 0.\nUse the existing ok(condition, message) helper. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}
