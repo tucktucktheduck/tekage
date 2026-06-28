@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,userSlice,draw,Transport};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -136,6 +136,30 @@ for(const file of fixNames){
   ok(gold!==null, 'golden exists for '+name);
   if(gold) ok(JSON.stringify(summary)===JSON.stringify(gold), 'golden matches for '+name+' ('+summary.versions.length+' versions)');
 }
+
+// ── T9: TKGConfig + loadConfig — validated, never crashes, drives the runtime ──
+console.log('\n— TKGCONFIG (T9) —');
+ok(typeof P.loadConfig === 'function', 'loadConfig is exposed');
+let cfgThrew=false, safeCfg=null;
+try { safeCfg = P.loadConfig(null); } catch(e){ cfgThrew=true; }
+ok(!cfgThrew && safeCfg && safeCfg.mode==='play' && safeCfg.hands==='both', 'null config never crashes -> safe defaults');
+let garbage=null; try { garbage = P.loadConfig({mode:123, hands:'banana', slices:{mapping:'nope'}, skin:5, assists:7}); } catch(e){ cfgThrew=true; }
+ok(!cfgThrew, 'garbage config does not throw');
+ok(garbage && garbage.mode==='play' && garbage.hands==='both', 'garbage fields coerced to safe defaults');
+// custom mapping drives the keyboard with NO code change
+P.loadConfig({ slices:{ mapping:{ left:{ a:'C' }, right:{ l:'C' } } } });
+ok(P.midiForGameKey('a') && P.midiForGameKey('a').hand==='left', 'custom mapping: a is a left-hand key');
+ok(P.midiForGameKey('q')===null, 'custom mapping: an unmapped key returns null');
+// one-hand via config
+P.loadConfig({ hands:'left' });
+ok(P.midiForGameKey('j')===null, 'one-hand(left): right-hand key is unmapped');
+ok(!!P.midiForGameKey('a'), 'one-hand(left): left keys still work');
+// mode via config
+P.loadConfig({ mode:'listen' });
+ok(P.UI.mode==='listen', 'mode is driven by config');
+// restore built-in defaults so nothing downstream is affected
+P.loadConfig({});
+ok(P.UI.mode==='play' && !!P.midiForGameKey('j'), 'loadConfig({}) restores built-in defaults');
 
 console.log('\n'+(GEN?'golden files written.':(fails?('x '+fails+' CHECK(S) FAILED'):'ALL CHECKS PASSED')));
 process.exit(fails?1:0);

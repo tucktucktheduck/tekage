@@ -9,15 +9,24 @@
    ════════════════════════════════════════════════════════════ */
 const NOTE_IDX = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
 // Standard TKG layout — both hands span a full chromatic octave.
-const MAP = {
+// The built-in standard layout (the default when no config overrides it).
+const BUILTIN_MAP = {
   left:  { q:'C#', w:'D#', e:'F#', r:'G#', t:'A#', a:'C', s:'D', d:'E', f:'F', x:'G', c:'A', v:'B' },
   right: { y:'C#', u:'D#', i:'F#', o:'G#', p:'A#', j:'C', k:'D', l:'E', ';':'F', n:'G', m:'A', ',':'B' },
 };
-const KEY_HAND = {};                         // computer key → 'left'|'right'
-for(const k in MAP.left)  KEY_HAND[k]='left';
-for(const k in MAP.right) KEY_HAND[k]='right';
-const LKEYS = Object.entries(MAP.left ).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
-const RKEYS = Object.entries(MAP.right).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+// MAP and its derived lookups are LET so loadConfig() (see config.js) can swap in
+// a custom or one-hand mapping at runtime. applyMapping() rederives the lookups.
+let MAP = JSON.parse(JSON.stringify(BUILTIN_MAP));
+let KEY_HAND = {};                           // computer key → 'left'|'right'
+let LKEYS = [], RKEYS = [];
+function applyMapping(){
+  KEY_HAND = {};
+  for(const k in MAP.left)  KEY_HAND[k]='left';
+  for(const k in MAP.right) KEY_HAND[k]='right';
+  LKEYS = Object.entries(MAP.left ).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+  RKEYS = Object.entries(MAP.right).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+}
+applyMapping();
 // Shift keys that move each slice (octave only — both hands are full-range).
 const SHIFT = {
   leftUp:  {key:'tab',     hand:'left',  dir:+1, glyph:'⭡', tag:'TAB'},

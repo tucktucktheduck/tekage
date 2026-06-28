@@ -80,7 +80,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 - **Goal:** introduce the single config object; runtime derives visuals/slices/
   mapping/mode/assists/difficulty from it; validate + safe defaults. **Docs:** 10.
 - **Acceptance:** one-hand, asymmetric, custom-mapping all work via config, no code
-  change; bad config never crashes. [ ] config drives runtime  [ ] validated
+  change; bad config never crashes. [x] config drives runtime  [x] validated
 
 ### T10 · `exportHTML(config)` — the generator
 - **Goal:** bake engine + inlined assets + frozen config → self-contained
