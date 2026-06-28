@@ -1,0 +1,6 @@
+{
+  "title": "T3b starsForDensity test",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/engine/deriveVersions.js"],
+  "prompt": "Open tests/run-headless.js. Make TWO changes in this file:\n1. Find the line containing global.__probe={Song,analyze,buildDemo,deriveVersions,... (a long comma-separated list of names assigned to global.__probe). Add starsForDensity to that list (for example right after deriveVersions,) so the test can call P.starsForDensity. Do not remove any existing name.\n2. In the VERSIONS section, after the existing version assertions, add these THREE assertions using the existing helper ok(condition, message):\nok(P.starsForDensity(1,[1,2,3]) === 1, 'sparsest gets 1 star');\nok(P.starsForDensity(3,[1,2,3]) === 5, 'busiest gets 5 stars');\nok(P.starsForDensity(5,[5]) === 3, 'a single version gets 3 stars');\nEdit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}

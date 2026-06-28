@@ -1,0 +1,6 @@
+{
+  "title": "T3d lock difficulty during play",
+  "files": ["src/shell/ui.js"],
+  "read": ["src/runtime/transport.js"],
+  "prompt": "Open src/shell/ui.js, function buildVersionButtons. In the button's onclick handler (the arrow function assigned to b.onclick), add this as the VERY FIRST statement inside it, before the selectVersion call:\nif (Transport.playing) { flash('Pause to change difficulty'); return; }\nThis prevents changing the version while the song is playing. Do not change anything else. Edit ONLY src/shell/ui.js. Do not create, import, or add any other files."
+}

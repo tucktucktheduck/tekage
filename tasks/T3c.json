@@ -1,0 +1,6 @@
+{
+  "title": "T3c version buttons show difficulty stars",
+  "files": ["src/shell/ui.js"],
+  "read": ["src/engine/deriveVersions.js"],
+  "prompt": "Open src/shell/ui.js, function buildVersionButtons. Inside the for-loop over Song.versions, AFTER the line 'b.dataset.id=v.id;' and BEFORE the line that sets b.innerHTML, add these two lines:\nconst stars = starsForDensity(v.density, Song.versions.map(x=>x.density));\nconst starStr = String.fromCharCode(0x2605).repeat(stars) + String.fromCharCode(0x2606).repeat(5-stars);\nThen modify the b.innerHTML assignment so that, in addition to the existing vname and vden spans, it ALSO appends this span at the end: <span class=\"vstars\">${starStr}</span>\nDo not change anything else. Edit ONLY src/shell/ui.js. Do not create, import, or add any other files."
+}

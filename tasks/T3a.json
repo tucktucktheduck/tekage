@@ -1,0 +1,6 @@
+{
+  "title": "T3a starsForDensity helper",
+  "files": ["src/engine/deriveVersions.js"],
+  "read": [],
+  "prompt": "Open src/engine/deriveVersions.js. Find the existing one-line function that starts with: function densityOf(. Immediately AFTER that function, add this new pure helper exactly as written, on its own lines:\n\nfunction starsForDensity(density, allDensities){\n  const ds=[...allDensities].sort((a,b)=>a-b);\n  const n=ds.length;\n  if(n<=1) return 3;\n  const r=ds.indexOf(density);\n  return Math.max(1, Math.min(5, Math.round(1 + 4*r/(n-1))));\n}\n\nDo not modify any other function or line. Edit ONLY src/engine/deriveVersions.js. Do not create, import, or add any other files."
+}
