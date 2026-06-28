@@ -29,6 +29,31 @@ test('keyboard-map overlay can open', async ({ page }) => {
   await expect(page.locator('#mapOverlay')).toHaveCount(1);
 });
 
+// T7 acceptance: keyboard-map viewer — mapped keys opaque / unmapped dim, press
+// lights both, lines toggle off by default. Mapped state comes from the (config-
+// driven) KEY_HAND, so the map reflects TKGConfig.
+test('keyboard-map viewer: states, press-to-light, lines toggle', async ({ page }) => {
+  await page.goto(tkgUrl);
+  await page.click('#mapBtn');
+  await expect(page.locator('#mapOverlay')).toHaveClass(/open/);
+
+  // opacity states: both mapped and unmapped (dim) keys are present
+  await expect.poll(() => page.locator('.mapKey.mapped').count()).toBeGreaterThan(0);
+  await expect.poll(() => page.locator('.mapKey.dim').count()).toBeGreaterThan(0);
+
+  // lines are OFF by default (no <line> drawn yet)
+  expect(await page.locator('#mapSvg line').count()).toBe(0);
+
+  // press a mapped key -> it lights up in the viewer
+  await page.keyboard.down('a');
+  await expect.poll(() => page.locator('.mapKey.lit').count()).toBeGreaterThan(0);
+  await page.keyboard.up('a');
+
+  // lines toggle turns on
+  await page.click('#mapLinesBtn');
+  await expect(page.locator('#mapLinesBtn')).toHaveClass(/sel/);
+});
+
 // T8 acceptance: dead-center stays clear of interactive controls (Wispr-Flow gap).
 // No visible button/input/select/slider may intersect the center 24% x 24% box.
 test('no interactive control occupies the center zone', async ({ page }) => {

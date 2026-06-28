@@ -14,3 +14,4 @@
 2026-06-28 T8 - center-screen gap: Playwright asserts no interactive control intersects the center 24pct zone - verified npx playwright test green [Claude]
 2026-06-28 T9 - TKGConfig + loadConfig: validated single config object drives mapping/mode/assists; custom-mapping + one-hand work via config, bad config never crashes; defaults reproduce built-in game - verified node tests/run-headless.js + playwright green [Claude]
 2026-06-28 T10 - exportHTML(config): bakes engine + frozen config into a single self-contained offline file (external font links stripped, no network); default dev build unchanged - verified node tests/export.test.mjs + verify.sh green [Claude]
+2026-06-28 T7 - keyboard-map viewer: Playwright verifies mapped/dim opacity states, press-to-light, lines-toggle-off-by-default; mapped state driven by config (KEY_HAND from TKGConfig) - verified npx playwright test green [Claude]

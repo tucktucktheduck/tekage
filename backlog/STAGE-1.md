@@ -69,7 +69,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
   press lights both; separate LINES toggle (off by default). Reads the mapping from
   config (10) so it's ready to become an editor later. **Docs:** 02, 10.
 - **Acceptance:** opacity states correct; press-to-light works; lines toggle; map
-  comes from `TKGConfig.slices.mapping`. [ ] viewer  [ ] config-driven map
+  comes from `TKGConfig.slices.mapping`. [x] viewer  [x] config-driven map
 
 ### T8 · Center-screen gap (Wispr Flow)
 - **Goal:** keep dead-center clear of interactive controls. **Docs:** 02.
