@@ -45,11 +45,12 @@ foreach ($model in $models) {
     node $target > (Join-Path $out "$tag.test.log") 2>&1
     $pass = ($LASTEXITCODE -eq 0)
     $stray = (git status --porcelain | Where-Object { $_ -notmatch 'run-headless\.js' }) -join '; '
+    $strayMark = if ([string]::IsNullOrEmpty($stray)) { '-' } else { 'Y' }
     Copy-Item $target (Join-Path $out "$tag.edited.js") -Force
 
     $results += [pscustomobject]@{
       Model = $model; Card = $card.BaseName; Edited = $edited; Pass = $pass
-      Added = $added; Sec = $secs; Stray = (if ($stray) { 'Y' } else { '-' })
+      Added = $added; Sec = $secs; Stray = $strayMark
     }
     Copy-Item $baseline $target -Force
   }
