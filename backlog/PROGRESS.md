@@ -11,3 +11,4 @@
 2026-06-28 T3c - T3c version buttons show difficulty stars - verified node tests/run-headless.js green [model:qwen3-coder:30b]
 2026-06-28 T3d - T3d lock difficulty during play - verified node tests/run-headless.js green [model:qwen3-coder:30b]
 2026-06-28 T5 - slice highlight == audible == key-tint: asserted midiForGameKey octave == currentSlice octave in play+listen - verified node tests/run-headless.js green [Claude]
+2026-06-28 T8 - center-screen gap: Playwright asserts no interactive control intersects the center 24pct zone - verified npx playwright test green [Claude]

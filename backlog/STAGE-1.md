@@ -74,7 +74,7 @@ Legend: `[ ]` todo · `[x]` done+verified · `[BLOCKED]` see QUESTIONS.md
 ### T8 · Center-screen gap (Wispr Flow)
 - **Goal:** keep dead-center clear of interactive controls. **Docs:** 02.
 - **Acceptance:** no control occupies the center zone (smoke checks bounding boxes).
-  [ ] done
+  [x] done
 
 ### T9 · `TKGConfig` + `loadConfig`
 - **Goal:** introduce the single config object; runtime derives visuals/slices/
