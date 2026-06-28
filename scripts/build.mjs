@@ -14,20 +14,3 @@ const html = template.replace('/*TKG_BUNDLE*/', () => bundle);
 
 writeFileSync('tkg.html', html, 'utf8');
 console.log(`built tkg.html (${html.length} bytes, ${manifest.order.length} modules)`);
-// scripts/build.mjs — build tkg.html from src/ modules
-
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
-
-const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
-const order = manifest.order;
-
-let src = '';
-for(const file of order) {
-  const content = readFileSync(file, 'utf8');
-  src += content + '\n';
-}
-
-mkdirSync('dist', { recursive: true });
-writeFileSync('dist/tkg.html', src);
-console.log('Built dist/tkg.html');
