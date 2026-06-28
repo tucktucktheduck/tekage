@@ -60,6 +60,9 @@ ok(active.every(n=>n.key&&n.hand), 'every active note has hand+key');
 const backing=P.Song.notes.filter(n=>n.backing).length, skips=P.Song.notes.filter(n=>n.skip).length;
 console.log('  active:',active.length,' backing:',backing,' skips:',skips,' hands:',[...(P.Song.handsUsed||[])].join('+'));
 ok(P.Song.notes.every(n=> (n.backing|| active.includes(n)|| n.skip)), 'every note is yours, backing, or skip');
+ok(P.isYours({}) === true, 'a plain note (not backing, not skip) is yours');
+ok(P.isYours({backing:true}) === false, 'a backing note is not yours');
+ok(P.isYours({skip:true}) === false, 'a skipped note is not yours');
 
 P.selectVersion('full');
 ok((P.Song.handsUsed&&P.Song.handsUsed.has('left')&&P.Song.handsUsed.has('right')), 'Hard uses BOTH hands (no one-hand collapse)');
