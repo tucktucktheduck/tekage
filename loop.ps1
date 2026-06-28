@@ -1,67 +1,88 @@
 <#
-  loop.ps1 -- Windows-native autonomous build loop for TKG, using a LOCAL model
-  (Qwen3-Coder-30B via Ollama) driven by Aider, in place of `claude -p`.
+  loop.ps1 -- card-driven local build loop for TKG.
 
-  This is the local-model equivalent of scripts/build-loop.sh. Each iteration:
-    1. invokes Aider with the AGENTS.md bootstrap (read-only context: AGENTS,
-       DECISIONS, STAGE-1). Aider edits files, runs the engine test, and commits.
-    2. gates on `node tests/run-headless.js`. If red, it stops for review.
+  Rebuilt around what the bake-off proved: a small local model succeeds when each
+  task is SCOPED to its files and the prompt is passed cleanly. So instead of
+  "read AGENTS.md and figure out the whole repo" (which buried the model in an
+  80 KB context), each task is a card in tasks/*.json naming exactly the file(s)
+  to edit, the file(s) to read for reference, and a precise prompt.
+
+  Each iteration: run Aider scoped to one card -> gate on node tests/run-headless.js
+  -> commit + mark done if green, or revert the edit and stop if red. Never commits
+  red; only ever touches the tkg/auto branch.
 
   Usage:
-    .\loop.ps1            # 20 iterations (default)
-    .\loop.ps1 -Iters 50
-    .\loop.ps1 -Iters 1   # single pass, good for first-run sanity check
+    .\loop.ps1                              # next pending card, model qwen3-coder:30b
+    .\loop.ps1 -Model devstral              # give another model a fair shake
+    .\loop.ps1 -Model gemma3:12b -Task T1   # run a specific card
+    .\loop.ps1 -Iters 5                     # work up to 5 cards in a row
+  (Use .\loop.cmd ... if PowerShell's execution policy blocks the script.)
 #>
-param([int]$Iters = 20)
+param(
+  [string]$Model = "qwen3-coder:30b",
+  [string]$Task  = "",
+  [int]$Iters    = 1
+)
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
-
-# Make freshly-installed tools visible in this session.
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+$env:OLLAMA_API_BASE       = "http://127.0.0.1:11434"
+$env:OLLAMA_CONTEXT_LENGTH = "16384"
+$env:OLLAMA_KEEP_ALIVE     = "30m"
+$env:PYTHONUTF8            = "1"
+$env:PYTHONIOENCODING      = "utf-8"
 
-# Ollama / model runtime knobs.
-$env:OLLAMA_API_BASE   = "http://127.0.0.1:11434"
-$env:OLLAMA_CONTEXT_LENGTH = "16384"   # match .aider.model.settings.yml num_ctx
-$env:OLLAMA_KEEP_ALIVE = "30m"         # keep the 18 GB model resident between calls
+$aiderModel   = "ollama_chat/$Model"
+$completedLog = "tasks/.completed"
+$promptFile   = Join-Path $env:TEMP "tkg_task_prompt.txt"
 
-# Force UTF-8 in Python so Aider doesn't crash on Windows' legacy console codepage.
-$env:PYTHONUTF8 = "1"
-$env:PYTHONIOENCODING = "utf-8"
-
-# Work on a branch, never main (mirrors AGENTS.md / TERMINAL-HANDOFF).
-# Use `git branch --list` (clean stdout, no stderr) to detect the branch; rev-parse
-# writes to stderr when absent, which PS 5.1 turns into a fatal error.
-if ([string]::IsNullOrWhiteSpace((git branch --list tkg/auto))) {
-  git checkout -b tkg/auto
-} else {
-  git checkout tkg/auto
-}
-
-$bootstrap = @'
-Read AGENTS.md and follow the loop in its section 2. Take the top unchecked task
-in backlog/STAGE-1.md (start at T0: stand up the modular src/, the bundle to
-tkg.html, fixtures, and the Playwright smoke). Implement the smallest change that
-meets its acceptance criteria, add a test for each criterion, and keep
-node tests/run-headless.js green. Never weaken a test to pass. Check the task's
-boxes, append one line to backlog/PROGRESS.md, and commit. If a task is ambiguous,
-pick what best serves docs/00-VISION.md, note your assumption in
-backlog/QUESTIONS.md, and proceed. If blocked after ~3 tries, mark it BLOCKED with
-a repro and move on. STOP at the STOP-FOR-REVIEW marker after T11. Do ONE task now.
-'@
+# Work on a branch, never main.
+if ([string]::IsNullOrWhiteSpace((git branch --list tkg/auto))) { git checkout -b tkg/auto } else { git checkout tkg/auto }
 
 for ($i = 1; $i -le $Iters; $i++) {
-  Write-Host "`n=== loop iteration $i / $Iters ===" -ForegroundColor Cyan
+  $completed = @(Get-Content $completedLog -ErrorAction SilentlyContinue)
+  $cards = Get-ChildItem "tasks" -Filter "*.json" | Sort-Object Name
 
-  python -m aider --no-pretty --no-stream --yes-always --no-show-model-warnings `
-    --read AGENTS.md --read docs/DECISIONS.md --read backlog/STAGE-1.md `
-    --message $bootstrap
+  if ($Task) {
+    $card = $cards | Where-Object { $_.BaseName -eq $Task } | Select-Object -First 1
+    if (-not $card) { Write-Host "No task card named '$Task' in tasks/." -ForegroundColor Red; break }
+  } else {
+    $card = $cards | Where-Object { $completed -notcontains $_.BaseName } | Select-Object -First 1
+    if (-not $card) { Write-Host "`nNo pending task cards. All done." -ForegroundColor Green; break }
+  }
+
+  $c = Get-Content $card.FullName -Raw | ConvertFrom-Json
+  Write-Host "`n=== $($card.BaseName): $($c.title)  (model: $Model) ===" -ForegroundColor Cyan
+  Set-Content -LiteralPath $promptFile -Value $c.prompt -Encoding ASCII
+
+  # Build a SCOPED aider invocation: only the card's files in the chat.
+  $pyArgs = @('-m','aider','--model',$aiderModel,'--no-pretty','--no-stream',
+              '--yes-always','--no-show-model-warnings','--no-auto-commits')
+  foreach ($f in $c.files) { $pyArgs += '--file'; $pyArgs += $f }
+  foreach ($r in $c.read)  { $pyArgs += '--read'; $pyArgs += $r }
+  $pyArgs += '--message-file'; $pyArgs += $promptFile
+  python @pyArgs
 
   Write-Host "-- gate: node tests/run-headless.js --" -ForegroundColor Yellow
   node tests/run-headless.js
-  if ($LASTEXITCODE -ne 0) {
-    Write-Host "verify RED after iteration $i -- stopping for review." -ForegroundColor Red
-    exit 1
+  if ($LASTEXITCODE -eq 0) {
+    $changed = git status --porcelain
+    if ($changed) {
+      git add -A
+      git commit -q -m "tkg($($card.BaseName)): $($c.title) [model:$Model]"
+      Add-Content $completedLog $card.BaseName
+      Add-Content "backlog/PROGRESS.md" ("{0} {1} - {2} - verified node tests/run-headless.js green [model:{3}]" -f (Get-Date -Format yyyy-MM-dd), $card.BaseName, $c.title, $Model)
+      Write-Host "COMMITTED $($card.BaseName) (tests green)." -ForegroundColor Green
+    } else {
+      Write-Host "Model produced no change for $($card.BaseName) -- not marking done. Stopping." -ForegroundColor Yellow
+      break
+    }
+  } else {
+    Write-Host "TEST RED on $($card.BaseName) -- reverting the model's edit, leaving card un-done." -ForegroundColor Red
+    git checkout -- .
+    break
   }
+  if ($Task) { break }   # -Task runs exactly one card
 }
-Write-Host "`nLoop finished ($Iters iterations). Review backlog/PROGRESS.md and the tkg/auto branch." -ForegroundColor Green
+Write-Host "`nDone. Review: git log --oneline  |  type backlog\PROGRESS.md" -ForegroundColor Green

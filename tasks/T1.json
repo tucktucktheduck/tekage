@@ -1,0 +1,6 @@
+{
+  "title": "VoiceManager exit-path assertions",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/runtime/audio.js"],
+  "prompt": "Open tests/run-headless.js and find the VOICEMANAGER ghost-note invariants test block (it uses const A = P.Audio and a helper ok(condition, message)). Add exactly THREE new one-line assertions to that block, in the same style as the existing ones:\n1. After three A.noteOn calls with distinct keys, calling A.allNotesOff(false) makes A.liveCount() equal 0.\n2. Calling A.noteOff with a key that was never pressed does NOT change A.liveCount().\n3. Calling A.allNotesOff(true) twice in a row leaves A.liveCount() at 0 (idempotent).\nUse the existing ok(condition, message) helper for each assertion. Do not change any other code. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}
