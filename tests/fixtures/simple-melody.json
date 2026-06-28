@@ -60,3 +60,29 @@
   ],
   "duration": 3.95
 }
+{
+  "name": "Simple Melody",
+  "notes": [
+    {
+      "midi": 60,
+      "startSec": 0,
+      "durationSec": 1,
+      "channel": 0,
+      "velocity": 92
+    },
+    {
+      "midi": 64,
+      "startSec": 1,
+      "durationSec": 1,
+      "channel": 0,
+      "velocity": 92
+    },
+    {
+      "midi": 67,
+      "startSec": 2,
+      "durationSec": 1,
+      "channel": 0,
+      "velocity": 92
+    }
+  ]
+}

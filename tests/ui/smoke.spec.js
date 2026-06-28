@@ -28,3 +28,25 @@ test('keyboard-map overlay can open', async ({ page }) => {
   // #mapOverlay exists; opening it should not throw (viewer is built in T7).
   await expect(page.locator('#mapOverlay')).toHaveCount(1);
 });
+// tests/ui/smoke.spec.js — Playwright smoke test for TKG
+
+const { test, expect } = require('@playwright/test');
+
+test('TKG loads and runs', async ({ page }) => {
+  // Build the HTML first
+  const { execSync } = require('child_process');
+  try {
+    execSync('node scripts/build.mjs', { stdio: 'inherit' });
+  } catch (error) {
+    console.error('Build failed:', error);
+    throw error;
+  }
+
+  await page.goto('file://./dist/tkg.html');
+  
+  // Check that the canvas exists
+  await expect(page.locator('#gameCanvas')).toBeVisible();
+  
+  // Check that UI elements are present
+  await expect(page.locator('#ui')).toBeVisible();
+});
