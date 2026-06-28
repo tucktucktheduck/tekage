@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,userSlice,draw,Transport};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,userSlice,draw,Transport};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -46,6 +46,11 @@ ok(full && full.notes.length===P.Song.notes.length, 'Hard.Full == whole song');
 if(core&&full) ok(core.density<full.density, 'Easy core sparser than Full');
 if(core&&two) ok(core.notes.length<=two.notes.length, 'Core <= Two-Voice (monotonic fidelity)');
 ok(V.every(v=>v.notes.every(n=>P.Song.notes.includes(n))), 'version notes are refs into Song.notes (identity preserved)');
+
+// Test starsForDensity function
+ok(P.starsForDensity(1,[1,2,3]) === 1, 'sparsest gets 1 star');
+ok(P.starsForDensity(3,[1,2,3]) === 5, 'busiest gets 5 stars');
+ok(P.starsForDensity(5,[5]) === 3, 'a single version gets 3 stars');
 
 // Test with a tiny song
 const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };
