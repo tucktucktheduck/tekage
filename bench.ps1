@@ -23,13 +23,18 @@ New-Item -ItemType Directory -Force -Path $bench | Out-Null
 $baseline = Join-Path $bench "baseline.js"
 Copy-Item $target $baseline -Force      # snapshot the clean file
 
+# Task passed via a FILE (--message-file), not a command-line arg, so PowerShell
+# never mangles quotes/parens in it. No embedded double-quotes either, to be safe.
 $task = @'
-In tests/run-headless.js, find the section commented "VOICEMANAGER (ghost-note invariants)".
-Add exactly ONE more assertion there, using the existing ok(condition, message) helper:
-after calling A.noteOn three times with distinct keys, calling A.allNotesOff(false)
-must make A.liveCount() equal 0. Keep it consistent with the surrounding assertions.
+Open tests/run-headless.js. Find the VOICEMANAGER ghost-note invariants test block
+(it contains assertions like A.noteOn(...) and A.allNotesOff(true) using a helper ok).
+Add exactly ONE more assertion in that block using the existing helper ok(condition, message):
+after three A.noteOn calls with distinct keys, calling A.allNotesOff(false) must make
+A.liveCount() equal 0. Match the one-line style of the surrounding assertions.
 Edit ONLY tests/run-headless.js. Do not create, import, or add any other files.
 '@
+$taskFile = Join-Path $bench "task.txt"
+Set-Content -LiteralPath $taskFile -Value $task -Encoding ASCII
 
 $models = @(
   'ollama_chat/qwen3-coder:30b',
@@ -46,14 +51,14 @@ foreach ($m in $models) {
 
   $t0 = Get-Date
   python -m aider --model $m --file $target --no-auto-commits --no-pretty --no-stream `
-    --yes-always --no-show-model-warnings --message $task > (Join-Path $bench "$safe.aider.log") 2>&1
+    --yes-always --no-show-model-warnings --message-file $taskFile > (Join-Path $bench "$safe.aider.log") 2>&1
   $secs = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1)
 
   $changed = (Get-FileHash $target).Hash -ne (Get-FileHash $baseline).Hash
   node $target > (Join-Path $bench "$safe.test.log") 2>&1
   $green = ($LASTEXITCODE -eq 0)
   # any stray files the model created/edited beyond the target?
-  $stray = (git status --short | Where-Object { $_ -notmatch [regex]::Escape($target) -and $_ -notmatch 'bench|\.aider' }) -join '; '
+  $stray = (git status --porcelain | Where-Object { $_ -notmatch 'run-headless\.js' }) -join '; '
   Copy-Item $target (Join-Path $bench "$safe.edited.js") -Force
 
   $results += [pscustomobject]@{
