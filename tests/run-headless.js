@@ -63,6 +63,7 @@ ok(P.Song.notes.every(n=> (n.backing|| active.includes(n)|| n.skip)), 'every not
 
 P.selectVersion('full');
 ok((P.Song.handsUsed&&P.Song.handsUsed.has('left')&&P.Song.handsUsed.has('right')), 'Hard uses BOTH hands (no one-hand collapse)');
+ok(P.Song.handsUsed.size === 2, 'full version uses exactly two hands');
 P.selectVersion('core');
 
 console.log('\n— VOICEMANAGER (ghost-note invariants) —');
