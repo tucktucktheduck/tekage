@@ -184,6 +184,14 @@ function thin(notes, difficulty, durationSec){
 
 function densityOf(notes, dur){ return dur>0 ? notes.length/dur : 0; }
 
+function starsForDensity(density, allDensities){
+  const ds=[...allDensities].sort((a,b)=>a-b);
+  const n=ds.length;
+  if(n<=1) return 3;
+  const r=ds.indexOf(density);
+  return Math.max(1, Math.min(5, Math.round(1 + 4*r/(n-1))));
+}
+
 function detectBaked(parsed){
   const out=[];
   for(const p of (parsed.parts||[])){
