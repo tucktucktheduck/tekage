@@ -1,0 +1,6 @@
+{
+  "title": "T6 isYours partition coverage",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/runtime/transport.js"],
+  "prompt": "Open tests/run-headless.js. In the SOLVE / HANDS / BACKING section, after the existing 'every note is yours, backing, or skip' assertion, add THREE new assertions using the helper ok(condition, message) that verify the P.isYours(note) helper directly:\n1. ok(P.isYours({}) === true, 'a plain note (not backing, not skip) is yours')\n2. ok(P.isYours({backing:true}) === false, 'a backing note is not yours')\n3. ok(P.isYours({skip:true}) === false, 'a skipped note is not yours')\nUse the existing ok helper. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}

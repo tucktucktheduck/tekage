@@ -1,0 +1,6 @@
+{
+  "title": "T2 extraction edge-case coverage",
+  "files": ["tests/run-headless.js"],
+  "read": ["src/engine/deriveVersions.js"],
+  "prompt": "Open tests/run-headless.js. In the VERSIONS section, just after the existing version assertions and before the next console.log, add TWO assertions using the helper ok(condition, message) that exercise deriveVersions on a tiny song. First build this object on its own line: const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] }; const tinyV = P.deriveVersions(tiny);\n1. ok(tinyV.versions.length >= 1, 'tiny song yields at least one version')\n2. ok(tinyV.versions.some(v => v.id === 'full'), 'a song with fewer than 4 notes still yields a Full version')\nUse the existing ok helper. Edit ONLY tests/run-headless.js. Do not create, import, or add any other files."
+}
