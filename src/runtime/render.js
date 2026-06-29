@@ -40,6 +40,8 @@ function layout(){
 const activeKeys = new Map();   // midi -> {color, until} currently sounding (from song)
 const pressed = new Map();      // midi -> true (user)
 const hitFlash = new Map();     // midi -> ts of correct hit
+const notePulse = new Map();    // note(obj) -> {ts, tier} — the note lights & pulses on a hit
+const PULSE_COL = { perfect:'90,240,170', good:'90,180,255', okay:'255,200,90' };
 
 function draw(){
   g.clearRect(0,0,W,H);
@@ -73,6 +75,8 @@ function draw(){
   g.shadowBlur=14; g.shadowColor='rgba(255,138,43,.5)';
   g.fillStyle='rgba(255,138,43,.55)'; g.fillRect(0,hitY-1.5,W,3);
   g.restore();
+
+  drawNotePulses();               // the note is the star: lights & pulses on a hit
 
   drawPiano(slice);
   drawSliceTabs(slice);           // the L / R hand markers sitting on the keys
@@ -275,6 +279,29 @@ function drawPiano(slice){
   }
   // top felt strip
   g.fillStyle='#1a0e0e'; g.fillRect(0,pianoTop-2,W,2);
+}
+
+/* On a hit, the struck note flares a ring + tier word at the hit line and fades. */
+function drawNotePulses(){
+  const now=performance.now(), DUR=480, hitY=pianoTop;
+  for(const [n,p] of notePulse){
+    const age=now-p.ts;
+    if(age>DUR){ notePulse.delete(n); continue; }
+    const ge=geom[n.midi]; if(!ge) continue;
+    const k=age/DUR;                                  // 0..1
+    const r=ge.noteW*0.7 + k*26;
+    const col=PULSE_COL[p.tier]||'255,255,255';
+    g.save();
+    g.globalAlpha=(1-k)*0.9;
+    g.lineWidth=3; g.shadowBlur=16; g.shadowColor=`rgba(${col},.9)`;
+    g.strokeStyle=`rgba(${col},1)`;
+    g.beginPath(); g.arc(ge.cx, hitY, r, 0, Math.PI*2); g.stroke();
+    g.globalAlpha=(1-k);
+    g.fillStyle=`rgba(${col},1)`;
+    g.font="700 11px 'Orbitron', sans-serif"; g.textAlign='center'; g.textBaseline='alphabetic';
+    g.fillText(p.tier.toUpperCase(), ge.cx, hitY-20-k*16);
+    g.restore();
+  }
 }
 
 function drawProgress(t){

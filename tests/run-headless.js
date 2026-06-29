@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -72,6 +72,25 @@ ok(Math.abs(SR.accuracy - 0.75) < 1e-9, 'accuracy = hit / fell');
 ok(SR.perfect===1 && SR.good===1 && SR.okay===1 && SR.miss===1, 'tier tallies correct');
 ok(SR.tooLate===1 && SR.heldTooLong===1 && SR.releasedEarly===1, 'timing-feedback tallies correct');
 ok(P.summarizeScore([]).accuracy === 0, 'empty score never divides by zero');
+
+// — Score accumulation over a run (T20) —
+P.resolvePlan && P.resolvePlan();
+const AN = P.Song.activeNotes || [];
+ok(AN.length > 0, 'have active notes to score');
+if(AN.length){
+  P.Score.reset();
+  const n0 = AN[0];
+  const rec = P.Score.press(n0.key, n0.midi, n0.startSec + 0.01);   // dead-on hit
+  ok(rec && rec.tier === 'perfect', 'Score.press credits a dead-on hit as perfect');
+  ok(P.Score.press(n0.key, n0.midi, n0.startSec) === null, 'same note is not double-credited');
+  P.Score.release(n0.key, n0.startSec + n0.durationSec);            // clean release
+  ok(rec.release === 'clean', 'Score.release records a clean release');
+  P.Score.sweep(P.Song.duration + 1);                              // close all remaining windows
+  const sum = P.Score.finish();
+  ok(sum.fell === AN.length, 'every active note is accounted as hit or fallen');
+  ok(sum.hit === 1 && sum.miss === AN.length - 1, 'one hit, the rest fell as misses');
+  ok(P.Score.on === false, 'finish() closes the run');
+}
 
 // Test with a tiny song
 const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };

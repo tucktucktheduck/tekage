@@ -9,6 +9,8 @@ const Transport = {
     if(!Song.notes.length) return;
     Audio.resume();
     if(this.songTime>=Song.duration) this.songTime=0;
+    // Start a fresh scored run when PLAY begins from the top (T20).
+    if(typeof UI!=='undefined' && UI.mode==='play' && this.songTime<=0.01) Score.reset();
     // Defer the clock anchor until the AudioContext is actually advancing.
     // A freshly-created context reports currentTime===0 until its audio thread
     // spins up; anchoring + scheduling against that frozen clock strands the
@@ -42,6 +44,7 @@ const Transport = {
       this._warmAt=undefined; this._anchor(); this._pendingAnchor=false;
     }
     this.songTime = this.anchorSong + (Audio.now()-this.anchorCtx)*this.rate;
+    if(UI.mode==='play') Score.sweep(this.songTime);   // fallen yours-notes -> miss
     const ahead = Audio.now()+0.12;
     while(this.schedPtr<Song.notes.length){
       const n=Song.notes[this.schedPtr];
@@ -57,7 +60,10 @@ const Transport = {
       }
       this.schedPtr++;
     }
-    if(this.songTime>=Song.duration+0.5){ this.pause(); this.songTime=Song.duration; }
+    if(this.songTime>=Song.duration+0.5){
+      this.pause(); this.songTime=Song.duration;
+      if(Score.on && typeof showReport==='function') showReport(Score.finish());   // end-of-song report
+    }
   }
 };
 

@@ -1,6 +1,63 @@
 /* ════════════════════════════════════════════════════════════
    7 · INPUT  (click piano · computer keys · Web MIDI)
    ════════════════════════════════════════════════════════════ */
+
+/* ── Score (T20): runtime accumulator over a PLAY run ──────────
+   Each yours-to-play note ends up either HIT (a press credited within
+   the onset window -> tier + release verdict) or FALLEN (its window
+   passed unplayed -> miss). At song end summarizeScore() folds the
+   records into the report. Pure judging lives in the engine (judge /
+   releaseVerdict / summarizeScore); this just drives it. */
+const Score = {
+  on:false,
+  records:[],            // [{note, tier, late, release}]
+  byNote:new Map(),      // note -> record (already accounted for)
+  held:new Map(),        // voiceKey -> note (credited & currently held, for release timing)
+  reset(){ this.on=true; this.records=[]; this.byNote=new Map(); this.held=new Map(); },
+  stop(){ this.on=false; },
+
+  // credit a press to the nearest not-yet-judged active note matching key/midi.
+  // returns the record (with .tier) when credited, else null (a miss / no match).
+  press(voiceKey, midi, songTime){
+    if(!this.on) return null;
+    let best=null, bestD=Infinity;
+    for(const n of (Song.activeNotes||[])){
+      if(this.byNote.has(n)) continue;
+      const match = (voiceKey && KEY_HAND[voiceKey]) ? (n.key===voiceKey) : (n.midi===midi);
+      if(!match) continue;
+      const d=Math.abs(n.startSec-songTime);
+      if(d<bestD){ bestD=d; best=n; }
+    }
+    if(!best) return null;
+    const off=songTime-best.startSec, tier=judge(off);
+    if(tier==='miss') return null;                  // pressed too far off: not credited to this note
+    const rec={note:best, tier, late:off>0, release:null};
+    this.records.push(rec); this.byNote.set(best, rec);
+    if(voiceKey!=null) this.held.set(voiceKey, best);
+    return rec;
+  },
+  // grade how a key release lines up with the credited note's end
+  release(voiceKey, songTime){
+    if(!this.on) return;
+    const n=this.held.get(voiceKey); if(!n) return;
+    this.held.delete(voiceKey);
+    const rec=this.byNote.get(n); if(rec) rec.release=releaseVerdict(songTime-(n.startSec+n.durationSec));
+  },
+  // any active note whose onset window has fully closed unplayed = a fallen miss
+  sweep(songTime){
+    if(!this.on) return;
+    for(const n of (Song.activeNotes||[])){
+      if(this.byNote.has(n)) continue;
+      if(songTime > n.startSec + JUDGE_WINDOWS.okay){
+        const rec={note:n, tier:'miss', late:false, release:null};
+        this.records.push(rec); this.byNote.set(n, rec);
+      }
+    }
+  },
+  // close the run and return the report
+  finish(){ this.on=false; return summarizeScore(this.records); },
+};
+
 function midiAtPoint(px,py){
   if(py<pianoTop) return null;
   // black keys first (on top)
@@ -12,15 +69,21 @@ function midiAtPoint(px,py){
 }
 function userOn(midi, hand, voiceKey){
   if(midi==null) return;
-  pressed.set(midi, hand||'right'); Audio.noteOn(midi, 0.85, voiceKey ?? ('m'+midi));
-  // hit credit: did you press the right KEY near a falling note's onset?
+  const vk = voiceKey ?? ('m'+midi);
+  pressed.set(midi, hand||'right'); Audio.noteOn(midi, 0.85, vk);
   const t=Transport.songTime;
-  for(const n of (Song.activeNotes||[])){
-    const match = (voiceKey && KEY_HAND[voiceKey]) ? (n.key===voiceKey) : (n.midi===midi);
-    if(match && Math.abs(n.startSec-t)<0.18){ hitFlash.set(midi,performance.now()); break; }
+  // scoring: credit the note (during a PLAY run) and pulse it on a hit
+  const rec = Score.press(vk, midi, t);
+  if(rec){ hitFlash.set(midi, performance.now()); notePulse.set(rec.note, {ts:performance.now(), tier:rec.tier}); }
+  else {
+    // outside a scored run, still flash the key when it lines up with a note onset
+    for(const n of (Song.activeNotes||[])){
+      const match = (vk && KEY_HAND[vk]) ? (n.key===vk) : (n.midi===midi);
+      if(match && Math.abs(n.startSec-t)<0.18){ hitFlash.set(midi,performance.now()); break; }
+    }
   }
 }
-function userOff(midi, voiceKey){ if(midi!=null) pressed.delete(midi); Audio.noteOff(voiceKey ?? ('m'+midi)); }
+function userOff(midi, voiceKey){ const vk = voiceKey ?? ('m'+midi); if(midi!=null) pressed.delete(midi); Audio.noteOff(vk); Score.release(vk, Transport.songTime); }
 
 let mouseDownMidi=null;
 cvs.addEventListener('pointerdown',e=>{

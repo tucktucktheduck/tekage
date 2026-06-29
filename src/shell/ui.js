@@ -40,9 +40,51 @@ document.querySelectorAll('#modeSeg button').forEach(b=>{
   b.onclick=()=>{ document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('sel'));
     b.classList.add('sel'); UI.mode=b.dataset.mode;
     if(UI.mode==='play'){ seedUserSlice(Transport.songTime); }
-    else { Transport.seek(0); Transport.play(); }   // LISTEN: auto-play the whole song from the start
+    else { Score.stop(); hideReport(); Transport.seek(0); Transport.play(); }   // LISTEN: auto-play the whole song from the start (not a scored run)
     flash(UI.mode==='play'?'PLAY MODE · press the keys shown · move your slices with Tab / ⇧ (left) and ⏎ / ⇧ (right)':'LISTEN MODE · sit back — the whole song plays and the slices glide'); };
 });
+
+/* ── End-of-song report (T20) ─────────────────────────────────
+   Accuracy = notes hit / notes that fell, with tier + timing tips.
+   The note is the star on the stage; this is the after-the-fact card. */
+function hideReport(){ const el=document.getElementById('reportCard'); if(el) el.style.display='none'; }
+function showReport(s){
+  let el=document.getElementById('reportCard');
+  if(!el){
+    el=document.createElement('div'); el.id='reportCard';
+    el.style.cssText='position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;'
+      +'background:rgba(3,6,12,.72);backdrop-filter:blur(3px);font-family:Orbitron,sans-serif';
+    document.body.appendChild(el);
+  }
+  const pct=Math.round((s.accuracy||0)*100);
+  const ring=pct>=85?'#5af0aa':pct>=60?'#5ab8ff':'#ff8a2b';
+  const tips=[];
+  if(s.tooLate)       tips.push(s.tooLate+' too late');
+  if(s.heldTooLong)   tips.push(s.heldTooLong+' held too long');
+  if(s.releasedEarly) tips.push(s.releasedEarly+' released early');
+  const tierRow=(label,val,col)=>`<div style="display:flex;justify-content:space-between;gap:18px;font-size:12px;margin:3px 0">`
+    +`<span style="color:${col}">${label}</span><span style="color:#dfe8f4">${val}</span></div>`;
+  el.innerHTML=
+    `<div style="background:#0b1220;border:1px solid #1d2b44;border-radius:16px;padding:26px 30px;min-width:300px;box-shadow:0 18px 60px #000a;text-align:center">`
+    + `<div style="font-size:12px;letter-spacing:3px;color:#7f93b0">SONG COMPLETE</div>`
+    + `<div style="margin:16px auto;width:128px;height:128px;border-radius:50%;`
+    +   `background:conic-gradient(${ring} ${pct*3.6}deg,#15203400 0);display:flex;align-items:center;justify-content:center">`
+    +   `<div style="width:104px;height:104px;border-radius:50%;background:#0b1220;display:flex;flex-direction:column;align-items:center;justify-content:center">`
+    +     `<div style="font-size:30px;color:${ring};font-weight:700">${pct}%</div>`
+    +     `<div style="font-size:10px;letter-spacing:2px;color:#7f93b0">${s.hit}/${s.fell} HIT</div></div></div>`
+    + tierRow('PERFECT', s.perfect, '#5af0aa')
+    + tierRow('GOOD',    s.good,    '#5ab8ff')
+    + tierRow('OKAY',    s.okay,    '#ffc85a')
+    + tierRow('MISS',    s.miss,    '#ff6a6a')
+    + (tips.length?`<div style="margin-top:12px;font-size:11px;color:#9fb0c8;line-height:1.5">${tips.join(' · ')}</div>`:'')
+    + `<div style="margin-top:18px;display:flex;gap:10px;justify-content:center">`
+    +   `<button id="repAgain" style="cursor:pointer;border:0;border-radius:8px;padding:9px 16px;font-weight:700;background:#ff8a2b;color:#1a0e02">PLAY AGAIN</button>`
+    +   `<button id="repClose" style="cursor:pointer;border:1px solid #2a3a55;border-radius:8px;padding:9px 16px;background:#10192b;color:#cdd9ea">CLOSE</button>`
+    + `</div></div>`;
+  el.style.display='flex';
+  el.querySelector('#repClose').onclick=hideReport;
+  el.querySelector('#repAgain').onclick=()=>{ hideReport(); Transport.restart(); Transport.play(); };
+}
 
 const speedEl=$('speed');
 speedEl.oninput=()=>{ const r=speedEl.value/100; Transport.rate=r;
