@@ -77,7 +77,12 @@ const Audio = (()=>{
     o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
     o1.start(t);o2.start(t);o3.start(t);
     const id=nextId++; const v={o1,o2,o3,g,key:null,held:false,endByCtx:t+rel+1.2,bornCtx:ctx.currentTime};
-    voices.set(id,v); hardStop(v, t+rel+1.2);   // schedule absolute stop too
+    voices.set(id,v);
+    // Schedule an absolute safety stop, but DON'T disconnect now: hardStop()
+    // disconnects synchronously, which would rip the just-started oscillators out
+    // of the graph before any sound reaches master (silent playback). The per-frame
+    // watchdog + release() free the nodes after the note has finished.
+    try{ const s=t+rel+1.2; o1.stop(s); o2.stop(s); o3.stop(s); }catch(e){}
     return id;
   }
 

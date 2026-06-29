@@ -9,7 +9,12 @@ const Transport = {
     if(!Song.notes.length) return;
     Audio.resume();
     if(this.songTime>=Song.duration) this.songTime=0;
-    this.playing=true; this._anchor(); this._resetPtr();
+    // Defer the clock anchor until the AudioContext is actually advancing.
+    // A freshly-created context reports currentTime===0 until its audio thread
+    // spins up; anchoring + scheduling against that frozen clock strands the
+    // first notes in the past (their gain envelopes elapse) -> silent playback.
+    // _tick() sets the anchor once Audio.now() goes live.
+    this.playing=true; this._pendingAnchor=true; this._resetPtr();
     if(!this.schedTimer) this.schedTimer=setInterval(()=>this._tick(),25);
     setPlayBtn(true);
   },
@@ -24,6 +29,18 @@ const Transport = {
 
   _tick(){
     if(!this.playing) return;
+    // Wait for the audio clock to be STEADILY advancing before anchoring/scheduling
+    // (see play()). A just-started AudioContext reports currentTime===0, then a first
+    // tiny unstable reading; notes scheduled at that edge are dropped by the audio
+    // device (silent playback). Require the clock to advance a stabilization margin
+    // past its first live reading so the output is truly running.
+    if(this._pendingAnchor){
+      const n=Audio.now();
+      if(n<=0) return;                                       // clock still frozen at 0
+      if(this._warmAt===undefined){ this._warmAt=n; return; } // first live reading; keep waiting
+      if(n-this._warmAt<0.08) return;                        // let the audio output stabilize
+      this._warmAt=undefined; this._anchor(); this._pendingAnchor=false;
+    }
     this.songTime = this.anchorSong + (Audio.now()-this.anchorCtx)*this.rate;
     const ahead = Audio.now()+0.12;
     while(this.schedPtr<Song.notes.length){
