@@ -39,7 +39,8 @@ $('mapBtn').onclick=()=>MapView.toggle();
 document.querySelectorAll('#modeSeg button').forEach(b=>{
   b.onclick=()=>{ document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('sel'));
     b.classList.add('sel'); UI.mode=b.dataset.mode;
-    if(UI.mode==='play') seedUserSlice(Transport.songTime);
+    if(UI.mode==='play'){ seedUserSlice(Transport.songTime); }
+    else { Transport.seek(0); Transport.play(); }   // LISTEN: auto-play the whole song from the start
     flash(UI.mode==='play'?'PLAY MODE · press the keys shown · move your slices with Tab / ⇧ (left) and ⏎ / ⇧ (right)':'LISTEN MODE · sit back — the whole song plays and the slices glide'); };
 });
 

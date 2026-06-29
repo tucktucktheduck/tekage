@@ -29,6 +29,15 @@ test('keyboard-map overlay can open', async ({ page }) => {
   await expect(page.locator('#mapOverlay')).toHaveCount(1);
 });
 
+// LISTEN mode must auto-play the whole song (selecting it starts playback).
+test('LISTEN mode auto-plays the song', async ({ page }) => {
+  await page.goto(tkgUrl);
+  await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
+  await expect(page.locator('#playBtn')).not.toHaveClass(/on/); // not playing yet
+  await page.click('#modeSeg button[data-mode="listen"]');
+  await expect(page.locator('#playBtn')).toHaveClass(/on/);      // now playing
+});
+
 // T7 acceptance: keyboard-map viewer — mapped keys opaque / unmapped dim, press
 // lights both, lines toggle off by default. Mapped state comes from the (config-
 // driven) KEY_HAND, so the map reflects TKGConfig.
