@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -51,6 +51,27 @@ ok(V.every(v=>v.notes.every(n=>P.Song.notes.includes(n))), 'version notes are re
 ok(P.starsForDensity(1,[1,2,3]) === 1, 'sparsest gets 1 star');
 ok(P.starsForDensity(3,[1,2,3]) === 5, 'busiest gets 5 stars');
 ok(P.starsForDensity(5,[5]) === 3, 'a single version gets 3 stars');
+
+// — SCORING (T20): pure judge / releaseVerdict / summarizeScore —
+ok(P.judge(0) === 'perfect', 'dead-on onset is perfect');
+ok(P.judge(-0.03) === 'perfect' && P.judge(0.03) === 'perfect', 'perfect window is symmetric');
+ok(P.judge(0.07) === 'good', 'just past perfect is good');
+ok(P.judge(-0.12) === 'okay', 'just past good is okay');
+ok(P.judge(0.30) === 'miss', 'way late is a miss');
+ok(P.releaseVerdict(0) === 'clean', 'release on time is clean');
+ok(P.releaseVerdict(-0.5) === 'early', 'letting go early is flagged');
+ok(P.releaseVerdict(0.5) === 'late', 'holding too long is flagged');
+const SR = P.summarizeScore([
+  {tier:'perfect', late:false, release:'clean'},
+  {tier:'good',    late:true,  release:'late'},
+  {tier:'okay',    late:false, release:'early'},
+  {tier:'miss',    late:false, release:null},
+]);
+ok(SR.fell===4 && SR.hit===3, 'summarizeScore counts hit/fell');
+ok(Math.abs(SR.accuracy - 0.75) < 1e-9, 'accuracy = hit / fell');
+ok(SR.perfect===1 && SR.good===1 && SR.okay===1 && SR.miss===1, 'tier tallies correct');
+ok(SR.tooLate===1 && SR.heldTooLong===1 && SR.releasedEarly===1, 'timing-feedback tallies correct');
+ok(P.summarizeScore([]).accuracy === 0, 'empty score never divides by zero');
 
 // Test with a tiny song
 const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };
