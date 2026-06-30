@@ -24,6 +24,7 @@ function buildVersionButtons(){
     const starStr = String.fromCharCode(0x2605).repeat(stars) + String.fromCharCode(0x2606).repeat(5-stars);
     b.innerHTML=`<span class="vname">${v.name}</span><span class="vden">${v.density.toFixed(1)} n/s · ${v.notes.length}</span><span class="vstars">${starStr}</span>`;
     b.onclick=()=>{ if (Transport.playing) { flash('Pause to change difficulty'); return; } selectVersion(v.id); document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===v.id));
+      persistSettings();
       flash(`<b>${v.name}</b> — ${v.density.toFixed(1)} notes/sec`); };
     row.appendChild(b);
   }
@@ -41,6 +42,7 @@ document.querySelectorAll('#modeSeg button').forEach(b=>{
     b.classList.add('sel'); UI.mode=b.dataset.mode;
     if(UI.mode==='play'){ seedUserSlice(Transport.songTime); }
     else { Score.stop(); hideReport(); Transport.seek(0); Transport.play(); }   // LISTEN: auto-play the whole song from the start (not a scored run)
+    persistSettings();
     flash(UI.mode==='play'?'PLAY MODE · press the keys shown · move your slices with Tab / ⇧ (left) and ⏎ / ⇧ (right)':'LISTEN MODE · sit back — the whole song plays and the slices glide'); };
 });
 
@@ -58,6 +60,13 @@ function showReport(s){
   }
   const pct=Math.round((s.accuracy||0)*100);
   const ring=pct>=85?'#5af0aa':pct>=60?'#5ab8ff':'#ff8a2b';
+  // persist + celebrate a personal best for this song×difficulty (T23)
+  let bestBadge='';
+  if(typeof ProgressStore!=='undefined'){
+    const r=ProgressStore.recordResult(levelId(), s.accuracy||0, s.perfect+s.good+s.okay?undefined:undefined);
+    if(r.isBest) bestBadge=`<div style="margin-top:8px;font-size:11px;letter-spacing:2px;color:#5af0aa">★ NEW BEST</div>`;
+    else bestBadge=`<div style="margin-top:8px;font-size:11px;letter-spacing:1px;color:#7f93b0">BEST ${Math.round((r.best||0)*100)}%</div>`;
+  }
   const tips=[];
   if(s.tooLate)       tips.push(s.tooLate+' too late');
   if(s.heldTooLong)   tips.push(s.heldTooLong+' held too long');
@@ -72,6 +81,7 @@ function showReport(s){
     +   `<div style="width:104px;height:104px;border-radius:50%;background:#0b1220;display:flex;flex-direction:column;align-items:center;justify-content:center">`
     +     `<div style="font-size:30px;color:${ring};font-weight:700">${pct}%</div>`
     +     `<div style="font-size:10px;letter-spacing:2px;color:#7f93b0">${s.hit}/${s.fell} HIT</div></div></div>`
+    + bestBadge
     + tierRow('PERFECT', s.perfect, '#5af0aa')
     + tierRow('GOOD',    s.good,    '#5ab8ff')
     + tierRow('OKAY',    s.okay,    '#ffc85a')
@@ -89,9 +99,9 @@ function showReport(s){
 const speedEl=$('speed');
 speedEl.oninput=()=>{ const r=speedEl.value/100; Transport.targetRate=r;   // SPEED sets the TARGET; _tick drives the effective rate (Auto-Slow composes on top)
   if(Transport.playing && !Transport.autoSlow){ Transport.anchorSong=Transport.songTime; Transport.anchorCtx=Audio.now(); Transport.rate=r; }
-  $('speedVal').textContent=r.toFixed(2)+'×'; };
-$('vol').oninput=()=>Audio.setVolume($('vol').value/100);
-$('namesChk').onchange=()=>UI.keyNames=$('namesChk').checked;
+  $('speedVal').textContent=r.toFixed(2)+'×'; persistSettings(); };
+$('vol').oninput=()=>{ Audio.setVolume($('vol').value/100); persistSettings(); };
+$('namesChk').onchange=()=>{ UI.keyNames=$('namesChk').checked; persistSettings(); };
 
 /* Assist toggles (T21 Auto-Slow, T22 Auto-Shift). Config flags too, so they bake
    into an exported HTML. syncAssistUI reflects current flags onto the checkboxes
@@ -101,10 +111,55 @@ function syncAssistUI(){
   if(sc) sc.checked=!!UI.autoSlow;
   if(sh) sh.checked=!!UI.autoShift;
 }
+
+/* Persist player settings through ProgressStore (T23). Debounced so dragging a
+   slider doesn't hammer storage. Never persists for a baked export (its config
+   defines the intended experience). */
+let _persistT=null;
+function persistSettings(){
+  if(typeof ProgressStore==='undefined') return;
+  if(typeof window!=='undefined' && window.__TKG_CONFIG__) return;
+  clearTimeout(_persistT);
+  _persistT=setTimeout(()=>{
+    ProgressStore.saveSettings({
+      speed: Transport.targetRate,
+      vol: (parseFloat($('vol').value)||75)/100,
+      mode: UI.mode,
+      versionId: Song.version ? Song.version.id : null,
+      assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
+    });
+  }, 250);
+}
+/* Restore persisted settings onto the live controls at boot (standard game only). */
+function applyPersistedSettings(){
+  if(typeof ProgressStore==='undefined') return;
+  if(typeof window!=='undefined' && window.__TKG_CONFIG__) return;
+  const s=ProgressStore.getSettings();
+  Transport.targetRate=s.speed; const sp=$('speed'); if(sp){ sp.value=Math.round(s.speed*100); }
+  const sv=$('speedVal'); if(sv) sv.textContent=s.speed.toFixed(2)+'×';
+  const vl=$('vol'); if(vl) vl.value=Math.round(s.vol*100); Audio.setVolume(s.vol);
+  UI.keyNames=s.assists.keyNames; UI.autoSlow=s.assists.autoSlow; UI.autoShift=s.assists.autoShift;
+  Transport.autoSlow=UI.autoSlow;
+  const nc=$('namesChk'); if(nc) nc.checked=UI.keyNames;
+  syncAssistUI();
+  if(s.versionId && Song.versions.some(v=>v.id===s.versionId)){
+    selectVersion(s.versionId);
+    document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===s.versionId));
+  }
+  // NB: mode is intentionally left at PLAY on boot (restoring LISTEN would auto-play).
+}
+/* Stable identity for "this song at this difficulty" = the score's level key. */
+function levelId(){
+  const t=(Song.title||'demo');
+  const v=Song.version ? Song.version.id : 'full';
+  return t+'#'+Song.notes.length+'x'+Math.round(Song.duration||0)+'#'+v;
+}
 if($('slowChk')) $('slowChk').onchange=()=>{ UI.autoSlow=$('slowChk').checked; Transport.autoSlow=UI.autoSlow;
   if(!UI.autoSlow){ Transport.slowFactor=1; Transport.slowTarget=1; }
+  persistSettings();
   flash(UI.autoSlow?'AUTO-SLOW on · the song eases down when you miss, recovers as you hit':'Auto-Slow off'); };
 if($('shiftChk')) $('shiftChk').onchange=()=>{ UI.autoShift=$('shiftChk').checked;
+  persistSettings();
   flash(UI.autoShift?'AUTO-SHIFT on · the engine moves your hands — just press the keys':'Auto-Shift off · you move your slices with Tab / ⏎'); };
 syncAssistUI();
 

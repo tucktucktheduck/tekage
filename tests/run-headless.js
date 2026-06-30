@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -133,6 +133,41 @@ ok(P.UI.autoSlow === true && P.UI.autoShift === true, 'assist flags applied to U
 ok(P.loadConfig({ slices:{ autoShift:true } }).assists.autoShift === true, 'slices.autoShift also enables Auto-Shift');
 ok(P.loadConfig({ assists:'garbage' }).assists.autoSlow === false, 'bad assists never crashes, falls to default');
 P.loadConfig({});   // restore defaults
+
+// — ProgressStore (T23): interface + adapters, settings + best-score persistence —
+{
+  const mem = P.MemoryAdapter();
+  P.ProgressStore.load(mem);
+  ok(P.ProgressStore.getSettings().mode === 'play', 'fresh profile has safe default settings');
+  P.ProgressStore.saveSettings({ speed:0.5, mode:'listen', assists:{keyNames:true,autoSlow:true,autoShift:false} });
+  // a brand-new store over the SAME adapter sees the persisted settings
+  const reborn = Object.assign({}, P.ProgressStore);   // simulate reload by re-loading from adapter
+  P.ProgressStore.load(mem);
+  ok(P.ProgressStore.getSettings().speed === 0.5, 'settings persist across a reload');
+  ok(P.ProgressStore.getSettings().assists.autoSlow === true, 'assist settings persist');
+
+  // best score is kept only when improved
+  let r = P.ProgressStore.recordResult('demo#core', 0.60, 3);
+  ok(r.isBest === true && Math.abs(r.best-0.60)<1e-9, 'first result is a personal best');
+  r = P.ProgressStore.recordResult('demo#core', 0.45, 2);
+  ok(r.isBest === false && Math.abs(r.best-0.60)<1e-9, 'a worse result does not lower the best');
+  r = P.ProgressStore.recordResult('demo#core', 0.82, 5);
+  ok(r.isBest === true && Math.abs(r.best-0.82)<1e-9, 'a better result raises the best');
+  ok(P.ProgressStore.bestFor('demo#core') === 0.82, 'bestFor returns the stored best');
+
+  // durable adapter over a fake localStorage round-trips through JSON
+  const fakeLS = (()=>{ const m=new Map(); return { getItem:k=>m.has(k)?m.get(k):null, setItem:(k,v)=>m.set(k,String(v)), removeItem:k=>m.delete(k) }; })();
+  const web = P.WebStorageAdapter(fakeLS);
+  P.ProgressStore.load(web);
+  P.ProgressStore.recordResult('demo#full', 0.9, 5);
+  P.ProgressStore.load(web);   // reload from the same backing store
+  ok(P.ProgressStore.bestFor('demo#full') === 0.9, 'web-storage adapter persists across reload');
+
+  // bad/garbage stored blob never crashes -> safe defaults
+  const badLS = { getItem:()=>'{not json', setItem:()=>{}, removeItem:()=>{} };
+  P.ProgressStore.load(P.WebStorageAdapter(badLS));
+  ok(P.ProgressStore.getSettings().mode === 'play', 'corrupt stored profile falls back to defaults');
+}
 
 // Test with a tiny song
 const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };

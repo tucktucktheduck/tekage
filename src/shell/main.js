@@ -11,5 +11,6 @@ tickClock(); setInterval(tickClock,10000);
 // boot
 layout();
 loadDemo();
+if(typeof ProgressStore!=='undefined'){ ProgressStore.load(); applyPersistedSettings(); }   // T23: restore settings + best scores
 frame();
 setTimeout(()=>flash('<b>PLAY mode</b> · press the letter on each note · move your two hands with <b>Tab/⏎</b> (up) &amp; <b>⇧L/⇧R</b> (down) · tap <b>MAP</b> to see the keyboard', true), 800);

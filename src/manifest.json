@@ -11,6 +11,7 @@
     "src/runtime/input.js",
     "src/shell/ui.js",
     "src/shell/config.js",
+    "src/content/progressStore.js",
     "src/content/demoSong.js",
     "src/shell/main.js"
   ]
