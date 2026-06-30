@@ -39,6 +39,7 @@ function defaultProfile(){
                 assists:{ keyNames:true, autoSlow:false, autoShift:false } },
     stars:  {},   // levelId -> best stars (0..5)
     best:   {},   // levelId -> best accuracy (0..1)
+    onboarded: false,   // has the player seen the landing/walkthrough? (docs/08)
   };
 }
 function mergeProfile(loaded){
@@ -58,6 +59,7 @@ function mergeProfile(loaded){
     }
     if(loaded.stars && typeof loaded.stars==='object') p.stars=Object.assign({}, loaded.stars);
     if(loaded.best  && typeof loaded.best ==='object') p.best =Object.assign({}, loaded.best);
+    p.onboarded = !!loaded.onboarded;
   }
   return p;
 }
@@ -100,4 +102,7 @@ const ProgressStore = {
     return { best: this.profile.best[levelId], isBest };
   },
   bestFor(levelId){ return levelId!=null ? this.profile.best[levelId] : undefined; },
+
+  isOnboarded(){ return !!this.profile.onboarded; },
+  markOnboarded(){ this.profile.onboarded = true; return this.save(); },
 };

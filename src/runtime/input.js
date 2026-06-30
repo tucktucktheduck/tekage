@@ -134,6 +134,7 @@ window.addEventListener('keydown',e=>{
     const r=midiForGameKey(k); if(!r) return;
     down.set(k, r.midi); userOn(r.midi, r.hand, k);
     if(MapView.open) MapView.light(k, r.midi, true);
+    if(typeof Onboarding!=='undefined') Onboarding.noteKeyPressed();   // T25 one-note practice gate
   }
 });
 window.addEventListener('keyup',e=>{

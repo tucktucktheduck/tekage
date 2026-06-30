@@ -14,4 +14,5 @@ if(typeof buildSongMenu==='function') buildSongMenu();   // T24: populate the li
 loadDemo();
 if(typeof ProgressStore!=='undefined'){ ProgressStore.load(); applyPersistedSettings(); }   // T23: restore settings + best scores
 frame();
+if(typeof Onboarding!=='undefined') Onboarding.maybeStart();   // T25: first-visit landing + Blurt walkthrough
 setTimeout(()=>flash('<b>PLAY mode</b> · press the letter on each note · move your two hands with <b>Tab/⏎</b> (up) &amp; <b>⇧L/⇧R</b> (down) · tap <b>MAP</b> to see the keyboard', true), 800);

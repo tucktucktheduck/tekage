@@ -6,6 +6,12 @@ const path = require('path');
 // note, and the end-of-song report appears with every yours-note accounted.
 const tkgUrl = pathToFileURL(path.resolve(__dirname, '..', '..', 'tkg.html')).href;
 
+// returning player: boot already-onboarded so the landing doesn't intercept clicks
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { try { const k='tkg.profile.v1';
+    const c=JSON.parse(localStorage.getItem(k)||'{}'); c.onboarded=true; localStorage.setItem(k,JSON.stringify(c)); } catch(e){} });
+});
+
 test('T20: a correctly-timed key press credits the note and pulses it', async ({ page }) => {
   await page.goto(tkgUrl);
   await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);

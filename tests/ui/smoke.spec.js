@@ -6,6 +6,13 @@ const path = require('path');
 // canvas renders, and the version picker populates from the demo song.
 const tkgUrl = pathToFileURL(path.resolve(__dirname, '..', '..', 'tkg.html')).href;
 
+// these specs model a RETURNING player — boot already-onboarded so the first-visit
+// landing (T25) doesn't intercept their clicks. (read-modify-write: keep other fields)
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { try { const k='tkg.profile.v1';
+    const c=JSON.parse(localStorage.getItem(k)||'{}'); c.onboarded=true; localStorage.setItem(k,JSON.stringify(c)); } catch(e){} });
+});
+
 test('tkg.html loads with no console errors and renders', async ({ page }) => {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
