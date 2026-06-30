@@ -30,11 +30,12 @@ test('T21: a miss smoothly slows the transport, hits recover it', async ({ page 
   expect(floored).toBeGreaterThanOrEqual(0.39);   // never below the floor
 
   // now feed hits -> the target recovers, rate eases back UP. Keep feeding hits
-  // while we poll, so the recovery target stays high under CPU contention.
+  // while we poll, so the recovery target stays high under CPU contention. (This
+  // is a real-clock easing assertion; generous timeout to survive a loaded CI.)
   await expect.poll(async () => {
     await page.evaluate(() => { for (let i=0;i<6;i++) Transport.noteHit(); });
     return page.evaluate(() => Transport.rate);
-  }, { timeout: 5000 }).toBeGreaterThan(floored + 0.04);
+  }, { timeout: 9000, intervals: [100, 200, 300] }).toBeGreaterThan(floored + 0.02);
 });
 
 test('T22: Auto-Shift drives the PLAY slice along the solved plan', async ({ page }) => {

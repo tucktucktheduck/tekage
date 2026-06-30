@@ -40,7 +40,7 @@ const Skin = (()=>{
   }
 
   const S = {
-    primary: DEF.primary, secondary: DEF.secondary, bg: DEF.bg, bgImage: null,
+    primary: DEF.primary, secondary: DEF.secondary, bg: DEF.bg, bgImage: null, bgMode: 'color',
     HAND: { left: palette(DEF.secondary, DEF.secondary), right: palette(DEF.primary, DEF.primary) },
 
     // (re)derive the palette from a skin config fragment. Never throws.
@@ -54,7 +54,9 @@ const Skin = (()=>{
         const bgc = (skin.background && skin.background.mode==='color' && skin.background.asset)
                   || skin.bg || (colors.bg) || DEF.bg;
         this.bg = hexToRgb(bgc) ? bgc : DEF.bg;
-        this.bgImage = (skin.background && (skin.background.mode==='image'||skin.background.mode==='video') && skin.background.asset) || skin.bgImage || null;
+        const bgm = skin.background && skin.background.mode;
+        this.bgImage = (bgm && (bgm==='image'||bgm==='video') && skin.background.asset) || skin.bgImage || null;
+        this.bgMode = this.bgImage ? ((bgm==='video') ? 'video' : 'image') : 'color';
         this.HAND.left  = palette(this.secondary, DEF.secondary);
         this.HAND.right = palette(this.primary,   DEF.primary);
       } catch(e){ /* keep last good palette */ }
@@ -62,7 +64,7 @@ const Skin = (()=>{
     },
     // current state as a config fragment (for persistence / export)
     toConfig(){ return { colors:{ primary:this.primary, secondary:this.secondary },
-                         background: this.bgImage ? { mode:'image', asset:this.bgImage } : { mode:'color', asset:this.bg } }; },
+                         background: this.bgImage ? { mode:(this.bgMode==='video'?'video':'image'), asset:this.bgImage } : { mode:'color', asset:this.bg } }; },
     _hexToRgb: hexToRgb,
   };
   return S;

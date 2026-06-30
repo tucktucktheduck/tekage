@@ -319,6 +319,12 @@ ok(P.Skin.HAND.right.rgb === '18,52,86', 'loadConfig applies the skin to the ren
 // legacy {left,right,bg} shape still understood
 P.loadConfig({ skin:{ right:'#abcdef', left:'#fedcba', bg:'#020202' } });
 ok(P.Skin.HAND.right.rgb === '171,205,239' && P.Skin.bg === '#020202', 'legacy skin shape still works');
+// background can be an image OR a video (docs/03: PNG or MOV/video)
+P.Skin.apply({ background:{ mode:'image', asset:'blob:fake-image' } });
+ok(P.Skin.bgImage==='blob:fake-image' && P.Skin.bgMode==='image', 'image background mode tracked');
+P.Skin.apply({ background:{ mode:'video', asset:'blob:fake-video' } });
+ok(P.Skin.bgImage==='blob:fake-video' && P.Skin.bgMode==='video', 'video background mode tracked');
+ok(P.Skin.toConfig().background.mode==='video', 'toConfig preserves a video background for export');
 P.loadConfig({});   // restore default skin
 ok(P.Skin.HAND.right.rgb === '255,138,43', 'default skin restores the brand orange');
 

@@ -47,8 +47,8 @@ function draw(){
   g.clearRect(0,0,W,H);
   // backdrop (skin-driven: a color, or a cover image with a contrast scrim)
   g.fillStyle=Skin.bg; g.fillRect(0,0,W,H);
-  if(Skin.bgImage && _bgImg && _bgImg.complete && _bgImg.naturalWidth){
-    drawCover(_bgImg); g.fillStyle='rgba(3,5,11,.62)'; g.fillRect(0,0,W,H);   // darken for note contrast
+  if(Skin.bgImage && _bgReady(_bgMedia)){
+    drawCover(_bgMedia); g.fillStyle='rgba(3,5,11,.62)'; g.fillRect(0,0,W,H);   // darken for note contrast
   }
   drawLaneGuides();
 
@@ -91,17 +91,34 @@ function draw(){
 // every note/glow/key tint follows the config. Read Skin.HAND[hand] everywhere.
 const HAND = Skin.HAND;
 
-// background image (skin) — loaded lazily when a skin sets one
-let _bgImg = null, _bgImgSrc = null;
-function setBgImage(src){
-  if(src===_bgImgSrc) return;
-  _bgImgSrc = src;
-  if(!src){ _bgImg = null; return; }
-  _bgImg = new Image(); _bgImg.onload = ()=>{ try{ draw(); }catch(e){} }; _bgImg.src = src;
+// background MEDIA (skin) — a still image OR a looping video. Loaded lazily when
+// a skin sets one; the frame loop already calls draw() every frame, so a video
+// animates for free. Persisted media is session-only (too big for storage).
+let _bgMedia = null, _bgSrc = null, _bgKind = null;
+function setBgMedia(src, kind){
+  if(src===_bgSrc && kind===_bgKind) return;
+  if(_bgMedia && _bgMedia.tagName==='VIDEO'){ try{ _bgMedia.pause(); }catch(e){} }
+  _bgSrc=src; _bgKind=kind;
+  if(!src){ _bgMedia=null; return; }
+  if(kind==='video'){
+    const v=document.createElement('video');
+    v.muted=true; v.loop=true; v.autoplay=true; v.playsInline=true; v.setAttribute('playsinline','');
+    v.oncanplay=()=>{ try{ v.play(); }catch(e){} };
+    v.onloadeddata=()=>{ try{ draw(); }catch(e){} };
+    v.src=src; _bgMedia=v;
+  } else {
+    const img=new Image(); img.onload=()=>{ try{ draw(); }catch(e){} }; img.src=src; _bgMedia=img;
+  }
 }
-// draw an image covering the whole canvas (object-fit: cover)
+function setBgImage(src){ setBgMedia(src, 'image'); }   // back-compat (config/boot)
+function _bgReady(m){
+  if(!m) return false;
+  if(m.tagName==='VIDEO') return m.readyState>=2 && m.videoWidth>0;
+  return m.complete && m.naturalWidth>0;
+}
+// draw an image/video covering the whole canvas (object-fit: cover)
 function drawCover(img){
-  const iw=img.naturalWidth, ih=img.naturalHeight; if(!iw||!ih) return;
+  const iw=img.naturalWidth||img.videoWidth, ih=img.naturalHeight||img.videoHeight; if(!iw||!ih) return;
   const scale=Math.max(W/iw, H/ih), dw=iw*scale, dh=ih*scale;
   g.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
 }

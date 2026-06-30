@@ -66,7 +66,7 @@ function applyConfig(c){
       UI.autoShift = c.assists.autoShift;
     }
     if(typeof Transport !== 'undefined') Transport.autoSlow = c.assists.autoSlow;
-    if(typeof Skin !== 'undefined'){ Skin.apply(c.skin); if(typeof setBgImage==='function') setBgImage(Skin.bgImage); }
+    if(typeof Skin !== 'undefined'){ Skin.apply(c.skin); if(typeof setBgMedia==='function') setBgMedia(Skin.bgImage, Skin.bgMode); }
     if(typeof syncAssistUI === 'function') syncAssistUI();   // reflect flags on the checkboxes
   } catch(e){ /* never throw from apply */ }
 }

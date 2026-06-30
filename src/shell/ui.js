@@ -229,11 +229,16 @@ function applySkinFromControls(){
 if($('bgImgBtn')) $('bgImgBtn').onclick=()=>$('bgImgInput') && $('bgImgInput').click();
 if($('bgImgInput')) $('bgImgInput').onchange=e=>{
   const f=e.target.files && e.target.files[0]; if(!f) return;
-  const rd=new FileReader();
-  rd.onload=()=>{ Skin.bgImage=rd.result; if(typeof setBgImage==='function') setBgImage(rd.result);
-    Skin.apply({ colors:{primary:Skin.primary,secondary:Skin.secondary}, background:{mode:'image',asset:rd.result} });
-    draw(); flash('Background image set · skins never affect gameplay'); };
-  rd.readAsDataURL(f);
+  const kind = (f.type && f.type.indexOf('video/')===0) ? 'video' : 'image';
+  // object URL = instant + cheap (a video data-URL would be huge). Session-only.
+  const src = (typeof URL!=='undefined' && URL.createObjectURL) ? URL.createObjectURL(f) : null;
+  if(!src) return;
+  Skin.bgImage=src; Skin.bgMode=kind;
+  if(typeof setBgMedia==='function') setBgMedia(src, kind);
+  Skin.apply({ colors:{primary:Skin.primary,secondary:Skin.secondary}, background:{mode:kind,asset:src} });
+  draw();
+  flash(kind==='video' ? 'Background video set · loops behind your notes · skins never affect gameplay'
+                        : 'Background image set · skins never affect gameplay');
 };
 function syncSkinUI(){
   if(typeof Skin==='undefined') return;
