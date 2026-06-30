@@ -121,5 +121,8 @@ const Onboarding = (()=>{
     return true;
   }
 
-  return { maybeStart, landing, finish, noteKeyPressed, _script:script };
+  // replay the walkthrough on demand (the TUTORIAL button), even after onboarding
+  function replay(){ if(typeof document==='undefined' || !document.body) return; stepIdx=0; runWalkthrough(); }
+
+  return { maybeStart, landing, finish, noteKeyPressed, replay, _script:script };
 })();

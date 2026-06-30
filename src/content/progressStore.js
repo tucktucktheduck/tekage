@@ -112,4 +112,7 @@ const ProgressStore = {
 
   isOnboarded(){ return !!this.profile.onboarded; },
   markOnboarded(){ this.profile.onboarded = true; return this.save(); },
+
+  // wipe the profile back to defaults (settings + best scores + onboarded flag)
+  reset(){ this.profile = defaultProfile(); return this.save(); },
 };

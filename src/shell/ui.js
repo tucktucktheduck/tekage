@@ -47,6 +47,18 @@ const Teklet = {
 if($('tekletBtn')) $('tekletBtn').onclick=()=>Teklet.toggle();
 if($('tekletClose')) $('tekletClose').onclick=()=>Teklet.hide();
 
+/* Tutorial replay (anytime) + reset progress. The tutorial button relaunches the
+   Blurt walkthrough even after onboarding; reset wipes settings + best scores. */
+function startTutorial(){ Teklet.hide(); if(typeof Onboarding!=='undefined') Onboarding.replay(); }
+if($('tutorialBtn'))  $('tutorialBtn').onclick=startTutorial;
+if($('tutorialBtn2')) $('tutorialBtn2').onclick=startTutorial;
+if($('resetBtn')) $('resetBtn').onclick=()=>{
+  const ok = (typeof confirm==='function') ? confirm('Reset TKG? This erases your settings and best scores.') : true;
+  if(!ok) return;
+  if(typeof ProgressStore!=='undefined') ProgressStore.reset();
+  if(typeof location!=='undefined' && location.reload) location.reload();
+};
+
 /* Song library menu (T24): the built-in starter songs + the demo, so you can
    "pick a song and play" without owning a MIDI. Upload still lives on LOAD MIDI. */
 function buildSongMenu(){
