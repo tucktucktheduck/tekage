@@ -8,7 +8,7 @@
 const DEFAULT_CONFIG = {
   mode: 'play',                 // 'play' | 'listen'
   hands: 'both',                // 'both' | 'left' | 'right'
-  assists: { keyNames: true },
+  assists: { keyNames: true, autoSlow: false, autoShift: false },
   slices: { mapping: null },    // null = built-in standard layout (BUILTIN_MAP)
   skin: { bg:'#05060a', left:'#1a8fff', right:'#ff8a2b' },
 };
@@ -25,7 +25,13 @@ function loadConfig(partial){
     if(partial && typeof partial === 'object'){
       if(partial.mode === 'play' || partial.mode === 'listen') c.mode = partial.mode;
       if(['both','left','right'].indexOf(partial.hands) >= 0) c.hands = partial.hands;
-      if(partial.assists && typeof partial.assists === 'object') c.assists.keyNames = !!partial.assists.keyNames;
+      if(partial.assists && typeof partial.assists === 'object'){
+        c.assists.keyNames = !!partial.assists.keyNames;
+        c.assists.autoSlow = !!partial.assists.autoSlow;
+        c.assists.autoShift = !!partial.assists.autoShift;
+      }
+      // Auto-Shift may also come from slices.autoShift (docs/10), independent of assists
+      if(partial.slices && partial.slices.autoShift) c.assists.autoShift = true;
       if(partial.slices && partial.slices.mapping && typeof partial.slices.mapping === 'object') c.slices.mapping = partial.slices.mapping;
       if(partial.skin && typeof partial.skin === 'object') Object.assign(c.skin, partial.skin);
     }
@@ -48,7 +54,11 @@ function applyConfig(c){
     if(typeof UI !== 'undefined'){
       UI.mode = c.mode;
       UI.keyNames = c.assists.keyNames;
+      UI.autoSlow = c.assists.autoSlow;
+      UI.autoShift = c.assists.autoShift;
     }
+    if(typeof Transport !== 'undefined') Transport.autoSlow = c.assists.autoSlow;
+    if(typeof syncAssistUI === 'function') syncAssistUI();   // reflect flags on the checkboxes
   } catch(e){ /* never throw from apply */ }
 }
 

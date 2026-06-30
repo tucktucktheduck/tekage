@@ -35,6 +35,19 @@ function releaseVerdict(offsetSec){
   if(offsetSec >  RELEASE_TOL) return 'late';
   return 'clean';
 }
+/* ── Auto-Slow easing (pure) — T21 ────────────────────────────
+   Move a value toward a target by at most maxDelta this step. Drives the
+   smooth playback-rate ramp (slow on a miss, recover on hits) without ever
+   overshooting. maxDelta is computed by the caller from the audio-clock dt,
+   so the ramp is clock-driven, never wall-time. */
+const AUTOSLOW = { floor:0.4, recoverPerHit:0.22, easePerSec:1.1 };
+function easeToward(cur, target, maxDelta){
+  if(maxDelta<=0) return cur;
+  if(cur < target) return Math.min(target, cur+maxDelta);
+  if(cur > target) return Math.max(target, cur-maxDelta);
+  return cur;
+}
+
 // records: [{ tier:'perfect'|'good'|'okay'|'miss', late:bool, release:'early'|'clean'|'late'|null }]
 function summarizeScore(records){
   const r = { fell:records.length, hit:0, accuracy:0,

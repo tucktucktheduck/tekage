@@ -34,6 +34,7 @@ const Score = {
     const rec={note:best, tier, late:off>0, release:null};
     this.records.push(rec); this.byNote.set(best, rec);
     if(voiceKey!=null) this.held.set(voiceKey, best);
+    if(typeof Transport!=='undefined' && Transport.noteHit) Transport.noteHit();   // Auto-Slow recovery (T21)
     return rec;
   },
   // grade how a key release lines up with the credited note's end
@@ -51,6 +52,7 @@ const Score = {
       if(songTime > n.startSec + JUDGE_WINDOWS.okay){
         const rec={note:n, tier:'miss', late:false, release:null};
         this.records.push(rec); this.byNote.set(n, rec);
+        if(typeof Transport!=='undefined' && Transport.noteMissed) Transport.noteMissed();   // Auto-Slow trigger (T21)
       }
     }
   },

@@ -39,8 +39,8 @@ test('T20: song end shows the report with every yours-note accounted', async ({ 
   // play a scored run and fast-forward the transport so it reaches the end
   const fell = await page.evaluate(() => {
     UI.mode = 'play';
+    Transport.targetRate = 4;     // fast-forward (max effective rate); the real end-of-song hook fires showReport
     Transport.play();
-    Transport.rate = 40;          // fast-forward; the real end-of-song hook fires showReport
     return Song.activeNotes.length;
   });
 

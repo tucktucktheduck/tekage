@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════
    8 · UI STATE + WIRING
    ════════════════════════════════════════════════════════════ */
-const UI = { mode:'play', keyNames:true };
+const UI = { mode:'play', keyNames:true, autoSlow:false, autoShift:false };
 
 const $=id=>document.getElementById(id);
 function setPlayBtn(p){ $('playBtn').textContent = p?'⏸ PAUSE':'▶ PLAY'; $('playBtn').classList.toggle('on',p); }
@@ -87,11 +87,26 @@ function showReport(s){
 }
 
 const speedEl=$('speed');
-speedEl.oninput=()=>{ const r=speedEl.value/100; Transport.rate=r;
-  if(Transport.playing){ Transport.anchorSong=Transport.songTime; Transport.anchorCtx=Audio.now(); }
+speedEl.oninput=()=>{ const r=speedEl.value/100; Transport.targetRate=r;   // SPEED sets the TARGET; _tick drives the effective rate (Auto-Slow composes on top)
+  if(Transport.playing && !Transport.autoSlow){ Transport.anchorSong=Transport.songTime; Transport.anchorCtx=Audio.now(); Transport.rate=r; }
   $('speedVal').textContent=r.toFixed(2)+'×'; };
 $('vol').oninput=()=>Audio.setVolume($('vol').value/100);
 $('namesChk').onchange=()=>UI.keyNames=$('namesChk').checked;
+
+/* Assist toggles (T21 Auto-Slow, T22 Auto-Shift). Config flags too, so they bake
+   into an exported HTML. syncAssistUI reflects current flags onto the checkboxes
+   (used when a baked config loads). */
+function syncAssistUI(){
+  const sc=$('slowChk'), sh=$('shiftChk');
+  if(sc) sc.checked=!!UI.autoSlow;
+  if(sh) sh.checked=!!UI.autoShift;
+}
+if($('slowChk')) $('slowChk').onchange=()=>{ UI.autoSlow=$('slowChk').checked; Transport.autoSlow=UI.autoSlow;
+  if(!UI.autoSlow){ Transport.slowFactor=1; Transport.slowTarget=1; }
+  flash(UI.autoSlow?'AUTO-SLOW on · the song eases down when you miss, recovers as you hit':'Auto-Slow off'); };
+if($('shiftChk')) $('shiftChk').onchange=()=>{ UI.autoShift=$('shiftChk').checked;
+  flash(UI.autoShift?'AUTO-SHIFT on · the engine moves your hands — just press the keys':'Auto-Shift off · you move your slices with Tab / ⏎'); };
+syncAssistUI();
 
 /* ── Keyboard-map viewer ──────────────────────────────────────
    Computer keyboard on top, piano beneath. Mapped keys are fully

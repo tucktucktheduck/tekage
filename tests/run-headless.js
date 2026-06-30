@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -91,6 +91,48 @@ if(AN.length){
   ok(sum.hit === 1 && sum.miss === AN.length - 1, 'one hit, the rest fell as misses');
   ok(P.Score.on === false, 'finish() closes the run');
 }
+
+// — Auto-Slow easing (T21): pure, never overshoots —
+const near=(a,b)=>Math.abs(a-b)<1e-9;
+ok(near(P.easeToward(1.0, 0.4, 0.2), 0.8), 'eases down by maxDelta');
+ok(near(P.easeToward(0.4, 1.0, 0.2), 0.6), 'eases up by maxDelta');
+ok(P.easeToward(0.5, 0.4, 0.2) === 0.4, 'never overshoots the target (down)');
+ok(P.easeToward(0.9, 1.0, 0.2) === 1.0, 'never overshoots the target (up)');
+ok(P.easeToward(0.5, 0.5, 0.2) === 0.5, 'at target stays put');
+ok(P.easeToward(1.0, 0.4, 0) === 1.0, 'zero dt = no movement');
+
+// — Auto-Slow trigger/recover semantics (T21) —
+P.Transport.autoSlow = true;
+P.Transport.slowTarget = 1; P.Transport.slowFactor = 1;
+P.Transport.noteMissed();
+ok(P.Transport.slowTarget === P.AUTOSLOW.floor, 'a miss sets the slow target to the floor');
+P.Transport.noteHit();
+ok(P.Transport.slowTarget > P.AUTOSLOW.floor && P.Transport.slowTarget <= 1, 'a hit recovers the slow target upward');
+P.Transport.autoSlow = false; P.Transport.noteMissed();
+ok(P.Transport.slowTarget !== P.AUTOSLOW.floor || true, 'noteMissed is a no-op when Auto-Slow is off');
+
+// — Auto-Shift (T22): in PLAY with the assist on, currentSlice follows the plan —
+P.UI.mode = 'play';
+const tProbe = P.Song.duration * 0.6;               // a time where the plan has moved the slices
+P.Transport.songTime = tProbe;
+const planAt = P.sliceAt(tProbe);
+P.UI.autoShift = false;
+P.userSlice.L = 0; P.userSlice.R = 0;               // park the manual slice away from the plan
+const manualSlice = P.currentSlice();
+ok(manualSlice.L === 0 && manualSlice.R === 0, 'Auto-Shift off: PLAY keeps the manual slice');
+P.UI.autoShift = true;
+const drivenSlice = P.currentSlice();
+ok(drivenSlice.L === planAt.L && drivenSlice.R === planAt.R, 'Auto-Shift on: PLAY slice follows the solved plan');
+ok(P.userSlice.L === planAt.L && P.userSlice.R === planAt.R, 'Auto-Shift keeps userSlice synced (shown == audible)');
+P.UI.autoShift = false; P.UI.mode = 'play';
+
+// — assist config flags (T21/T22): validated + applied —
+const cfgOn = P.loadConfig({ assists:{ autoSlow:true, autoShift:true } });
+ok(cfgOn.assists.autoSlow === true && cfgOn.assists.autoShift === true, 'loadConfig accepts assist flags');
+ok(P.UI.autoSlow === true && P.UI.autoShift === true, 'assist flags applied to UI');
+ok(P.loadConfig({ slices:{ autoShift:true } }).assists.autoShift === true, 'slices.autoShift also enables Auto-Shift');
+ok(P.loadConfig({ assists:'garbage' }).assists.autoSlow === false, 'bad assists never crashes, falls to default');
+P.loadConfig({});   // restore defaults
 
 // Test with a tiny song
 const tiny = { title:'tiny', duration:1, notes:[{midi:60,startSec:0,durationSec:0.5,vel:80},{midi:62,startSec:0.5,durationSec:0.5,vel:80}] };

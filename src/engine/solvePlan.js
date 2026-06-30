@@ -200,6 +200,10 @@ function seedUserSlice(t){ const s=sliceAt(t); userSlice.L=s.L; userSlice.R=s.R;
 // what will SOUND. In PLAY you drive it; in LISTEN it follows the solved plan
 // (and userSlice is kept synced so a stray key still sounds at the shown octave).
 function currentSlice(){
-  if(UI.mode==='play') return userSlice;
+  // Auto-Shift (T22): in PLAY the engine drives the slices along the solved plan
+  // (like LISTEN's motion) while you still press the keys. userSlice is kept synced
+  // so the shown octave == the audible octave.
+  const drive = (UI.mode!=='play') || (typeof UI!=='undefined' && UI.autoShift);
+  if(!drive) return userSlice;
   const s=sliceAt(Transport.songTime); userSlice.L=s.L; userSlice.R=s.R; return s;
 }
