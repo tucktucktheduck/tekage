@@ -36,7 +36,8 @@ const PROFILE_KEY = 'tkg.profile.v1';
 function defaultProfile(){
   return {
     settings: { speed:1.0, vol:0.75, mode:'play', versionId:null,
-                assists:{ keyNames:true, autoSlow:false, autoShift:false } },
+                assists:{ keyNames:true, autoSlow:false, autoShift:false },
+                skin:{ primary:'#ff8a2b', secondary:'#1a8fff', bg:'#05060a' } },
     stars:  {},   // levelId -> best stars (0..5)
     best:   {},   // levelId -> best accuracy (0..1)
     onboarded: false,   // has the player seen the landing/walkthrough? (docs/08)
@@ -55,6 +56,12 @@ function mergeProfile(loaded){
         p.settings.assists.keyNames=!!s.assists.keyNames;
         p.settings.assists.autoSlow=!!s.assists.autoSlow;
         p.settings.assists.autoShift=!!s.assists.autoShift;
+      }
+      if(s.skin && typeof s.skin==='object'){
+        const hex=/^#[0-9a-fA-F]{6}$/;
+        if(hex.test(s.skin.primary))   p.settings.skin.primary=s.skin.primary;
+        if(hex.test(s.skin.secondary)) p.settings.skin.secondary=s.skin.secondary;
+        if(hex.test(s.skin.bg))        p.settings.skin.bg=s.skin.bg;
       }
     }
     if(loaded.stars && typeof loaded.stars==='object') p.stars=Object.assign({}, loaded.stars);

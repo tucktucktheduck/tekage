@@ -10,7 +10,8 @@ const DEFAULT_CONFIG = {
   hands: 'both',                // 'both' | 'left' | 'right'
   assists: { keyNames: true, autoSlow: false, autoShift: false },
   slices: { mapping: null },    // null = built-in standard layout (BUILTIN_MAP)
-  skin: { bg:'#05060a', left:'#1a8fff', right:'#ff8a2b' },
+  // skin colors drive ALL in-game color (docs/10). primary->right hand, secondary->left.
+  skin: { colors:{ primary:'#ff8a2b', secondary:'#1a8fff' }, background:{ mode:'color', asset:'#05060a' } },
 };
 
 function _cfgClone(o){ try { return JSON.parse(JSON.stringify(o)); } catch(e){ return {}; } }
@@ -33,7 +34,14 @@ function loadConfig(partial){
       // Auto-Shift may also come from slices.autoShift (docs/10), independent of assists
       if(partial.slices && partial.slices.autoShift) c.assists.autoShift = true;
       if(partial.slices && partial.slices.mapping && typeof partial.slices.mapping === 'object') c.slices.mapping = partial.slices.mapping;
-      if(partial.skin && typeof partial.skin === 'object') Object.assign(c.skin, partial.skin);
+      if(partial.skin && typeof partial.skin === 'object'){
+        if(partial.skin.colors && typeof partial.skin.colors === 'object') Object.assign(c.skin.colors, partial.skin.colors);
+        if(partial.skin.background && typeof partial.skin.background === 'object') Object.assign(c.skin.background, partial.skin.background);
+        // legacy {bg,left,right}
+        if(partial.skin.right) c.skin.colors.primary = partial.skin.right;
+        if(partial.skin.left)  c.skin.colors.secondary = partial.skin.left;
+        if(partial.skin.bg)    c.skin.background = { mode:'color', asset:partial.skin.bg };
+      }
     }
   } catch(e){ /* swallow */ }
   TKGConfig = c;
@@ -58,6 +66,7 @@ function applyConfig(c){
       UI.autoShift = c.assists.autoShift;
     }
     if(typeof Transport !== 'undefined') Transport.autoSlow = c.assists.autoSlow;
+    if(typeof Skin !== 'undefined'){ Skin.apply(c.skin); if(typeof setBgImage==='function') setBgImage(Skin.bgImage); }
     if(typeof syncAssistUI === 'function') syncAssistUI();   // reflect flags on the checkboxes
   } catch(e){ /* never throw from apply */ }
 }

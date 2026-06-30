@@ -5,6 +5,7 @@
     "src/engine/deriveVersions.js",
     "src/engine/solvePlan.js",
     "src/runtime/audio.js",
+    "src/runtime/skin.js",
     "src/engine/song.js",
     "src/runtime/transport.js",
     "src/runtime/render.js",

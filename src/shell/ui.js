@@ -149,6 +149,7 @@ function persistSettings(){
       mode: UI.mode,
       versionId: Song.version ? Song.version.id : null,
       assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
+      skin: (typeof Skin!=='undefined') ? { primary:_hex6(Skin.primary,'#ff8a2b'), secondary:_hex6(Skin.secondary,'#1a8fff'), bg:_hex6(Skin.bg,'#05060a') } : undefined,
     });
   }, 250);
 }
@@ -164,6 +165,11 @@ function applyPersistedSettings(){
   Transport.autoSlow=UI.autoSlow;
   const nc=$('namesChk'); if(nc) nc.checked=UI.keyNames;
   syncAssistUI();
+  if(typeof Skin!=='undefined' && s.skin){
+    Skin.apply({ colors:{ primary:s.skin.primary, secondary:s.skin.secondary }, background:{ mode:'color', asset:s.skin.bg } });
+    if(typeof TKGConfig!=='undefined') TKGConfig.skin=Skin.toConfig();
+    syncSkinUI();
+  }
   if(s.versionId && Song.versions.some(v=>v.id===s.versionId)){
     selectVersion(s.versionId);
     document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===s.versionId));
@@ -183,6 +189,42 @@ if($('slowChk')) $('slowChk').onchange=()=>{ UI.autoSlow=$('slowChk').checked; T
 if($('shiftChk')) $('shiftChk').onchange=()=>{ UI.autoShift=$('shiftChk').checked;
   persistSettings();
   flash(UI.autoShift?'AUTO-SHIFT on · the engine moves your hands — just press the keys':'Auto-Shift off · you move your slices with Tab / ⏎'); };
+
+/* Skin controls (T26) — primary/secondary colors + background drive every in-game
+   color through Skin; changes apply live, persist, and bake into an export. */
+function applySkinFromControls(){
+  if(typeof Skin==='undefined') return;
+  Skin.primary   = $('skinPrimary')   ? $('skinPrimary').value   : Skin.primary;
+  Skin.secondary = $('skinSecondary') ? $('skinSecondary').value : Skin.secondary;
+  Skin.bg        = $('skinBg')        ? $('skinBg').value        : Skin.bg;
+  Skin.apply({ colors:{ primary:Skin.primary, secondary:Skin.secondary },
+               background: Skin.bgImage ? { mode:'image', asset:Skin.bgImage } : { mode:'color', asset:Skin.bg } });
+  if(typeof TKGConfig!=='undefined') TKGConfig.skin = Skin.toConfig();
+  draw(); persistSettings();
+}
+['skinPrimary','skinSecondary','skinBg'].forEach(id=>{ if($(id)) $(id).oninput=applySkinFromControls; });
+if($('bgImgBtn')) $('bgImgBtn').onclick=()=>$('bgImgInput') && $('bgImgInput').click();
+if($('bgImgInput')) $('bgImgInput').onchange=e=>{
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ Skin.bgImage=rd.result; if(typeof setBgImage==='function') setBgImage(rd.result);
+    Skin.apply({ colors:{primary:Skin.primary,secondary:Skin.secondary}, background:{mode:'image',asset:rd.result} });
+    draw(); flash('Background image set · skins never affect gameplay'); };
+  rd.readAsDataURL(f);
+};
+function syncSkinUI(){
+  if(typeof Skin==='undefined') return;
+  if($('skinPrimary'))   $('skinPrimary').value   = _hex6(Skin.primary,   '#ff8a2b');
+  if($('skinSecondary')) $('skinSecondary').value = _hex6(Skin.secondary, '#1a8fff');
+  if($('skinBg'))        $('skinBg').value        = _hex6(Skin.bg,        '#05060a');
+}
+// <input type=color> requires a #rrggbb value
+function _hex6(v, fallback){
+  const rgb = (Skin && Skin._hexToRgb) ? Skin._hexToRgb(v) : null;
+  if(!rgb) return fallback;
+  const h=n=>n.toString(16).padStart(2,'0');
+  return '#'+h(rgb.r)+h(rgb.g)+h(rgb.b);
+}
 syncAssistUI();
 
 /* ── Keyboard-map viewer ──────────────────────────────────────

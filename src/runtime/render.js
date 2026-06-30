@@ -45,8 +45,11 @@ const PULSE_COL = { perfect:'90,240,170', good:'90,180,255', okay:'255,200,90' }
 
 function draw(){
   g.clearRect(0,0,W,H);
-  // backdrop
-  g.fillStyle='#050810'; g.fillRect(0,0,W,H);
+  // backdrop (skin-driven: a color, or a cover image with a contrast scrim)
+  g.fillStyle=Skin.bg; g.fillRect(0,0,W,H);
+  if(Skin.bgImage && _bgImg && _bgImg.complete && _bgImg.naturalWidth){
+    drawCover(_bgImg); g.fillStyle='rgba(3,5,11,.62)'; g.fillRect(0,0,W,H);   // darken for note contrast
+  }
   drawLaneGuides();
 
   const t = Transport.songTime;
@@ -70,10 +73,10 @@ function draw(){
   }
   for(const o of onscreen) drawNote(o.n,o.ty,o.by);
 
-  // hit line
+  // hit line (skin primary = right hand)
   g.save();
-  g.shadowBlur=14; g.shadowColor='rgba(255,138,43,.5)';
-  g.fillStyle='rgba(255,138,43,.55)'; g.fillRect(0,hitY-1.5,W,3);
+  g.shadowBlur=14; g.shadowColor=Skin.HAND.right.glow;
+  g.fillStyle=Skin.HAND.right.glow; g.fillRect(0,hitY-1.5,W,3);
   g.restore();
 
   drawNotePulses();               // the note is the star: lights & pulses on a hit
@@ -84,10 +87,24 @@ function draw(){
   if(Song.duration) drawProgress(t);
 }
 
-const HAND = {
-  left:  { fill:'#1a8fff', fillBright:'#5bb8ff', glow:'rgba(26,143,255,.55)', glowBright:'rgba(59,165,255,.85)', edge:'#bfe0ff', ink:'#04101f' },
-  right: { fill:'#ff8a2b', fillBright:'#ffb060', glow:'rgba(255,138,43,.55)', glowBright:'rgba(255,170,85,.85)', edge:'#ffd9b0', ink:'#1a0e02' },
-};
+// hand palette now lives on Skin (skin.js), derived from the skin's colors so
+// every note/glow/key tint follows the config. Read Skin.HAND[hand] everywhere.
+const HAND = Skin.HAND;
+
+// background image (skin) — loaded lazily when a skin sets one
+let _bgImg = null, _bgImgSrc = null;
+function setBgImage(src){
+  if(src===_bgImgSrc) return;
+  _bgImgSrc = src;
+  if(!src){ _bgImg = null; return; }
+  _bgImg = new Image(); _bgImg.onload = ()=>{ try{ draw(); }catch(e){} }; _bgImg.src = src;
+}
+// draw an image covering the whole canvas (object-fit: cover)
+function drawCover(img){
+  const iw=img.naturalWidth, ih=img.naturalHeight; if(!iw||!ih) return;
+  const scale=Math.max(W/iw, H/ih), dw=iw*scale, dh=ih*scale;
+  g.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
+}
 
 /* faint vertical corridor for each hand's current one-octave slice */
 function drawSliceLanes(slice){
@@ -100,7 +117,7 @@ function drawSliceLanes(slice){
     if(!geom[lo]||!geom[hi]) continue;
     const x0=geom[lo].x, x1=geom[hi].x + geom[hi].w;
     const grad=g.createLinearGradient(0,0,0,pianoTop);
-    const c=hand==='left'?'26,143,255':'255,138,43';
+    const c=HAND[hand].rgb;
     grad.addColorStop(0,`rgba(${c},0)`); grad.addColorStop(1,`rgba(${c},.07)`);
     g.fillStyle=grad; g.fillRect(x0,0,x1-x0,pianoTop);
     g.strokeStyle=`rgba(${c},.10)`; g.lineWidth=1;
@@ -245,15 +262,15 @@ function drawPiano(slice){
     const ge=geom[m]; if(ge.isBlk) continue;
     const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
     let topCol='#f3f6fb', botCol='#c4ccd8';
-    if(hand==='right'){ topCol='#ffd9b0'; botCol='#ff8a2b'; }
-    else if(hand==='left'){ topCol='#bfe0ff'; botCol='#1a8fff'; }
+    if(hand==='right'){ topCol=HAND.right.keyTop; botCol=HAND.right.keyBot; }
+    else if(hand==='left'){ topCol=HAND.left.keyTop; botCol=HAND.left.keyBot; }
     const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
     grad.addColorStop(0,topCol); grad.addColorStop(1,botCol);
     g.fillStyle=grad; g.fillRect(ge.x,ge.y,ge.w-1,ge.h);
     // slice tint (only when key isn't already lit)
     const sl=inSlice(m,slice);
-    if(sl && !hand){ g.fillStyle = sl==='left'?'rgba(26,143,255,.13)':'rgba(255,138,43,.13)'; g.fillRect(ge.x,ge.y,ge.w-1,ge.h); }
-    if(hand){ g.save(); g.shadowBlur=18; g.shadowColor=(hand==='left')?'rgba(26,143,255,.8)':'rgba(255,138,43,.85)';
+    if(sl && !hand){ g.fillStyle = HAND[sl].tint; g.fillRect(ge.x,ge.y,ge.w-1,ge.h); }
+    if(hand){ g.save(); g.shadowBlur=18; g.shadowColor=HAND[hand].glowBright;
       g.fillStyle='rgba(255,255,255,0.001)'; g.fillRect(ge.x,ge.y,ge.w-1,6); g.restore(); }
     g.strokeStyle='#2a3242'; g.lineWidth=1; g.strokeRect(ge.x+0.5,ge.y+0.5,ge.w-1,ge.h-1);
     if(namesOn && noteName(m)==='C'){
@@ -267,12 +284,12 @@ function drawPiano(slice){
     const ge=geom[m]; if(!ge.isBlk) continue;
     const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
     let top='#23282f', bot='#05070b';
-    if(hand==='right'){ top='#ffb060'; bot='#a8500f'; }
-    else if(hand==='left'){ top='#5bb8ff'; bot='#0d4a8a'; }
-    else { const sl=inSlice(m,slice); if(sl){ top = sl==='left'?'#1d3550':'#4a3320'; bot='#05070b'; } }
+    if(hand==='right'){ top=HAND.right.fillBright; bot=HAND.right.fill; }
+    else if(hand==='left'){ top=HAND.left.fillBright; bot=HAND.left.fill; }
+    else { const sl=inSlice(m,slice); if(sl){ top = HAND[sl].tint; bot='#05070b'; } }
     const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
     grad.addColorStop(0,top); grad.addColorStop(1,bot);
-    if(hand){ g.save(); g.shadowBlur=16; g.shadowColor=(hand==='left')?'rgba(26,143,255,.8)':'rgba(255,138,43,.85)'; }
+    if(hand){ g.save(); g.shadowBlur=16; g.shadowColor=HAND[hand].glowBright; }
     g.fillStyle=grad; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.fill();
     if(hand) g.restore();
     g.strokeStyle='#000'; g.lineWidth=1; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.stroke();

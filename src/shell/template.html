@@ -184,6 +184,12 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;h
 label.chk{display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;}
 label.chk input{accent-color:var(--orange);width:15px;height:15px;cursor:pointer;}
 
+/* skin color swatches */
+input[type=color].swatch{-webkit-appearance:none;appearance:none;width:22px;height:22px;border:1px solid var(--border);
+  border-radius:5px;padding:0;cursor:pointer;background:transparent;}
+input[type=color].swatch::-webkit-color-swatch-wrapper{padding:2px;}
+input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
+
 /* insight badge */
 #insight{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:9;
   font-family:'Rajdhani';font-weight:600;font-size:12px;color:#9fb6d4;letter-spacing:.5px;
@@ -254,6 +260,12 @@ label.chk input{accent-color:var(--orange);width:15px;height:15px;cursor:pointer
     <label class="chk"><input type="checkbox" id="namesChk" checked> C marks</label>
     <label class="chk"><input type="checkbox" id="slowChk"> Auto-Slow</label>
     <label class="chk"><input type="checkbox" id="shiftChk"> Auto-Shift</label>
+    <span class="lbl">Skin</span>
+    <input type="color" class="swatch" id="skinPrimary" value="#ff8a2b" title="Primary color (right hand)">
+    <input type="color" class="swatch" id="skinSecondary" value="#1a8fff" title="Secondary color (left hand)">
+    <input type="color" class="swatch" id="skinBg" value="#05060a" title="Background color">
+    <button class="tk" id="bgImgBtn" title="Upload a background image">BG IMG</button>
+    <input type="file" id="bgImgInput" accept="image/*" style="display:none">
   </div>
 </div>
 

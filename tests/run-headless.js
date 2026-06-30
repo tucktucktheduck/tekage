@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -300,6 +300,27 @@ for(const s of P.LIBRARY){
 }
 // leave Song on the demo for any later checks
 P.buildDemo && P.analyze(P.buildDemo(), 'DEMO');
+
+// ── T26: Skin — config drives every in-game color, never crashes ──
+console.log('\n— SKIN (T26) —');
+ok(typeof P.Skin === 'object', 'Skin is exposed');
+P.Skin.apply({ colors:{ primary:'#ff0000', secondary:'#00ff00' }, background:{ mode:'color', asset:'#101010' } });
+ok(P.Skin.HAND.right.rgb === '255,0,0', 'primary color drives the right-hand palette');
+ok(P.Skin.HAND.left.rgb === '0,255,0', 'secondary color drives the left-hand palette');
+ok(P.Skin.bg === '#101010', 'background color is applied');
+ok(/^rgb\(/.test(P.Skin.HAND.right.fill) && /^rgba\(/.test(P.Skin.HAND.right.glow), 'palette yields usable fill + glow');
+ok(P.Skin.HAND.right.keyTop !== P.Skin.HAND.right.keyBot, 'lit-key gradient has distinct top/bottom');
+// bad input never crashes -> keeps a valid palette
+let skinThrew=false; try { P.Skin.apply({ colors:{ primary:'not-a-color' } }); } catch(e){ skinThrew=true; }
+ok(!skinThrew && /^rgb\(/.test(P.Skin.HAND.right.fill), 'garbage skin color never crashes; palette stays valid');
+// loadConfig drives the skin with no code change
+P.loadConfig({ skin:{ colors:{ primary:'#123456' } } });
+ok(P.Skin.HAND.right.rgb === '18,52,86', 'loadConfig applies the skin to the renderer palette');
+// legacy {left,right,bg} shape still understood
+P.loadConfig({ skin:{ right:'#abcdef', left:'#fedcba', bg:'#020202' } });
+ok(P.Skin.HAND.right.rgb === '171,205,239' && P.Skin.bg === '#020202', 'legacy skin shape still works');
+P.loadConfig({});   // restore default skin
+ok(P.Skin.HAND.right.rgb === '255,138,43', 'default skin restores the brand orange');
 
 // ── T11: every module file carries a banner comment at its top ──
 console.log('\n— MODULE BANNERS (T11) —');
