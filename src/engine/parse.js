@@ -49,7 +49,8 @@ function parseMidi(buffer){
   };
 
   const channelNotes=new Map();
-  for(const track of rawTracks){
+  for(let ti=0; ti<rawTracks.length; ti++){
+    const track=rawTracks[ti];
     const active=new Map(); let lastTick=0;
     for(const ev of track){
       if(ev.tick>lastTick) lastTick=ev.tick;
@@ -60,7 +61,9 @@ function parseMidi(buffer){
           if(ev.note>=21&&ev.note<=108&&a.channel!==9){
             const s=tickToSec(a.startTick), dur=Math.max(tickToSec(ev.tick)-s,0.05);
             if(!channelNotes.has(a.channel)) channelNotes.set(a.channel,[]);
-            channelNotes.get(a.channel).push({midi:ev.note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel});
+            // `track` = the source staff (piano MIDI renders RH/LH to separate
+            // tracks); kept so the game can honor the file's hand assignment.
+            channelNotes.get(a.channel).push({midi:ev.note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel,track:ti});
           }
         }
       }
@@ -70,7 +73,7 @@ function parseMidi(buffer){
       if(note>=21&&note<=108&&a.channel!==9){
         const s=tickToSec(a.startTick), dur=Math.max(tickToSec(lastTick)-s,0.05);
         if(!channelNotes.has(a.channel)) channelNotes.set(a.channel,[]);
-        channelNotes.get(a.channel).push({midi:note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel});
+        channelNotes.get(a.channel).push({midi:note,startSec:s,durationSec:dur,vel:a.vel,channel:a.channel,track:ti});
       }
     }
   }

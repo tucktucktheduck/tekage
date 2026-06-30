@@ -41,6 +41,26 @@ function estimateMeterGrid(notes){
   return {beat, phase:bestPhase};
 }
 
+// ── Stage 0 · honor the source's hand assignment when the file has one ──
+// Piano scores (LilyPond/Mutopia, most piano MIDI) render the right- and left-
+// hand staves to separate TRACKS (or two pitch-separated channels). When that
+// structure is clear, tag each note with srcHand so the solver keeps the file's
+// mapping instead of re-deriving it. Returns true if a mapping was found.
+function detectSourceHands(notes){
+  function meanP(a){ return a.reduce((s,n)=>s+n.midi,0)/Math.max(1,a.length); }
+  for(const key of ['track','channel']){
+    const by=new Map();
+    for(const n of notes){ const g=(n[key]==null?-1:n[key]); if(!by.has(g)) by.set(g,[]); by.get(g).push(n); }
+    const big=[...by.values()].filter(a=>a.length>=4).sort((a,b)=>meanP(b)-meanP(a));
+    if(big.length===2 && meanP(big[0])-meanP(big[1])>=3){
+      for(const n of big[0]) n.srcHand='right';
+      for(const n of big[1]) n.srcHand='left';
+      return true;
+    }
+  }
+  return false;
+}
+
 // ── Stage 2 · voice separation (channel-aware) ──
 // greedy pitch-proximity line tracking over one note stream
 function _separateOneStream(notes){
@@ -260,6 +280,7 @@ function deriveVersions(parsed){
     return { title:parsed.title, durationSec, versions:[
       { id:'full', name:'Full', kind:'full', density:densityOf(base,durationSec), notes:base } ]};
   }
+  detectSourceHands(base);              // tag srcHand from the file's staves/tracks if present
   estimateMeterGrid(base);
   const voices=separateVoices(base);
   scoreNotes(base, voices);

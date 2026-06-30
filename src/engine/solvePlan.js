@@ -61,6 +61,10 @@ function solvePlan(notes){
   }
   events.push(cur);
   for(const ev of events){ if(ev.notes.length>9){ ev.notes.sort((a,b)=>a.midi-b.midi); ev.notes=ev.notes.slice(0,9); } }
+  // Only honor the source hand mapping when the music actually spans BOTH hands.
+  // A single line (e.g. the Core melody) must still spread across both hands
+  // (founder rule: "single-line songs use both hands, no one-hand collapse").
+  const hasBothHands = notes.some(n=>n.srcHand==='left') && notes.some(n=>n.srcHand==='right');
 
   function handStates(handNotes, hand){
     if(!handNotes.length) return [{oct:-1, assigns:[]}];
@@ -83,10 +87,18 @@ function solvePlan(notes){
       for(let i=0;i<n;i++){ (mask&(1<<i))?R.push(ev.notes[i]):L.push(ev.notes[i]); }
       if(L.length>5||R.length>5) continue;
       if(L.length&&R.length){ if(Math.min(...R.map(x=>x.midi)) < Math.max(...L.map(x=>x.midi))) continue; } // no crossing
+      // honor the source's hand mapping (srcHand): penalize a split that puts a
+      // note on the hand the file didn't assign it to (soft — slice/reachability
+      // can still override when keeping it is impossible).
+      let handMiss=0;
+      if(hasBothHands){
+        for(const x of L) if(x.srcHand==='right') handMiss++;
+        for(const x of R) if(x.srcHand==='left')  handMiss++;
+      }
       const ls=handStates(L,'left'), rs=handStates(R,'right');
       for(const a of ls) for(const b of rs){
         out.push({ leftOct:a.oct, rightOct:b.oct, needsLeft:L.length>0, needsRight:R.length>0,
-          assigns:[...a.assigns,...b.assigns], leftMidis:L.map(x=>x.midi), rightMidis:R.map(x=>x.midi) });
+          assigns:[...a.assigns,...b.assigns], leftMidis:L.map(x=>x.midi), rightMidis:R.map(x=>x.midi), handMiss });
       }
     }
     return out;
@@ -122,6 +134,7 @@ function solvePlan(notes){
           if(s.needsLeft&&!s.needsRight){ for(const m of s.leftMidis) if(m>mid) cost+=20; }
           else if(!s.needsLeft&&s.needsRight){ for(const m of s.rightMidis) if(m<mid) cost+=20; }
           if(s.needsLeft&&s.needsRight && Math.max(...s.leftMidis)===Math.min(...s.rightMidis)) cost+=5;
+          if(s.handMiss) cost += s.handMiss*40;     // keep the file's hand assignment when feasible
           const tot=pe.cost+cost, nk=sk(nlo,nro);
           if(!next.has(nk)||next.get(nk).cost>tot) next.set(nk,{cost:tot,bt:{prevKey:pk,sol:s}});
         }

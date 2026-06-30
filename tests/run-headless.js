@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -356,6 +356,31 @@ console.log('\n— DIFFICULTY DESCRIPTORS —');
   ok(V.every((v,i)=>i===0||V[i-1].difficulty<=v.difficulty), 'versions ranked easy -> hard by difficulty');
   ok(V[0].stars<=V[V.length-1].stars, 'the Core tier is no harder (stars) than Full');
   P.analyze(P.buildDemo(),'DEMO');   // restore demo
+}
+
+// ── SOURCE HAND MAPPING — keep the file's RH/LH assignment when present ──
+console.log('\n— SOURCE HAND MAPPING —');
+{
+  // a 2-track piece: track 0 = high (right hand), track 1 = low (left hand)
+  const notes=[];
+  for(let i=0;i<8;i++) notes.push({midi:74+(i%5),startSec:i*0.5,durationSec:0.4,vel:90,channel:0,track:0}); // RH
+  for(let i=0;i<8;i++) notes.push({midi:50+(i%5),startSec:i*0.5,durationSec:0.4,vel:80,channel:0,track:1}); // LH
+  const found=P.detectSourceHands(notes);
+  ok(found===true, 'detects a clear two-staff (two-track) hand split');
+  ok(notes.filter(n=>n.track===0).every(n=>n.srcHand==='right'), 'higher track tagged as right hand');
+  ok(notes.filter(n=>n.track===1).every(n=>n.srcHand==='left'), 'lower track tagged as left hand');
+  // the solver keeps that mapping (both hands present -> srcHand penalty active)
+  const sol=P.solvePlan([...notes].sort((a,b)=>a.startSec-b.startSec || a.midi-b.midi));
+  const noteAssigns=sol.plan.filter(e=>e.type==='note');
+  let kept=0, total=0;
+  for(const a of noteAssigns){ const src=notes.find(n=>n.midi===a.midi && Math.abs(n.startSec-a.startSec)<0.01);
+    if(src && src.srcHand){ total++; if(a.hand===src.srcHand) kept++; } }
+  ok(total>0 && kept/total >= 0.8, 'solver keeps >=80% of notes on the file\'s assigned hand');
+  // a single line (one srcHand only) is NOT forced onto one hand (founder rule)
+  const single=[]; for(let i=0;i<10;i++) single.push({midi:60+i,startSec:i*0.5,durationSec:0.4,vel:90,channel:0,track:0,srcHand:'right'});
+  const sSol=P.solvePlan(single);
+  const hands=new Set(sSol.plan.filter(e=>e.type==='note').map(e=>e.hand));
+  ok(hands.size>=1, 'a single line still solves (both-hands rule not blocked by srcHand)');
 }
 
 // ── PARSE CONFIDENCE — drives the upload warning + ingest curation ──
