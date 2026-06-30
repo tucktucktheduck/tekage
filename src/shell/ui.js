@@ -33,9 +33,31 @@ function buildVersionButtons(){
 $('playBtn').onclick=()=>Transport.toggle();
 $('restartBtn').onclick=()=>Transport.restart();
 $('loadBtn').onclick=()=>$('fileInput').click();
-$('demoBtn').onclick=()=>loadDemo();
 $('fileInput').onchange=e=>{ const f=e.target.files[0]; if(f) loadFile(f); };
 $('mapBtn').onclick=()=>MapView.toggle();
+
+/* Song library menu (T24): the built-in starter songs + the demo, so you can
+   "pick a song and play" without owning a MIDI. Upload still lives on LOAD MIDI. */
+function buildSongMenu(){
+  const sel=$('songSel'); if(!sel || typeof LIBRARY==='undefined') return;
+  let html=`<option value="__demo">DEMO · First Light</option>`;
+  for(const s of LIBRARY) html+=`<option value="${s.id}">${s.title}</option>`;
+  sel.innerHTML=html;
+  sel.onchange=()=>{ const v=sel.value; if(v==='__demo') loadDemo(); else loadLibrarySong(v); };
+}
+function loadLibrarySong(id){
+  const spec=typeof songById==='function' ? songById(id) : null;
+  const parsed=typeof buildLibraryById==='function' ? buildLibraryById(id) : null;
+  if(!spec || !parsed){ loadDemo(); return; }
+  Transport.pause(); Transport.seek(0);
+  if(typeof Score!=='undefined') Score.stop();
+  if(typeof hideReport==='function') hideReport();
+  analyze(parsed, spec.title);
+  $('songName').textContent=spec.title + (spec.tag? '  ·  '+spec.tag : '');
+  buildVersionButtons();
+  draw();
+  flash(`<b>${spec.title}</b> loaded · pick a difficulty · press the falling letters`, true);
+}
 
 document.querySelectorAll('#modeSeg button').forEach(b=>{
   b.onclick=()=>{ document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('sel'));

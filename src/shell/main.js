@@ -10,6 +10,7 @@ tickClock(); setInterval(tickClock,10000);
 
 // boot
 layout();
+if(typeof buildSongMenu==='function') buildSongMenu();   // T24: populate the library menu
 loadDemo();
 if(typeof ProgressStore!=='undefined'){ ProgressStore.load(); applyPersistedSettings(); }   // T23: restore settings + best scores
 frame();

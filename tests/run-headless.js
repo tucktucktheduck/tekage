@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -277,6 +277,29 @@ ok(P.UI.mode==='listen', 'mode is driven by config');
 // restore built-in defaults so nothing downstream is affected
 P.loadConfig({});
 ok(P.UI.mode==='play' && !!P.midiForGameKey('j'), 'loadConfig({}) restores built-in defaults');
+
+// ── T24: starter library — every song builds + extracts cleanly ──
+console.log('\n— STARTER LIBRARY (T24) —');
+ok(Array.isArray(P.LIBRARY) && P.LIBRARY.length >= 4, 'library has several songs');
+ok(P.LIBRARY.some(s=>s.id==='baa-baa'), 'the founder onboarding song (Baa Baa Black Sheep) is present');
+ok(new Set(P.LIBRARY.map(s=>s.id)).size === P.LIBRARY.length, 'song ids are unique');
+for(const s of P.LIBRARY){
+  const parsed = P.buildLibraryById(s.id);
+  ok(parsed && parsed.notes.length > 8, s.id+': builds a non-trivial note set');
+  ok(parsed.notes.every(n=> n.midi>=21 && n.midi<=108), s.id+': all notes are in piano range');
+  ok(parsed.notes.every(n=> n.durationSec>0 && n.startSec>=0), s.id+': all notes have sane timing');
+  // the melody (channel 0) must be the highest line on average -> the hero line the extractor follows
+  const mel = parsed.notes.filter(n=>n.channel===0), acc = parsed.notes.filter(n=>n.channel===1);
+  const avg = a => a.reduce((s,n)=>s+n.midi,0)/Math.max(1,a.length);
+  ok(mel.length>0 && acc.length>0 && avg(mel) > avg(acc), s.id+': melody sits above the accompaniment');
+  // flows through the real extractor into playable Versions
+  const res = P.analyze(parsed, s.title);
+  ok(res.versions.length >= 2, s.id+': extractor derives >=2 difficulty versions');
+  const full = res.versions.find(v=>v.id==='full');
+  ok(full && full.notes.length === parsed.notes.length, s.id+': Full version == every note');
+}
+// leave Song on the demo for any later checks
+P.buildDemo && P.analyze(P.buildDemo(), 'DEMO');
 
 // ── T11: every module file carries a banner comment at its top ──
 console.log('\n— MODULE BANNERS (T11) —');

@@ -13,6 +13,7 @@
     "src/shell/config.js",
     "src/content/progressStore.js",
     "src/content/demoSong.js",
+    "src/content/library.js",
     "src/shell/main.js"
   ]
 }
