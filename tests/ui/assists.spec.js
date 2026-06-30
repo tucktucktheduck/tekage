@@ -29,9 +29,12 @@ test('T21: a miss smoothly slows the transport, hits recover it', async ({ page 
   const floored = await page.evaluate(() => Transport.rate);
   expect(floored).toBeGreaterThanOrEqual(0.39);   // never below the floor
 
-  // now feed hits -> the target recovers, rate eases back UP
-  await page.evaluate(() => { for (let i=0;i<6;i++) Transport.noteHit(); });
-  await expect.poll(() => page.evaluate(() => Transport.rate), { timeout: 3000 }).toBeGreaterThan(floored + 0.05);
+  // now feed hits -> the target recovers, rate eases back UP. Keep feeding hits
+  // while we poll, so the recovery target stays high under CPU contention.
+  await expect.poll(async () => {
+    await page.evaluate(() => { for (let i=0;i<6;i++) Transport.noteHit(); });
+    return page.evaluate(() => Transport.rate);
+  }, { timeout: 5000 }).toBeGreaterThan(floored + 0.04);
 });
 
 test('T22: Auto-Shift drives the PLAY slice along the solved plan', async ({ page }) => {

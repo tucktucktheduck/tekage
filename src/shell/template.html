@@ -198,6 +198,27 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
 #insight.show{opacity:1;}
 #insight b{color:var(--orange);}
 
+/* ── Teklet: Pip-Boy-style settings console (slides in from the right) ── */
+#teklet{position:fixed;top:0;right:0;bottom:0;width:min(340px,86vw);z-index:55;
+  background:linear-gradient(180deg,#0c1322,#070a12);border-left:1px solid var(--border);
+  box-shadow:-18px 0 60px rgba(0,0,0,.5);transform:translateX(110%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;overflow-y:auto;}
+#teklet.open{transform:translateX(0);}
+.tkHead{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);
+  font-family:'Orbitron';font-weight:900;font-size:15px;letter-spacing:4px;color:#cfe3ff;position:sticky;top:0;
+  background:linear-gradient(180deg,#0d1424,#0a0e1a);z-index:2;}
+.tkHead .tkSub{color:var(--dim);font-size:10px;letter-spacing:2px;}
+.tkHead .tk{margin-left:auto;padding:5px 10px;}
+.tkHead .led{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);animation:led 1.8s ease-in-out infinite;}
+@keyframes led{0%,100%{opacity:1;box-shadow:0 0 8px var(--ok);}50%{opacity:.35;box-shadow:0 0 3px var(--ok);}}
+.tkBody{padding:8px 16px 20px;display:flex;flex-direction:column;gap:6px;}
+.tkSection{padding:12px 0;border-bottom:1px solid rgba(26,32,64,.6);display:flex;flex-direction:column;gap:10px;}
+.tkSection:last-child{border-bottom:none;}
+.tkLabel{font-family:'Orbitron';font-weight:700;font-size:10px;letter-spacing:3px;color:var(--orange);
+  text-shadow:0 0 8px rgba(255,138,43,.25);}
+#teklet .slider{min-width:0;}
+#teklet .grp{flex-wrap:wrap;}
+
 @media (max-width:760px){
   .slider{min-width:140px;}
   .logo{font-size:16px;}
@@ -229,15 +250,15 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
   <div class="dockL">
     <button class="tk big accent" id="playBtn" title="Play / Pause (Space)">▶ PLAY</button>
     <button class="tk" id="restartBtn" title="Restart">⟲</button>
-    <select class="tk" id="songSel" title="Pick a song from the library"></select>
-    <button class="tk" id="loadBtn">LOAD MIDI</button>
     <button class="tk" id="mapBtn" title="Show the keyboard map">⌨ MAP</button>
+    <button class="tk" id="tekletBtn" title="Open the Teklet (settings & skins)">✦ TEKLET</button>
     <input type="file" id="fileInput" accept=".mid,.midi" style="display:none">
   </div>
 
   <div class="dockGap"></div>   <!-- clear center zone (Wispr Flow) -->
 
   <div class="dockR">
+    <select class="tk" id="songSel" title="Pick a song from the library"></select>
     <div class="grp ver-grp">
       <span class="lbl">Difficulty</span>
       <div id="verRow"></div>
@@ -248,24 +269,46 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
         <button data-mode="play" class="sel">PLAY</button>
       </div>
     </div>
-    <div class="slider">
-      <div class="top"><span class="name">SPEED</span><span class="val" id="speedVal">1.00×</span></div>
-      <input type="range" class="neon" id="speed" min="25" max="125" value="100">
-      <div class="ends"><span>0.25×</span><span>1.25×</span></div>
+  </div>
+</div>
+
+<!-- ── Teklet · settings/skin console (only critical info stays on the stage) ── -->
+<div id="teklet" aria-hidden="true">
+  <div class="tkHead"><span class="led"></span> TEKLET <span class="tkSub">// CONSOLE</span>
+    <button class="tk" id="tekletClose" title="Close (Esc)">✕</button></div>
+  <div class="tkBody">
+    <div class="tkSection">
+      <div class="tkLabel">ASSISTS · the easy buttons</div>
+      <label class="chk"><input type="checkbox" id="shiftChk"> Auto-Shift · move my hands for me</label>
+      <label class="chk"><input type="checkbox" id="slowChk"> Auto-Slow · ease down when I miss</label>
+      <label class="chk"><input type="checkbox" id="namesChk" checked> C marks on the keys</label>
     </div>
-    <div class="grp">
-      <span class="lbl">Vol</span>
-      <input type="range" class="vol" id="vol" min="0" max="100" value="75">
+    <div class="tkSection">
+      <div class="tkLabel">TEMPO &amp; SOUND</div>
+      <div class="slider">
+        <div class="top"><span class="name">SPEED</span><span class="val" id="speedVal">1.00×</span></div>
+        <input type="range" class="neon" id="speed" min="25" max="125" value="100">
+        <div class="ends"><span>0.25×</span><span>1.25×</span></div>
+      </div>
+      <div class="grp">
+        <span class="lbl">Vol</span>
+        <input type="range" class="vol" id="vol" min="0" max="100" value="75">
+      </div>
     </div>
-    <label class="chk"><input type="checkbox" id="namesChk" checked> C marks</label>
-    <label class="chk"><input type="checkbox" id="slowChk"> Auto-Slow</label>
-    <label class="chk"><input type="checkbox" id="shiftChk"> Auto-Shift</label>
-    <span class="lbl">Skin</span>
-    <input type="color" class="swatch" id="skinPrimary" value="#ff8a2b" title="Primary color (right hand)">
-    <input type="color" class="swatch" id="skinSecondary" value="#1a8fff" title="Secondary color (left hand)">
-    <input type="color" class="swatch" id="skinBg" value="#05060a" title="Background color">
-    <button class="tk" id="bgImgBtn" title="Upload a background image">BG IMG</button>
-    <input type="file" id="bgImgInput" accept="image/*" style="display:none">
+    <div class="tkSection">
+      <div class="tkLabel">SKIN · make it yours</div>
+      <div class="grp">
+        <input type="color" class="swatch" id="skinPrimary" value="#ff8a2b" title="Primary color (right hand)">
+        <input type="color" class="swatch" id="skinSecondary" value="#1a8fff" title="Secondary color (left hand)">
+        <input type="color" class="swatch" id="skinBg" value="#05060a" title="Background color">
+        <button class="tk" id="bgImgBtn" title="Upload a background image">BG IMG</button>
+        <input type="file" id="bgImgInput" accept="image/*" style="display:none">
+      </div>
+    </div>
+    <div class="tkSection">
+      <div class="tkLabel">SONG</div>
+      <button class="tk" id="loadBtn">LOAD MIDI FILE</button>
+    </div>
   </div>
 </div>
 

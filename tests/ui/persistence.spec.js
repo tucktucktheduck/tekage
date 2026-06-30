@@ -15,7 +15,8 @@ test('T23: settings persist across a reload', async ({ page }) => {
   await page.goto(tkgUrl);
   await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
 
-  // change a few settings through the real controls
+  // settings live in the Teklet console now — open it, then change them
+  await page.click('#tekletBtn');
   await page.fill('#speed', '50');
   await page.dispatchEvent('#speed', 'input');
   await page.check('#slowChk');

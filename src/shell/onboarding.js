@@ -90,11 +90,12 @@ const Onboarding = (()=>{
     },
     ()=> blurt("Perfect — that’s the whole game. Now play the song through; I’ll move your hands for you, just press the letters.", {
       onNext: ()=>{ if(typeof Transport!=='undefined'){ Transport.seek(0); Transport.play(); } next(); } }),
-    ()=> blurt("Awesome — you just played piano. When a song feels too hard, these buttons make it 10× easier.", { spotlight:'shiftChk', onNext: next }),
+    ()=> blurt("Awesome — you just played piano. When a song feels too hard, open your <b>Teklet</b> — it holds the buttons that make it 10× easier.", { spotlight:'tekletBtn', onNext: ()=>{ if(typeof Teklet!=='undefined') Teklet.show(); next(); } }),
     ()=> blurt("<b>Auto-Shift</b> moves your hands along the song for you — you only press the keys.", { spotlight:'shiftChk', onNext: next }),
     ()=> blurt("<b>Auto-Slow</b> eases the song down when you miss, then speeds back up as you hit. The “thank god” button.", { spotlight:'slowChk', onNext: next }),
+    ()=> blurt("Slow things right down with <b>SPEED</b> while you practice.", { spotlight:'speed', onNext: next }),
+    ()=> blurt("And make it yours — your colors and background live here too.", { spotlight:'skinPrimary', onNext: ()=>{ if(typeof Teklet!=='undefined') Teklet.hide(); next(); } }),
     ()=> blurt("Pick any song here — or load your own MIDI.", { spotlight:'songSel', onNext: next }),
-    ()=> blurt("And slow things down with SPEED while you practice.", { spotlight:'speed', onNext: next }),
     ()=> blurt("That’s it — you’re playing piano on your keyboard. Have fun.", { last:true, onNext: finish }),
   ];
 

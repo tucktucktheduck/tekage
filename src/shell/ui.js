@@ -36,6 +36,17 @@ $('loadBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=e=>{ const f=e.target.files[0]; if(f) loadFile(f); };
 $('mapBtn').onclick=()=>MapView.toggle();
 
+/* Teklet — the slide-in settings/skin console. Keeps the stage clear so the
+   player's eyes stay on the falling notes + keys (docs/02, DECISIONS). */
+const Teklet = {
+  get open(){ const t=$('teklet'); return !!(t && t.classList.contains('open')); },
+  show(){ const t=$('teklet'); if(t){ t.classList.add('open'); t.setAttribute('aria-hidden','false'); } },
+  hide(){ const t=$('teklet'); if(t){ t.classList.remove('open'); t.setAttribute('aria-hidden','true'); } },
+  toggle(){ this.open ? this.hide() : this.show(); },
+};
+if($('tekletBtn')) $('tekletBtn').onclick=()=>Teklet.toggle();
+if($('tekletClose')) $('tekletClose').onclick=()=>Teklet.hide();
+
 /* Song library menu (T24): the built-in starter songs + the demo, so you can
    "pick a song and play" without owning a MIDI. Upload still lives on LOAD MIDI. */
 function buildSongMenu(){

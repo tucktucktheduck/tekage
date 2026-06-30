@@ -121,7 +121,7 @@ function midiForGameKey(k){
 const down=new Map();         // key → midi currently held (for release + visuals)
 window.addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); Transport.toggle(); return; }
-  if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } return; }
+  if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } if(typeof Teklet!=='undefined' && Teklet.open){ Teklet.hide(); } return; }
   // shift keys (always live so you can position before pressing play)
   if(e.code==='Tab'){        e.preventDefault(); if(!e.repeat) shiftSlice('left', +1);  return; }
   if(e.code==='Enter'){      e.preventDefault(); if(!e.repeat) shiftSlice('right',+1);  return; }
