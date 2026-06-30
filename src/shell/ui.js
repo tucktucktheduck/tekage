@@ -37,6 +37,7 @@ $('restartBtn').onclick=()=>Transport.restart();
 $('loadBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=e=>{ const f=e.target.files[0]; if(f) loadFile(f); };
 $('mapBtn').onclick=()=>MapView.toggle();
+if($('libBtn')) $('libBtn').onclick=()=>{ try{ window.location.href='library.html'; }catch(e){} };
 
 /* Teklet — the slide-in settings/skin console. Keeps the stage clear so the
    player's eyes stay on the falling notes + keys (docs/02, DECISIONS). */
@@ -395,6 +396,22 @@ function showLowConfidenceDialog(parsed, title, onProceed){
     close(); onProceed();
   };
   el.querySelector('#pwBack').onclick=close;
+}
+/* Load a song straight from a URL (the Mutopia library page links here via
+   tkg.html?mutopia=<midi-url>). Streams the MIDI, charts it, honoring the same
+   low-confidence warning as an upload. */
+function loadFromUrl(url, title){
+  if(typeof flash==='function') flash('Loading from the library…');
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+    .then(buf=>{
+      const parsed=parseMidi(buf);
+      if(!parsed.notes.length){ flash('No playable notes in that file'); return; }
+      const t=title || decodeURIComponent(url.split('/').pop().replace(/\.midi?$/i,'')).replace(/[-_]/g,' ');
+      const conf=(typeof parseConfidence==='function') ? parseConfidence(parsed) : {score:1};
+      if(conf.score < 0.55) showLowConfidenceDialog(parsed, t, ()=>_commitLoadedSong(parsed, t));
+      else _commitLoadedSong(parsed, t);
+    })
+    .catch(e=>flash('Could not load that song: '+e.message));
 }
 function loadFile(file){
   const reader=new FileReader();

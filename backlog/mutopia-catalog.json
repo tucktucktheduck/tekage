@@ -1,0 +1,997 @@
+{
+  "generated": "2026-06-30T12:07:47.961Z",
+  "count": 30,
+  "scanned": 30,
+  "catalog": [
+    {
+      "title": "03 Gavotte",
+      "composer": "Handel",
+      "url": "https://www.mutopiaproject.org/ftp/HandelGF/Aylesford/03-gavotte/03-gavotte.mid",
+      "duration": 52,
+      "notes": 240,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 3,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 42,
+          "stars": 2,
+          "difficulty": 0.25
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 86,
+          "stars": 3,
+          "difficulty": 0.43
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 240,
+          "stars": 3,
+          "difficulty": 0.62
+        }
+      ]
+    },
+    {
+      "title": "AveverumM",
+      "composer": "Mozart",
+      "url": "https://www.mutopiaproject.org/ftp/MozartWA/AveverumM/AveverumM.mid",
+      "duration": 84,
+      "notes": 345,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 3,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 91,
+          "stars": 2,
+          "difficulty": 0.22
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 169,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 345,
+          "stars": 3,
+          "difficulty": 0.58
+        }
+      ]
+    },
+    {
+      "title": "Le Porteur",
+      "composer": "Satie E",
+      "url": "https://www.mutopiaproject.org/ftp/SatieE/Chapitres/Le_porteur/Le_porteur.mid",
+      "duration": 103,
+      "notes": 314,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 3,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 57,
+          "stars": 2,
+          "difficulty": 0.24
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 62,
+          "stars": 2,
+          "difficulty": 0.29
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 314,
+          "stars": 3,
+          "difficulty": 0.62
+        }
+      ]
+    },
+    {
+      "title": "SchumannOp15No01",
+      "composer": "Schumann R",
+      "url": "https://www.mutopiaproject.org/ftp/SchumannR/O15/SchumannOp15No01/SchumannOp15No01.mid",
+      "duration": 37,
+      "notes": 222,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 3,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 47,
+          "stars": 2,
+          "difficulty": 0.21
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 82,
+          "stars": 3,
+          "difficulty": 0.41
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 222,
+          "stars": 3,
+          "difficulty": 0.62
+        }
+      ]
+    },
+    {
+      "title": "01 Overture",
+      "composer": "Handel",
+      "url": "https://www.mutopiaproject.org/ftp/HandelGF/Aylesford/01-overture/01-overture.mid",
+      "duration": 75,
+      "notes": 617,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 107,
+          "stars": 2,
+          "difficulty": 0.34
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 150,
+          "stars": 3,
+          "difficulty": 0.42
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 617,
+          "stars": 4,
+          "difficulty": 0.75
+        }
+      ]
+    },
+    {
+      "title": "02 Entree",
+      "composer": "Handel",
+      "url": "https://www.mutopiaproject.org/ftp/HandelGF/Aylesford/02-entree/02-entree.mid",
+      "duration": 50,
+      "notes": 402,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 68,
+          "stars": 2,
+          "difficulty": 0.34
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 173,
+          "stars": 3,
+          "difficulty": 0.55
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 402,
+          "stars": 4,
+          "difficulty": 0.74
+        }
+      ]
+    },
+    {
+      "title": "Austria",
+      "composer": "Haydn",
+      "url": "https://www.mutopiaproject.org/ftp/HaydnFJ/Austria/Austria.mid",
+      "duration": 36,
+      "notes": 346,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 21,
+          "stars": 2,
+          "difficulty": 0.13
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 63,
+          "stars": 3,
+          "difficulty": 0.39
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 346,
+          "stars": 4,
+          "difficulty": 0.81
+        }
+      ]
+    },
+    {
+      "title": "Bach BWV 230 Lobet Den Herrn Alle Heiden",
+      "composer": "Bach",
+      "url": "https://www.mutopiaproject.org/ftp/BachJS/BWV230/bach_BWV_230_Lobet_den_Herrn_alle_Heiden/bach_BWV_230_Lobet_den_Herrn_alle_Heiden.mid",
+      "duration": 422,
+      "notes": 3697,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 445,
+          "stars": 2,
+          "difficulty": 0.29
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 833,
+          "stars": 3,
+          "difficulty": 0.49
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 3697,
+          "stars": 4,
+          "difficulty": 0.75
+        }
+      ]
+    },
+    {
+      "title": "BWV 117a",
+      "composer": "Bach",
+      "url": "https://www.mutopiaproject.org/ftp/BachJS/BWV117a/BWV-117a/BWV-117a.mid",
+      "duration": 48,
+      "notes": 235,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 81,
+          "stars": 2,
+          "difficulty": 0.3
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 90,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 235,
+          "stars": 4,
+          "difficulty": 0.65
+        }
+      ]
+    },
+    {
+      "title": "Celle",
+      "composer": "Satie E",
+      "url": "https://www.mutopiaproject.org/ftp/SatieE/Chapitres/Celle/Celle.mid",
+      "duration": 44,
+      "notes": 447,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 32,
+          "stars": 2,
+          "difficulty": 0.31
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 39,
+          "stars": 2,
+          "difficulty": 0.35
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 447,
+          "stars": 4,
+          "difficulty": 0.71
+        }
+      ]
+    },
+    {
+      "title": "Chopin Nocturne Op9 N2",
+      "composer": "Chopin",
+      "url": "https://www.mutopiaproject.org/ftp/ChopinFF/O9/chopin_nocturne_op9_n2/chopin_nocturne_op9_n2.mid",
+      "duration": 202,
+      "notes": 1242,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 81,
+          "stars": 2,
+          "difficulty": 0.27
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 228,
+          "stars": 3,
+          "difficulty": 0.42
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1242,
+          "stars": 4,
+          "difficulty": 0.74
+        }
+      ]
+    },
+    {
+      "title": "Debussy Arabesque 1",
+      "composer": "Debussy C",
+      "url": "https://www.mutopiaproject.org/ftp/DebussyC/L66/debussy_Arabesque_1/debussy_Arabesque_1.mid",
+      "duration": 176,
+      "notes": 1448,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 157,
+          "stars": 2,
+          "difficulty": 0.35
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 167,
+          "stars": 3,
+          "difficulty": 0.44
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1448,
+          "stars": 4,
+          "difficulty": 0.76
+        }
+      ]
+    },
+    {
+      "title": "Debussy Arabesque 2",
+      "composer": "Debussy C",
+      "url": "https://www.mutopiaproject.org/ftp/DebussyC/L66/debussy_Arabesque_2/debussy_Arabesque_2.mid",
+      "duration": 218,
+      "notes": 1803,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 152,
+          "stars": 2,
+          "difficulty": 0.32
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 212,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1803,
+          "stars": 4,
+          "difficulty": 0.74
+        }
+      ]
+    },
+    {
+      "title": "Debussy Ste Bergamesq Clair",
+      "composer": "Debussy C",
+      "url": "https://www.mutopiaproject.org/ftp/DebussyC/L75/debussy_Ste_Bergamesq_Clair/debussy_Ste_Bergamesq_Clair.mid",
+      "duration": 323,
+      "notes": 1468,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 53,
+          "stars": 2,
+          "difficulty": 0.21
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 112,
+          "stars": 2,
+          "difficulty": 0.25
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1468,
+          "stars": 4,
+          "difficulty": 0.67
+        }
+      ]
+    },
+    {
+      "title": "Deutschlandlied",
+      "composer": "Haydn",
+      "url": "https://www.mutopiaproject.org/ftp/HaydnFJ/Deutschlandlied/Deutschlandlied.mid",
+      "duration": 51,
+      "notes": 262,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 39,
+          "stars": 2,
+          "difficulty": 0.24
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 106,
+          "stars": 3,
+          "difficulty": 0.4
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 262,
+          "stars": 4,
+          "difficulty": 0.66
+        }
+      ]
+    },
+    {
+      "title": "Greis",
+      "composer": "Haydn",
+      "url": "https://www.mutopiaproject.org/ftp/HaydnFJ/Greis/Greis.mid",
+      "duration": 162,
+      "notes": 652,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 65,
+          "stars": 2,
+          "difficulty": 0.21
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 224,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 652,
+          "stars": 4,
+          "difficulty": 0.63
+        }
+      ]
+    },
+    {
+      "title": "Gretchen",
+      "composer": "Schubert F",
+      "url": "https://www.mutopiaproject.org/ftp/SchubertF/D118/gretchen/gretchen.mid",
+      "duration": 196,
+      "notes": 2287,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 206,
+          "stars": 2,
+          "difficulty": 0.25
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 305,
+          "stars": 2,
+          "difficulty": 0.33
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 2287,
+          "stars": 4,
+          "difficulty": 0.72
+        }
+      ]
+    },
+    {
+      "title": "K375g",
+      "composer": "Mozart",
+      "url": "https://www.mutopiaproject.org/ftp/MozartWA/Anh41/k375g/k375g.mid",
+      "duration": 57,
+      "notes": 339,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 62,
+          "stars": 2,
+          "difficulty": 0.28
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 129,
+          "stars": 3,
+          "difficulty": 0.42
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 339,
+          "stars": 4,
+          "difficulty": 0.66
+        }
+      ]
+    },
+    {
+      "title": "K6deest",
+      "composer": "Mozart",
+      "url": "https://www.mutopiaproject.org/ftp/MozartWA/K6deest/k6deest/k6deest.mid",
+      "duration": 38,
+      "notes": 382,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 63,
+          "stars": 2,
+          "difficulty": 0.33
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 124,
+          "stars": 3,
+          "difficulty": 0.57
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 382,
+          "stars": 4,
+          "difficulty": 0.74
+        }
+      ]
+    },
+    {
+      "title": "LVB Sonate 02no1 1",
+      "composer": "Beethoven Lv",
+      "url": "https://www.mutopiaproject.org/ftp/BeethovenLv/O2/LVB_Sonate_02no1_1/LVB_Sonate_02no1_1.mid",
+      "duration": 191,
+      "notes": 1675,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 130,
+          "stars": 2,
+          "difficulty": 0.33
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 229,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1675,
+          "stars": 4,
+          "difficulty": 0.79
+        }
+      ]
+    },
+    {
+      "title": "LVB Sonate 02no1 2",
+      "composer": "Beethoven Lv",
+      "url": "https://www.mutopiaproject.org/ftp/BeethovenLv/O2/LVB_Sonate_02no1_2/LVB_Sonate_02no1_2.mid",
+      "duration": 238,
+      "notes": 1282,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 164,
+          "stars": 2,
+          "difficulty": 0.32
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 335,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1282,
+          "stars": 4,
+          "difficulty": 0.66
+        }
+      ]
+    },
+    {
+      "title": "LVB Sonate 02no1 3",
+      "composer": "Beethoven Lv",
+      "url": "https://www.mutopiaproject.org/ftp/BeethovenLv/O2/LVB_Sonate_02no1_3/LVB_Sonate_02no1_3.mid",
+      "duration": 78,
+      "notes": 623,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 96,
+          "stars": 2,
+          "difficulty": 0.33
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 108,
+          "stars": 3,
+          "difficulty": 0.4
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 623,
+          "stars": 4,
+          "difficulty": 0.78
+        }
+      ]
+    },
+    {
+      "title": "Mazurka Op6 No1",
+      "composer": "Chopin",
+      "url": "https://www.mutopiaproject.org/ftp/ChopinFF/O6/Mazurka-Op6-No1/Mazurka-Op6-No1.mid",
+      "duration": 220,
+      "notes": 889,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 77,
+          "stars": 2,
+          "difficulty": 0.25
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 132,
+          "stars": 2,
+          "difficulty": 0.32
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 889,
+          "stars": 4,
+          "difficulty": 0.64
+        }
+      ]
+    },
+    {
+      "title": "Regrets",
+      "composer": "Satie E",
+      "url": "https://www.mutopiaproject.org/ftp/SatieE/Chapitres/Regrets/Regrets.mid",
+      "duration": 115,
+      "notes": 590,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 12,
+          "stars": 2,
+          "difficulty": 0.22
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 69,
+          "stars": 2,
+          "difficulty": 0.27
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 590,
+          "stars": 4,
+          "difficulty": 0.69
+        }
+      ]
+    },
+    {
+      "title": "SchubertF D120 TrostInThraenen",
+      "composer": "Schubert F",
+      "url": "https://www.mutopiaproject.org/ftp/SchubertF/D120/SchubertF-D120-TrostInThraenen/SchubertF-D120-TrostInThraenen.mid",
+      "duration": 75,
+      "notes": 722,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 166,
+          "stars": 2,
+          "difficulty": 0.32
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 214,
+          "stars": 3,
+          "difficulty": 0.46
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 722,
+          "stars": 4,
+          "difficulty": 0.8
+        }
+      ]
+    },
+    {
+      "title": "SchubertF D162 NaeheDesGeliebten",
+      "composer": "Schubert F",
+      "url": "https://www.mutopiaproject.org/ftp/SchubertF/D162/SchubertF-D162_NaeheDesGeliebten/SchubertF-D162_NaeheDesGeliebten.mid",
+      "duration": 288,
+      "notes": 1566,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 108,
+          "stars": 2,
+          "difficulty": 0.17
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 144,
+          "stars": 2,
+          "difficulty": 0.2
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1566,
+          "stars": 4,
+          "difficulty": 0.69
+        }
+      ]
+    },
+    {
+      "title": "SchumannOp15No02",
+      "composer": "Schumann R",
+      "url": "https://www.mutopiaproject.org/ftp/SchumannR/O15/SchumannOp15No02/SchumannOp15No02.mid",
+      "duration": 64,
+      "notes": 621,
+      "confidence": 1,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 102,
+          "stars": 2,
+          "difficulty": 0.3
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 131,
+          "stars": 2,
+          "difficulty": 0.37
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 621,
+          "stars": 4,
+          "difficulty": 0.78
+        }
+      ]
+    },
+    {
+      "title": "SchumannOp15No03",
+      "composer": "Schumann R",
+      "url": "https://www.mutopiaproject.org/ftp/SchumannR/O15/SchumannOp15No03/SchumannOp15No03.mid",
+      "duration": 22,
+      "notes": 265,
+      "confidence": 0.7,
+      "handsFromSource": true,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 56,
+          "stars": 3,
+          "difficulty": 0.4
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 112,
+          "stars": 3,
+          "difficulty": 0.6
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 265,
+          "stars": 4,
+          "difficulty": 0.71
+        }
+      ]
+    },
+    {
+      "title": "Sheep",
+      "composer": "Bach",
+      "url": "https://www.mutopiaproject.org/ftp/BachJS/BWV208/Sheep/Sheep.mid",
+      "duration": 160,
+      "notes": 1045,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 212,
+          "stars": 2,
+          "difficulty": 0.31
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 499,
+          "stars": 3,
+          "difficulty": 0.51
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 1045,
+          "stars": 4,
+          "difficulty": 0.75
+        }
+      ]
+    },
+    {
+      "title": "TroisNouvellesEtudes Chopin N1",
+      "composer": "Chopin",
+      "url": "https://www.mutopiaproject.org/ftp/ChopinFF/B130/TroisNouvellesEtudes_Chopin_n1/TroisNouvellesEtudes_Chopin_n1.mid",
+      "duration": 161,
+      "notes": 829,
+      "confidence": 1,
+      "handsFromSource": false,
+      "stars": 4,
+      "tiers": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 212,
+          "stars": 2,
+          "difficulty": 0.28
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 294,
+          "stars": 2,
+          "difficulty": 0.32
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 829,
+          "stars": 4,
+          "difficulty": 0.71
+        }
+      ]
+    }
+  ]
+}

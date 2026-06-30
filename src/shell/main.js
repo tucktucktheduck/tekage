@@ -19,5 +19,10 @@ if(typeof ProgressStore!=='undefined'){
   applyPersistedSettings();   // T23: restore settings + best scores
 }
 frame();
-if(typeof Onboarding!=='undefined') Onboarding.maybeStart();   // T25: first-visit landing + Blurt walkthrough
+// A song requested from the Mutopia library page (tkg.html?mutopia=<midi-url>):
+// load it and skip the first-visit landing (the player chose a specific song).
+let _mutopiaReq=null;
+try{ _mutopiaReq = new URLSearchParams(location.search||'').get('mutopia'); }catch(e){}
+if(_mutopiaReq && typeof loadFromUrl==='function') loadFromUrl(_mutopiaReq);
+else if(typeof Onboarding!=='undefined') Onboarding.maybeStart();   // T25: first-visit landing + Blurt walkthrough
 setTimeout(()=>flash('<b>PLAY mode</b> · press the letter on each note · move your two hands with <b>Tab/⏎</b> (up) &amp; <b>⇧L/⇧R</b> (down) · tap <b>MAP</b> to see the keyboard', true), 800);

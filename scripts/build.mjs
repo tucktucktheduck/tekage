@@ -27,10 +27,23 @@ export function exportHTML(config) {
   return html;
 }
 
-// CLI: `node scripts/build.mjs` writes the default (un-baked) tkg.html.
+// Generate library.html from the template + the committed Mutopia catalog. The
+// game's LIBRARY button links here; like tkg.html it's a build artifact.
+export function buildLibrary() {
+  let catalog = [];
+  try { catalog = JSON.parse(readFileSync('backlog/mutopia-catalog.json', 'utf8')).catalog || []; } catch (e) {}
+  const tpl = readFileSync('src/shell/library.template.html', 'utf8');
+  return tpl.replace('/*__CATALOG__*/', () => JSON.stringify(catalog));
+}
+
+// CLI: `node scripts/build.mjs` writes the default (un-baked) tkg.html + library.html.
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('scripts/build.mjs')) {
   const html = buildHTML();
   writeFileSync('tkg.html', html, 'utf8');
   const n = JSON.parse(readFileSync('src/manifest.json', 'utf8')).order.length;
   console.log(`built tkg.html (${html.length} bytes, ${n} modules)`);
+  const lib = buildLibrary();
+  writeFileSync('library.html', lib, 'utf8');
+  const songs = (JSON.parse(readFileSync('backlog/mutopia-catalog.json', 'utf8').toString()).catalog || []).length;
+  console.log(`built library.html (${lib.length} bytes, ${songs} songs)`);
 }
