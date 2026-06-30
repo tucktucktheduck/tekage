@@ -57,8 +57,9 @@ test('T26: a video can be set as the background and renders behind the notes', a
     Skin.bgImage = url; Skin.bgMode = 'video';
     setBgMedia(url, 'video');
     Skin.apply({ colors:{primary:Skin.primary,secondary:Skin.secondary}, background:{ mode:'video', asset:url } });
-    // wait for the video element to be ready
-    await new Promise(res => setTimeout(res, 600));
+    // poll until the <video> element is actually ready (robust under CPU load)
+    const t0 = Date.now();
+    while (!_bgReady(_bgMedia) && Date.now()-t0 < 4000) await new Promise(res => setTimeout(res, 80));
     draw();
     return { bgMode: Skin.bgMode, kind: _bgKind, isVideo: _bgMedia && _bgMedia.tagName === 'VIDEO', ready: _bgReady(_bgMedia) };
   });

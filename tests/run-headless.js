@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -327,6 +327,36 @@ ok(P.Skin.bgImage==='blob:fake-video' && P.Skin.bgMode==='video', 'video backgro
 ok(P.Skin.toConfig().background.mode==='video', 'toConfig preserves a video background for export');
 P.loadConfig({});   // restore default skin
 ok(P.Skin.HAND.right.rgb === '255,138,43', 'default skin restores the brand orange');
+
+// ── DIFFICULTY DESCRIPTORS — multi-feature, ordinal, monotone ──
+console.log('\n— DIFFICULTY DESCRIPTORS —');
+{
+  const dur=8;
+  const sparse=[]; for(let i=0;i<8;i++) sparse.push({midi:72,startSec:i,durationSec:0.5,vel:90,channel:0});
+  // dense/fast/leaping/chordy -> clearly harder
+  const dense=[];
+  for(let i=0;i<64;i++){ const t=i*0.12; dense.push({midi:60+(i*7)%24,startSec:t,durationSec:0.1,vel:90,channel:0});
+    if(i%4===0){ dense.push({midi:48,startSec:t,durationSec:0.1,vel:80,channel:1}); dense.push({midi:55,startSec:t,durationSec:0.1,vel:80,channel:1}); } }
+  const fEasy=P.scoreDifficulty(sparse,dur), fHard=P.scoreDifficulty(dense,dur);
+  ok(fEasy.score>=0 && fEasy.score<=1 && fHard.score>=0 && fHard.score<=1, 'difficulty score is in [0,1]');
+  ok(fHard.score > fEasy.score, 'busy/fast/leaping song scores harder than a slow monotone one');
+  ok(fHard.density > fEasy.density && fHard.speed > fEasy.speed, 'density + playing-speed descriptors track the load');
+  ok(P.difficultyFeatures(dense,dur).polyphony >= 2, 'polyphony/stretch detects simultaneous notes');
+  ok(P.starsFromDifficulty(0) === 1 && P.starsFromDifficulty(1) === 5, 'stars span 1..5 across the difficulty range');
+  ok(P.scoreDifficulty([],dur).score === 0, 'empty note set is difficulty 0 (no crash)');
+  // monotonicity: adding notes to a line should not LOWER difficulty wildly
+  ok(P.starsFromDifficulty(0.5) >= 2 && P.starsFromDifficulty(0.5) <= 4, 'mid difficulty maps to a middle star band');
+}
+
+// ── derived versions carry an absolute difficulty + stars, ranked easy->hard ──
+{
+  const res=P.analyze(P.buildLibraryById('fur-elise'), 'Für Elise');
+  const V=res.versions;
+  ok(V.every(v=>typeof v.difficulty==='number' && typeof v.stars==='number'), 'every version has a difficulty score + stars');
+  ok(V.every((v,i)=>i===0||V[i-1].difficulty<=v.difficulty), 'versions ranked easy -> hard by difficulty');
+  ok(V[0].stars<=V[V.length-1].stars, 'the Core tier is no harder (stars) than Full');
+  P.analyze(P.buildDemo(),'DEMO');   // restore demo
+}
 
 // ── T11: every module file carries a banner comment at its top ──
 console.log('\n— MODULE BANNERS (T11) —');

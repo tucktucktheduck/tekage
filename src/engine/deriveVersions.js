@@ -41,8 +41,9 @@ function estimateMeterGrid(notes){
   return {beat, phase:bestPhase};
 }
 
-// ── Stage 2 · greedy pitch-proximity voice separation ──
-function separateVoices(notes){
+// ── Stage 2 · voice separation (channel-aware) ──
+// greedy pitch-proximity line tracking over one note stream
+function _separateOneStream(notes){
   const sorted=[...notes].sort((a,b)=> a.startSec-b.startSec || b.midi-a.midi);
   const voices=[];
   const LEAP=14;
@@ -58,6 +59,9 @@ function separateVoices(notes){
     if(best) best.notes.push(n);
     else voices.push({notes:[n]});
   }
+  return voices;
+}
+function _voiceStats(voices){
   for(const v of voices){
     const ms=v.notes.map(x=>x.midi);
     v.meanPitch=ms.reduce((a,b)=>a+b,0)/ms.length;
@@ -65,6 +69,24 @@ function separateVoices(notes){
     v.onsetRate=v.notes.length / Math.max(0.5,(v.notes[v.notes.length-1].startSec - v.notes[0].startSec)||1);
   }
   return voices;
+}
+// Ozcan, Isikhan & Alpkocak 2005 — cluster by channel before line tracking. Real
+// multi-track MIDI (e.g. Mutopia) encodes voices/hands as channels; tracking lines
+// WITHIN each channel stops the skyline from jumping between the melody and an
+// accompaniment that happens to poke above it. Falls back to a single global
+// stream when the file has no informative channel structure (e.g. the demo).
+function separateVoices(notes){
+  // group by each note's OWN channel (identity-safe: these are the song's own
+  // note objects, so the derived versions stay refs into Song.notes).
+  const byCh=new Map();
+  for(const n of notes){ const c=(n.channel==null?-1:n.channel); if(!byCh.has(c)) byCh.set(c,[]); byCh.get(c).push(n); }
+  const informative=[...byCh.values()].filter(a=>a.length>=3);
+  if(byCh.size>=2 && informative.length>=2){
+    const voices=[];
+    for(const arr of byCh.values()){ if(!arr.length) continue; for(const v of _separateOneStream(arr)) voices.push(v); }
+    return _voiceStats(voices);
+  }
+  return _voiceStats(_separateOneStream(notes));
 }
 
 // ── Stage 4 · per-note salience (+ per-voice prominence) ──
@@ -170,16 +192,24 @@ function selectLines(voices){
   return {lead, bass};
 }
 
-// ── Stage 6 · difficulty thinning (the knob) ──
-function thin(notes, difficulty, durationSec){
-  if(difficulty==='hard' || !notes.length) return [...notes].sort((a,b)=>a.startSec-b.startSec);
-  const target = (difficulty==='easy'?2.1:4.0) * durationSec;     // notes target
-  // rhythmic skeleton: strong-beat or strongly-repeated notes always survive
-  const keep=new Set();
-  for(const n of notes){ if((n._metric??0)>0.72 || (n._rep??0)>0.6) keep.add(n); }
-  const rest=notes.filter(n=>!keep.has(n)).sort((a,b)=>(b.salience??0)-(a.salience??0));
-  let i=0; while(keep.size<target && i<rest.length){ keep.add(rest[i++]); }
-  return [...keep].sort((a,b)=>a.startSec-b.startSec);
+// ── Stage 6 · difficulty-controlled thinning (the knob) ──
+// Nakamura & Yoshii 2018: trade fidelity vs a TARGET difficulty. We keep the
+// rhythmic skeleton (fidelity anchors), then add notes in salience order until
+// the difficulty descriptor (difficulty.js) reaches the tier's target band —
+// identity-preserving subset selection, so TKG still plays the real notes.
+function thinToDifficulty(notes, targetScore, durationSec){
+  if(!notes.length) return [];
+  const sorted=[...notes].sort((a,b)=>a.startSec-b.startSec);
+  const keep=new Set(sorted.filter(n=>(n._metric??0)>0.72 || (n._rep??0)>0.6));
+  if(keep.size===0){ const a=[...sorted].sort((x,y)=>(y.salience??0)-(x.salience??0))[0]; if(a) keep.add(a); }
+  const rest=sorted.filter(n=>!keep.has(n)).sort((a,b)=>(b.salience??0)-(a.salience??0));
+  const arr=()=>[...keep].sort((a,b)=>a.startSec-b.startSec);
+  let i=0;
+  // add in small batches to bound the O(n·score) cost on large (ingested) files
+  while(i<rest.length && scoreDifficulty(arr(),durationSec).score < targetScore){
+    for(let b=0;b<4 && i<rest.length;b++) keep.add(rest[i++]);
+  }
+  return arr();
 }
 
 function densityOf(notes, dur){ return dur>0 ? notes.length/dur : 0; }
@@ -213,8 +243,10 @@ function deriveVersions(parsed){
   const voices=separateVoices(base);
   scoreNotes(base, voices);
   const {lead, bass}=selectLines(voices);
-  const core = thin(lead, 'easy', durationSec);
-  const two  = thin([...lead, ...bass].sort((a,b)=>a.startSec-b.startSec), 'medium', durationSec);
+  // tier target difficulties (ordinal score in [0,1]): Core = clearly easy,
+  // Two-Voice = moderate; Full = the whole song untouched.
+  const core = thinToDifficulty(lead, 0.16, durationSec);
+  const two  = thinToDifficulty([...lead, ...bass].sort((a,b)=>a.startSec-b.startSec), 0.42, durationSec);
 
   let versions=[];
   if(core.length) versions.push({ id:'core', name:'Easy · Core', kind:'derived-core', notes:core });
@@ -222,10 +254,15 @@ function deriveVersions(parsed){
   versions.push({ id:'full', name:'Hard · Full', kind:'full', notes:base });
   versions.push(...detectBaked(parsed));
 
-  // de-dup degenerate versions (same count), compute density, rank ascending
+  // de-dup degenerate versions (same count); compute density + the multi-feature
+  // difficulty descriptor + absolute stars; rank by difficulty (not density alone).
   const seen=new Set();
   versions = versions.filter(v=>{ const k=v.kind+':'+v.notes.length; if(seen.has(k))return false; seen.add(k); return true; });
-  for(const v of versions){ v.density=densityOf(v.notes,durationSec); }
-  versions.sort((a,b)=>a.density-b.density);
+  for(const v of versions){
+    v.density=densityOf(v.notes,durationSec);
+    const d=scoreDifficulty(v.notes,durationSec);
+    v.difficulty=d.score; v.features=d; v.stars=starsFromDifficulty(d.score);
+  }
+  versions.sort((a,b)=>a.difficulty-b.difficulty || a.density-b.density);
   return { title:parsed.title, durationSec, versions };
 }

@@ -20,10 +20,10 @@ test('Teklet opens, holds the settings, and closes', async ({ page }) => {
   await expect(page.locator('#teklet')).not.toHaveClass(/open/);
   expect((await page.locator('#teklet').boundingBox()).x).toBeGreaterThanOrEqual(vw - 5);
 
-  // open it -> the console is on-screen and its controls are usable
+  // open it -> the console slides on-screen (wait out the CSS transition) + controls usable
   await page.click('#tekletBtn');
   await expect(page.locator('#teklet')).toHaveClass(/open/);
-  expect((await page.locator('#teklet').boundingBox()).x).toBeLessThan(vw);
+  await expect.poll(async () => (await page.locator('#teklet').boundingBox()).x).toBeLessThan(vw);
   await page.check('#slowChk');                 // actionable now
   expect(await page.evaluate(() => UI.autoSlow)).toBe(true);
 

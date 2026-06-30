@@ -2,6 +2,7 @@
   "order": [
     "src/engine/helpers.js",
     "src/engine/parse.js",
+    "src/engine/difficulty.js",
     "src/engine/deriveVersions.js",
     "src/engine/solvePlan.js",
     "src/runtime/audio.js",

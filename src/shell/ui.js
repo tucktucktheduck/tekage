@@ -20,7 +20,9 @@ function buildVersionButtons(){
     const b=document.createElement('button');
     b.className='tk ver'+(v===Song.version?' sel':'');
     b.dataset.id=v.id;
-    const stars = starsForDensity(v.density, Song.versions.map(x=>x.density));
+    // absolute difficulty stars from the multi-feature descriptor when available,
+    // else the within-song density ranking (back-compat)
+    const stars = (typeof v.stars==='number') ? v.stars : starsForDensity(v.density, Song.versions.map(x=>x.density));
     const starStr = String.fromCharCode(0x2605).repeat(stars) + String.fromCharCode(0x2606).repeat(5-stars);
     b.innerHTML=`<span class="vname">${v.name}</span><span class="vden">${v.density.toFixed(1)} n/s · ${v.notes.length}</span><span class="vstars">${starStr}</span>`;
     b.onclick=()=>{ if (Transport.playing) { flash('Pause to change difficulty'); return; } selectVersion(v.id); document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===v.id));
