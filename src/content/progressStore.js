@@ -37,7 +37,8 @@ function defaultProfile(){
   return {
     settings: { speed:1.0, vol:0.75, mode:'play', versionId:null,
                 assists:{ keyNames:true, autoSlow:false, autoShift:false },
-                skin:{ primary:'#ff8a2b', secondary:'#1a8fff', bg:'#05060a' } },
+                skin:{ primary:'#ff8a2b', secondary:'#1a8fff', bg:'#05060a' },
+                hideParseWarning:false },
     stars:  {},   // levelId -> best stars (0..5)
     best:   {},   // levelId -> best accuracy (0..1)
     onboarded: false,   // has the player seen the landing/walkthrough? (docs/08)
@@ -63,6 +64,7 @@ function mergeProfile(loaded){
         if(hex.test(s.skin.secondary)) p.settings.skin.secondary=s.skin.secondary;
         if(hex.test(s.skin.bg))        p.settings.skin.bg=s.skin.bg;
       }
+      p.settings.hideParseWarning = !!s.hideParseWarning;
     }
     if(loaded.stars && typeof loaded.stars==='object') p.stars=Object.assign({}, loaded.stars);
     if(loaded.best  && typeof loaded.best ==='object') p.best =Object.assign({}, loaded.best);

@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -356,6 +356,22 @@ console.log('\n— DIFFICULTY DESCRIPTORS —');
   ok(V.every((v,i)=>i===0||V[i-1].difficulty<=v.difficulty), 'versions ranked easy -> hard by difficulty');
   ok(V[0].stars<=V[V.length-1].stars, 'the Core tier is no harder (stars) than Full');
   P.analyze(P.buildDemo(),'DEMO');   // restore demo
+}
+
+// ── PARSE CONFIDENCE — drives the upload warning + ingest curation ──
+console.log('\n— PARSE CONFIDENCE —');
+{
+  // a clean, singable library song -> high confidence
+  const good=P.parseConfidence(P.buildLibraryById('ode-to-joy'));
+  ok(good.score>=0.7, 'a clean melodic song parses with high confidence');
+  ok(Array.isArray(good.reasons), 'confidence returns reasons[]');
+  // a tiny fragment -> low confidence with a reason
+  const tiny=P.parseConfidence({ notes:[{midi:60,startSec:0,durationSec:0.2,vel:90,channel:0}], duration:0.2 });
+  ok(tiny.score<=0.3, 'a 1-note fragment parses with low confidence');
+  // a very short but otherwise ok clip is flagged (founder: avoid boring ~10s clips)
+  const shortNotes=[]; for(let i=0;i<12;i++) shortNotes.push({midi:72+(i%5),startSec:i*0.4,durationSec:0.3,vel:90,channel:0});
+  const shortConf=P.parseConfidence({ notes:shortNotes, duration:5 });
+  ok(shortConf.reasons.some(r=>/short/i.test(r)), 'a <20s clip is flagged as a possible fragment');
 }
 
 // ── T11: every module file carries a banner comment at its top ──

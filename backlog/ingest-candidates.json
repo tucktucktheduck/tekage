@@ -1,0 +1,45 @@
+{
+  "generated": "2026-06-30T04:01:55.822Z",
+  "count": 1,
+  "note": "STAGED FOR REVIEW — nothing ships until a human approves (DECISIONS).",
+  "candidates": [
+    {
+      "title": "Prelude No. 1 in C (WTK I)",
+      "composer": "J.S. Bach",
+      "url": "https://www.mutopiaproject.org/ftp/BachJS/BWV846/wtk1-prelude1/wtk1-prelude1.mid",
+      "source": "mutopia",
+      "ok": true,
+      "duration": 140,
+      "notes": 549,
+      "confidence": 1,
+      "confidenceReasons": [],
+      "recommend": true,
+      "versions": [
+        {
+          "id": "core",
+          "name": "Easy · Core",
+          "notes": 89,
+          "density": 0.64,
+          "difficulty": 0.29,
+          "stars": 2
+        },
+        {
+          "id": "2voice",
+          "name": "Medium · Two-Voice",
+          "notes": 198,
+          "density": 1.41,
+          "difficulty": 0.37,
+          "stars": 2
+        },
+        {
+          "id": "full",
+          "name": "Hard · Full",
+          "notes": 549,
+          "density": 3.92,
+          "difficulty": 0.53,
+          "stars": 3
+        }
+      ]
+    }
+  ]
+}

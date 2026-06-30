@@ -222,6 +222,27 @@ function starsForDensity(density, allDensities){
   return Math.max(1, Math.min(5, Math.round(1 + 4*r/(n-1))));
 }
 
+// Parse/extraction confidence in [0,1] — "has it got a baked melody? can we
+// extract a strong one?" (DECISIONS). Drives the low-confidence warning dialog on
+// upload and the ingest's auto-rating/curation. Returns reasons for any concern.
+function parseConfidence(parsed){
+  const notes=(parsed&&parsed.notes)||[];
+  const dur=(parsed&&parsed.duration)|| (notes.length?Math.max(...notes.map(n=>n.startSec+n.durationSec)):0) || 1;
+  const reasons=[];
+  if(notes.length<8) return { score:0.15, reasons:['very few notes parsed'], density:0, versions:0 };
+  const dv=deriveVersions(parsed);
+  const full=dv.versions.find(v=>v.kind==='full')||dv.versions[dv.versions.length-1];
+  const core=dv.versions.find(v=>v.kind==='derived-core');
+  const density=full?full.density:0;
+  let s=0.45;
+  if(core) s+=0.25; else reasons.push('no clear melodic core could be extracted');
+  if(density>=0.5 && density<=12) s+=0.2; else { s-=0.2; reasons.push(density<0.5?'extremely sparse':'extremely dense / possibly garbled'); }
+  if(dur>=20) s+=0.10; else { s-=0.15; reasons.push('very short (<20s) — may be a fragment'); }
+  if(core){ const mp=core.notes.reduce((a,n)=>a+n.midi,0)/Math.max(1,core.notes.length);
+    if(mp>=55 && mp<=84) s+=0.10; else reasons.push('melody register is unusual'); }
+  return { score: clamp(s,0,1), reasons, density, versions:dv.versions.length };
+}
+
 function detectBaked(parsed){
   const out=[];
   for(const p of (parsed.parts||[])){

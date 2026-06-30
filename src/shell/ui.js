@@ -356,18 +356,56 @@ wrap.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) loadFil
 function versionSummary(){
   return Song.versions.map(v=>v.name.split('·').pop().trim()+' '+v.density.toFixed(1)).join(' · ');
 }
+function _commitLoadedSong(parsed, title){
+  Transport.pause(); Transport.seek(0);
+  if(typeof Score!=='undefined') Score.stop();
+  if(typeof hideReport==='function') hideReport();
+  analyze(parsed, title);
+  $('songName').textContent = Song.title;
+  buildVersionButtons();
+  flash(`Loaded <b>${Song.title}</b> · ${Song.versions.length} difficulties · now playing <b>${Song.version?.name||'—'}</b>`, true);
+  draw();
+}
+/* Low-confidence parse warning (DECISIONS, exact copy). Triggered when the loader
+   isn't confident it got a clean melody out of the file. "Don't show again" is
+   remembered through ProgressStore. */
+function showLowConfidenceDialog(parsed, title, onProceed){
+  const dontShow = (typeof ProgressStore!=='undefined') && ProgressStore.getSettings && ProgressStore.getSettings().hideParseWarning;
+  if(dontShow){ onProceed(); return; }
+  let el=document.getElementById('parseWarn');
+  if(!el){ el=document.createElement('div'); el.id='parseWarn';
+    el.style.cssText='position:fixed;inset:0;z-index:9200;display:flex;align-items:center;justify-content:center;background:rgba(3,6,12,.72);backdrop-filter:blur(3px);font-family:Orbitron,sans-serif';
+    document.body.appendChild(el);
+  }
+  el.innerHTML=
+    `<div style="background:#0b1220;border:1px solid #1d2b44;border-radius:14px;padding:24px 26px;max-width:420px;box-shadow:0 18px 60px #000a">`
+    + `<div style="font-size:12px;letter-spacing:2px;color:#ffc85a">HEADS UP</div>`
+    + `<div style="margin-top:10px;font-family:'Rajdhani',sans-serif;font-weight:600;font-size:15px;color:#dfe8f4;line-height:1.5">`
+    +   `Our note loader is not that complicated (yet). There might be some bugs from your MIDI file.</div>`
+    + `<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-family:'Rajdhani';font-size:13px;color:#9fb6d4;cursor:pointer">`
+    +   `<input type="checkbox" id="pwDontShow"> Don't show this again</label>`
+    + `<div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">`
+    +   `<button id="pwBack" style="cursor:pointer;border:1px solid #2a3a55;border-radius:8px;padding:9px 16px;background:#10192b;color:#cdd9ea;font-weight:700">Go Back to Library</button>`
+    +   `<button id="pwPlay" style="cursor:pointer;border:0;border-radius:8px;padding:9px 16px;background:#ff8a2b;color:#1a0e02;font-weight:700">Play Anyway</button>`
+    + `</div></div>`;
+  el.style.display='flex';
+  const close=()=>{ el.style.display='none'; };
+  el.querySelector('#pwPlay').onclick=()=>{
+    if(el.querySelector('#pwDontShow').checked && typeof ProgressStore!=='undefined') ProgressStore.saveSettings({ hideParseWarning:true });
+    close(); onProceed();
+  };
+  el.querySelector('#pwBack').onclick=close;
+}
 function loadFile(file){
   const reader=new FileReader();
   reader.onload=()=>{
     try{
       const parsed=parseMidi(reader.result);
       if(!parsed.notes.length){ flash('No playable notes found in that file'); return; }
-      Transport.pause(); Transport.seek(0);
-      analyze(parsed, file.name.replace(/\.midi?$/i,''));
-      $('songName').textContent = Song.title;
-      buildVersionButtons();
-      flash(`Loaded <b>${Song.title}</b> · ${Song.versions.length} difficulties · now playing <b>${Song.version?.name||'—'}</b>`, true);
-      draw();
+      const title=file.name.replace(/\.midi?$/i,'');
+      const conf=(typeof parseConfidence==='function') ? parseConfidence(parsed) : {score:1};
+      if(conf.score < 0.55) showLowConfidenceDialog(parsed, title, ()=>_commitLoadedSong(parsed, title));
+      else _commitLoadedSong(parsed, title);
     }catch(err){ flash('Could not read MIDI: '+err.message); }
   };
   reader.readAsArrayBuffer(file);
