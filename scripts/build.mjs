@@ -2,7 +2,8 @@
 // inlines them into the HTML template, producing the single self-contained tkg.html.
 // exportHTML(config) additionally BAKES a frozen config into the file so the export
 // opens offline already configured (the founder's "HTML-generator" model, docs/10).
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import path from 'path';
 
 export function buildHTML(opts = {}) {
   const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
@@ -11,11 +12,56 @@ export function buildHTML(opts = {}) {
     .join('\n');
   const template = readFileSync('src/shell/template.html', 'utf8');
   let injected = bundle;
+  // bake the famous songs (base64 MIDI) into the game so they load offline, no
+  // fetch/CORS. window.__TKG_SONGS__ is read by src/content/mutopiaSongs.js.
+  if (opts.songsData) injected = `window.__TKG_SONGS__=${JSON.stringify(opts.songsData)};\n` + injected;
   if (opts.config) {
     // freeze the chosen config in front of the bundle; config.js reads it at boot
-    injected = `window.__TKG_CONFIG__=Object.freeze(${JSON.stringify(opts.config)});\n` + bundle;
+    injected = `window.__TKG_CONFIG__=Object.freeze(${JSON.stringify(opts.config)});\n` + injected;
   }
   return template.replace('/*TKG_BUNDLE*/', () => injected);
+}
+
+// load the pure engine (for computing song tiers at build time), like the crawler
+function loadEngine() {
+  const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
+  const files = manifest.order.filter((f) => /^src\/engine\//.test(f));
+  let src = files.map((f) => readFileSync(f, 'utf8')).join('\n');
+  src += '\n;module.exports={parseMidi,deriveVersions,detectSourceHands};';
+  const m = { exports: {} };
+  new Function('module', 'exports', src)(m, m.exports);
+  return m.exports;
+}
+
+// read songs/manifest.json + songs/*.mid -> { songs (with base64+tiers), catalog (metadata only) }
+export function buildSongsData() {
+  const mfPath = 'songs/manifest.json';
+  if (!existsSync(mfPath)) return { songs: [], catalog: [] };
+  const manifest = JSON.parse(readFileSync(mfPath, 'utf8'));
+  const E = loadEngine();
+  const songs = [], catalog = [];
+  for (const m of manifest) {
+    const p = path.join('songs', m.file);
+    if (!existsSync(p)) continue;
+    const buf = readFileSync(p);
+    let meta;
+    try {
+      const parsed = E.parseMidi(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+      const dv = E.deriveVersions(parsed);
+      const full = dv.versions.find((v) => v.kind === 'full') || dv.versions[dv.versions.length - 1];
+      const hands = E.detectSourceHands(parsed.notes.map((n) => ({ ...n })));
+      meta = {
+        id: m.id, title: m.title, composer: m.composer, tag: m.tag || 'classical',
+        duration: Math.round(dv.durationSec || 0), notes: parsed.notes.length,
+        stars: full ? full.stars : 3, handsFromSource: hands,
+        tiers: dv.versions.filter((v) => v.kind !== 'baked-melody').map((v) => ({
+          id: v.id, name: v.name, notes: v.notes.length, stars: v.stars, difficulty: +(v.difficulty || 0).toFixed(2) })),
+      };
+    } catch (e) { continue; }
+    songs.push({ ...meta, midi: buf.toString('base64') });
+    catalog.push(meta);
+  }
+  return { songs, catalog };
 }
 
 // T10: bake engine + frozen config into a standalone, OFFLINE HTML string.
@@ -27,23 +73,21 @@ export function exportHTML(config) {
   return html;
 }
 
-// Generate library.html from the template + the committed Mutopia catalog. The
-// game's LIBRARY button links here; like tkg.html it's a build artifact.
-export function buildLibrary() {
-  let catalog = [];
-  try { catalog = JSON.parse(readFileSync('backlog/mutopia-catalog.json', 'utf8')).catalog || []; } catch (e) {}
+// Generate library.html from the template + the baked song catalog (metadata).
+// The game's LIBRARY button links here; like tkg.html it's a build artifact.
+export function buildLibrary(catalog) {
   const tpl = readFileSync('src/shell/library.template.html', 'utf8');
-  return tpl.replace('/*__CATALOG__*/', () => JSON.stringify(catalog));
+  return tpl.replace('/*__CATALOG__*/', () => JSON.stringify(catalog || []));
 }
 
-// CLI: `node scripts/build.mjs` writes the default (un-baked) tkg.html + library.html.
+// CLI: `node scripts/build.mjs` writes tkg.html (songs baked) + library.html.
 if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('scripts/build.mjs')) {
-  const html = buildHTML();
+  const { songs, catalog } = buildSongsData();
+  const html = buildHTML({ songsData: songs });
   writeFileSync('tkg.html', html, 'utf8');
   const n = JSON.parse(readFileSync('src/manifest.json', 'utf8')).order.length;
-  console.log(`built tkg.html (${html.length} bytes, ${n} modules)`);
-  const lib = buildLibrary();
+  console.log(`built tkg.html (${html.length} bytes, ${n} modules, ${songs.length} songs baked)`);
+  const lib = buildLibrary(catalog);
   writeFileSync('library.html', lib, 'utf8');
-  const songs = (JSON.parse(readFileSync('backlog/mutopia-catalog.json', 'utf8').toString()).catalog || []).length;
-  console.log(`built library.html (${lib.length} bytes, ${songs} songs)`);
+  console.log(`built library.html (${lib.length} bytes, ${catalog.length} songs)`);
 }

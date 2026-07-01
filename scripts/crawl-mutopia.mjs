@@ -120,15 +120,7 @@ async function main(){
   fs.writeFileSync(path.join(ROOT,'backlog','mutopia-catalog.json'),
     JSON.stringify({generated:new Date().toISOString(), count:catalog.length, scanned, catalog},null,2)+'\n','utf8');
   console.log(`\nscanned ${scanned}, kept ${catalog.length} -> backlog/mutopia-catalog.json`);
-
-  generateLibraryHtml(catalog);
-  console.log('generated library.html');
-}
-
-function generateLibraryHtml(catalog){
-  const tpl = fs.readFileSync(path.join(ROOT,'src/shell/library.template.html'),'utf8');
-  const html = tpl.replace('/*__CATALOG__*/', JSON.stringify(catalog));
-  fs.writeFileSync(path.join(ROOT,'library.html'), html, 'utf8');
+  console.log('(discovery only — staged for review. To SHIP songs, add them to scripts/fetch-songs.mjs then rebuild.)');
 }
 
 main().catch(e=>{ console.error(e); process.exit(1); });

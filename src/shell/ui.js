@@ -65,11 +65,24 @@ if($('resetBtn')) $('resetBtn').onclick=()=>{
 /* Song library menu (T24): the built-in starter songs + the demo, so you can
    "pick a song and play" without owning a MIDI. Upload still lives on LOAD MIDI. */
 function buildSongMenu(){
-  const sel=$('songSel'); if(!sel || typeof LIBRARY==='undefined') return;
+  const sel=$('songSel'); if(!sel) return;
   let html=`<option value="__demo">DEMO · First Light</option>`;
-  for(const s of LIBRARY) html+=`<option value="${s.id}">${s.title}</option>`;
+  if(typeof LIBRARY!=='undefined'){
+    html+=`<optgroup label="Beginner">`;
+    for(const s of LIBRARY) html+=`<option value="${s.id}">${s.title}</option>`;
+    html+=`</optgroup>`;
+  }
+  const baked = (typeof bakedSongs==='function') ? bakedSongs() : [];
+  if(baked.length){
+    html+=`<optgroup label="Famous">`;
+    for(const s of baked) html+=`<option value="baked:${s.id}">${s.title}</option>`;
+    html+=`</optgroup>`;
+  }
   sel.innerHTML=html;
-  sel.onchange=()=>{ const v=sel.value; if(v==='__demo') loadDemo(); else loadLibrarySong(v); };
+  sel.onchange=()=>{ const v=sel.value;
+    if(v==='__demo') loadDemo();
+    else if(v.indexOf('baked:')===0) loadBakedSong(v.slice(6));
+    else loadLibrarySong(v); };
 }
 function loadLibrarySong(id){
   const spec=typeof songById==='function' ? songById(id) : null;

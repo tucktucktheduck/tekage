@@ -38,6 +38,8 @@ input#q:focus{outline:none;border-color:var(--blue);}
 .stars{color:var(--orange);letter-spacing:1px;font-size:13px;}
 .badge{font-family:'Orbitron';font-size:9px;letter-spacing:1px;color:var(--ok);border:1px solid rgba(34,204,102,.4);
   border-radius:5px;padding:2px 6px;}
+.tag{font-family:'Orbitron';font-size:9px;letter-spacing:1px;color:var(--blue);border:1px solid rgba(26,143,255,.4);
+  border-radius:5px;padding:2px 6px;text-transform:uppercase;}
 .tiers{display:flex;gap:6px;flex-wrap:wrap;}
 .tier{flex:1 1 0;min-width:74px;background:#0a0e1a;border:1px solid var(--border);border-radius:8px;padding:7px 8px;text-align:center;}
 .tier .tn{font-family:'Orbitron';font-weight:700;font-size:9px;letter-spacing:1px;}
@@ -84,11 +86,12 @@ function tierBox(t){ const cls=t.id==='core'?'core':t.id==='2voice'?'tv':'full';
 function card(s){
   const tiers=s.tiers.map(tierBox).join('');
   const hands=s.handsFromSource?'<span class="badge">HANDS</span>':'';
+  const tag=s.tag?`<span class="tag">${s.tag}</span>`:'';
   return `<div class="card">
     <div><div class="ctitle">${s.title}</div><div class="ccomp">${s.composer}</div></div>
-    <div class="meta"><span class="stars">${stars(s.stars)}</span><span>${Math.floor(s.duration/60)}:${String(s.duration%60).padStart(2,'0')}</span>${hands}</div>
+    <div class="meta"><span class="stars">${stars(s.stars)}</span><span>${Math.floor(s.duration/60)}:${String(s.duration%60).padStart(2,'0')}</span>${tag}${hands}</div>
     <div class="tiers">${tiers}</div>
-    <a class="play" href="tkg.html?mutopia=${encodeURIComponent(s.url)}">▶ PLAY</a>
+    <a class="play" href="tkg.html?song=${encodeURIComponent(s.id)}">▶ PLAY</a>
   </div>`;
 }
 function render(){

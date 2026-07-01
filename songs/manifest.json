@@ -1,0 +1,114 @@
+[
+  {
+    "id": "fur-elise",
+    "title": "Für Elise",
+    "composer": "Ludwig van Beethoven",
+    "tag": "classical",
+    "file": "fur-elise.mid",
+    "source": "https://www.mutopiaproject.org/ftp/BeethovenLv/WoO59/fur_Elise_WoO59/fur_Elise_WoO59.mid"
+  },
+  {
+    "id": "pathetique-2",
+    "title": "Pathétique Sonata · 2nd mvt",
+    "composer": "Ludwig van Beethoven",
+    "tag": "classical",
+    "file": "pathetique-2.mid",
+    "source": "https://www.mutopiaproject.org/ftp/BeethovenLv/O13/pathetique-2/pathetique-2.mid"
+  },
+  {
+    "id": "clair-de-lune",
+    "title": "Clair de Lune",
+    "composer": "Claude Debussy",
+    "tag": "classical",
+    "file": "clair-de-lune.mid",
+    "source": "https://www.mutopiaproject.org/ftp/DebussyC/L75/debussy_Ste_Bergamesq_Clair/debussy_Ste_Bergamesq_Clair.mid"
+  },
+  {
+    "id": "gymnopedie-1",
+    "title": "Gymnopédie No. 1",
+    "composer": "Erik Satie",
+    "tag": "classical",
+    "file": "gymnopedie-1.mid",
+    "source": "https://www.mutopiaproject.org/ftp/SatieE/gymnopedie_1/gymnopedie_1.mid"
+  },
+  {
+    "id": "prelude-in-c",
+    "title": "Prelude in C (WTK I)",
+    "composer": "J. S. Bach",
+    "tag": "classical",
+    "file": "prelude-in-c.mid",
+    "source": "https://www.mutopiaproject.org/ftp/BachJS/BWV846/wtk1-prelude1/wtk1-prelude1.mid"
+  },
+  {
+    "id": "chopin-nocturne-eb",
+    "title": "Nocturne in E-flat (Op.9 No.2)",
+    "composer": "Frédéric Chopin",
+    "tag": "classical",
+    "file": "chopin-nocturne-eb.mid",
+    "source": "https://www.mutopiaproject.org/ftp/ChopinFF/O9/chopin_nocturne_op9_n2/chopin_nocturne_op9_n2.mid"
+  },
+  {
+    "id": "fantaisie-impromptu",
+    "title": "Fantaisie-Impromptu",
+    "composer": "Frédéric Chopin",
+    "tag": "classical",
+    "file": "fantaisie-impromptu.mid",
+    "source": "https://www.mutopiaproject.org/ftp/ChopinFF/O66/chopin_fantaisie-impromptu/chopin_fantaisie-impromptu.mid"
+  },
+  {
+    "id": "mozart-k545",
+    "title": "Piano Sonata No. 16 (K.545)",
+    "composer": "W. A. Mozart",
+    "tag": "classical",
+    "file": "mozart-k545.mid",
+    "source": "https://www.mutopiaproject.org/ftp/MozartWA/KV545/K545-1/K545-1.mid"
+  },
+  {
+    "id": "traumerei",
+    "title": "Träumerei",
+    "composer": "Robert Schumann",
+    "tag": "classical",
+    "file": "traumerei.mid",
+    "source": "https://www.mutopiaproject.org/ftp/SchumannR/O15/SchumannOp15No07/SchumannOp15No07.mid"
+  },
+  {
+    "id": "canon-in-d",
+    "title": "Canon in D",
+    "composer": "Johann Pachelbel",
+    "tag": "classical",
+    "file": "canon-in-d.mid",
+    "source": "https://www.mutopiaproject.org/ftp/PachelbelJ/CanonInD/CanonInD.mid"
+  },
+  {
+    "id": "entertainer",
+    "title": "The Entertainer",
+    "composer": "Scott Joplin",
+    "tag": "ragtime",
+    "file": "entertainer.mid",
+    "source": "https://www.mutopiaproject.org/ftp/JoplinS/entertainer/entertainer.mid"
+  },
+  {
+    "id": "maple-leaf-rag",
+    "title": "Maple Leaf Rag",
+    "composer": "Scott Joplin",
+    "tag": "ragtime",
+    "file": "maple-leaf-rag.mid",
+    "source": "https://www.mutopiaproject.org/ftp/JoplinS/maple/maple.mid"
+  },
+  {
+    "id": "easy-winners",
+    "title": "The Easy Winners",
+    "composer": "Scott Joplin",
+    "tag": "ragtime",
+    "file": "easy-winners.mid",
+    "source": "https://www.mutopiaproject.org/ftp/JoplinS/winners/winners.mid"
+  },
+  {
+    "id": "solace",
+    "title": "Solace",
+    "composer": "Scott Joplin",
+    "tag": "ragtime",
+    "file": "solace.mid",
+    "source": "https://www.mutopiaproject.org/ftp/JoplinS/solace/solace.mid"
+  }
+]

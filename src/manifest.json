@@ -16,6 +16,7 @@
     "src/content/progressStore.js",
     "src/content/demoSong.js",
     "src/content/library.js",
+    "src/content/mutopiaSongs.js",
     "src/shell/onboarding.js",
     "src/shell/main.js"
   ]

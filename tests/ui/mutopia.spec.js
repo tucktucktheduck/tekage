@@ -1,12 +1,10 @@
 const { test, expect } = require('@playwright/test');
 const { pathToFileURL } = require('url');
-const fs = require('fs');
 const path = require('path');
 
-// The Mutopia library page + the game's ?mutopia=<url> loading path.
+// The library page + the game's baked-song loading (?song=<id>, fully offline).
 const tkgUrl = pathToFileURL(path.resolve(__dirname, '..', '..', 'tkg.html')).href;
 const libUrl = pathToFileURL(path.resolve(__dirname, '..', '..', 'library.html')).href;
-const sampleMid = fs.readFileSync(path.resolve(__dirname, '..', 'fixtures', 'mutopia-sample.mid'));
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { try { const k='tkg.profile.v1';
@@ -16,12 +14,11 @@ test.beforeEach(async ({ page }) => {
 test('library page renders the catalog, search + difficulty filters work, links target the game', async ({ page }) => {
   await page.goto(libUrl);
   const cards = page.locator('.card');
-  await expect.poll(() => cards.count()).toBeGreaterThan(10);     // a real catalog
+  await expect.poll(() => cards.count()).toBeGreaterThan(8);      // the famous catalog
 
-  // every PLAY link points at the game with a mutopia MIDI url
+  // every PLAY link points at the game with a baked song id
   const href = await page.locator('.card .play').first().getAttribute('href');
-  expect(href).toContain('tkg.html?mutopia=');
-  expect(decodeURIComponent(href)).toMatch(/\.mid/i);
+  expect(href).toMatch(/tkg\.html\?song=/);
 
   // each card shows the three difficulty tiers
   await expect(page.locator('.card').first().locator('.tier')).toHaveCount(3);
@@ -38,21 +35,32 @@ test('library page renders the catalog, search + difficulty filters work, links 
   await expect.poll(() => cards.count()).toBeLessThanOrEqual(total);
 });
 
-test('game loads a song from ?mutopia=<url> (charts a real MIDI off the wire)', async ({ page }) => {
-  // serve the fixture MIDI for the mutopia fetch only (not the page nav)
-  await page.route('**mutopiaproject.org/**', route => route.fulfill({
-    status: 200, contentType: 'audio/midi', body: sampleMid,
-  }));
+test('game loads a baked famous song from ?song=<id> — fully offline, no network', async ({ page }) => {
+  // block ALL network to prove it needs none (baked MIDI is inlined)
+  await page.route('**/*', route => {
+    const u = route.request().url();
+    if (u.startsWith('file:') || u.startsWith('data:')) return route.continue();
+    return route.abort();   // no https/fonts/mutopia — must still load
+  });
 
-  const fakeUrl = 'https://www.mutopiaproject.org/ftp/HandelGF/Aylesford/03-gavotte/03-gavotte.mid';
-  await page.goto(tkgUrl + '?mutopia=' + encodeURIComponent(fakeUrl));
-
-  // the version picker populates from the streamed song, and it has real notes
+  await page.goto(tkgUrl + '?song=entertainer');
   await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 8000 }).toBeGreaterThan(0);
-  const loaded = await page.evaluate(() => ({ notes: Song.notes.length, versions: Song.versions.length }));
-  expect(loaded.notes).toBeGreaterThan(50);
+  const loaded = await page.evaluate(() => ({ title: Song.title, notes: Song.notes.length, versions: Song.versions.length }));
+  expect(loaded.title.toLowerCase()).toContain('entertainer');
+  expect(loaded.notes).toBeGreaterThan(100);
   expect(loaded.versions).toBeGreaterThanOrEqual(2);
 
   // no first-visit landing when a specific song was requested
   await expect(page.locator('#obLanding')).toHaveCount(0);
+});
+
+test('the in-game song menu lists the famous songs and loads one', async ({ page }) => {
+  await page.goto(tkgUrl);
+  await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
+  // the menu has a Famous optgroup with baked songs
+  const famous = await page.locator('#songSel optgroup[label="Famous"] option').count();
+  expect(famous).toBeGreaterThan(8);
+  await page.selectOption('#songSel', 'baked:fur-elise');
+  await expect(page.locator('#songName')).toContainText('Elise');
+  expect(await page.evaluate(() => Song.notes.length)).toBeGreaterThan(50);
 });
