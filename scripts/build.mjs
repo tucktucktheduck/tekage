@@ -22,15 +22,37 @@ export function buildHTML(opts = {}) {
   return template.replace('/*TKG_BUNDLE*/', () => injected);
 }
 
-// load the pure engine (for computing song tiers at build time), like the crawler
+// load the pure engine + the authored library (for computing tiers at build time)
 function loadEngine() {
   const manifest = JSON.parse(readFileSync('src/manifest.json', 'utf8'));
-  const files = manifest.order.filter((f) => /^src\/engine\//.test(f));
+  const files = manifest.order.filter((f) => /^src\/engine\//.test(f) || f === 'src/content/library.js');
   let src = files.map((f) => readFileSync(f, 'utf8')).join('\n');
-  src += '\n;module.exports={parseMidi,deriveVersions,detectSourceHands};';
+  src += '\n;module.exports={parseMidi,deriveVersions,detectSourceHands,LIBRARY,buildLibrarySong};';
   const m = { exports: {} };
   new Function('module', 'exports', src)(m, m.exports);
   return m.exports;
+}
+
+// catalog entries for the authored beginner/traditional songs (already in the
+// bundle as note data; the library page links to them via ?song=lib:<id>)
+function authoredCatalog(E) {
+  const out = [];
+  for (const spec of (E.LIBRARY || [])) {
+    try {
+      const parsed = E.buildLibrarySong(spec);
+      const dv = E.deriveVersions(parsed);
+      const full = dv.versions.find((v) => v.kind === 'full') || dv.versions[dv.versions.length - 1];
+      const tag = (spec.tag || 'trad').split('·')[0].trim().toLowerCase().replace(/\.$/, '');
+      out.push({
+        id: 'lib:' + spec.id, title: spec.title, composer: 'Traditional', tag,
+        duration: Math.round(dv.durationSec || 0), notes: parsed.notes.length,
+        stars: full ? full.stars : 2, handsFromSource: false,
+        tiers: dv.versions.filter((v) => v.kind !== 'baked-melody').map((v) => ({
+          id: v.id, name: v.name, notes: v.notes.length, stars: v.stars, difficulty: +(v.difficulty || 0).toFixed(2) })),
+      });
+    } catch (e) { /* skip */ }
+  }
+  return out;
 }
 
 // read songs/manifest.json + songs/*.mid -> { songs (with base64+tiers), catalog (metadata only) }
@@ -61,6 +83,8 @@ export function buildSongsData() {
     songs.push({ ...meta, midi: buf.toString('base64') });
     catalog.push(meta);
   }
+  // add the authored beginner/traditional songs to the library catalog
+  for (const c of authoredCatalog(E)) catalog.push(c);
   return { songs, catalog };
 }
 

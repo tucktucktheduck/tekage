@@ -23,7 +23,8 @@ frame();
 // ?mutopia=<midi-url> (online). Load it and skip the first-visit landing.
 let _songReq=null, _mutopiaReq=null;
 try{ const p=new URLSearchParams(location.search||''); _songReq=p.get('song'); _mutopiaReq=p.get('mutopia'); }catch(e){}
-if(_songReq && typeof loadBakedSong==='function') loadBakedSong(_songReq);
+if(_songReq && _songReq.indexOf('lib:')===0 && typeof loadLibrarySong==='function') loadLibrarySong(_songReq.slice(4));
+else if(_songReq && typeof loadBakedSong==='function') loadBakedSong(_songReq);
 else if(_mutopiaReq && typeof loadFromUrl==='function') loadFromUrl(_mutopiaReq);
 else if(typeof Onboarding!=='undefined') Onboarding.maybeStart();   // T25: first-visit landing + Blurt walkthrough
 setTimeout(()=>flash('<b>PLAY mode</b> · press the letter on each note · move your two hands with <b>Tab/⏎</b> (up) &amp; <b>⇧L/⇧R</b> (down) · tap <b>MAP</b> to see the keyboard', true), 800);

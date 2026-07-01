@@ -54,6 +54,17 @@ test('game loads a baked famous song from ?song=<id> — fully offline, no netwo
   await expect(page.locator('#obLanding')).toHaveCount(0);
 });
 
+test('game loads an authored traditional song from ?song=lib:<id> (offline)', async ({ page }) => {
+  await page.route('**/*', route => {
+    const u = route.request().url();
+    if (u.startsWith('file:') || u.startsWith('data:')) return route.continue();
+    return route.abort();
+  });
+  await page.goto(tkgUrl + '?song=lib:silent-night');
+  await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 8000 }).toBeGreaterThan(0);
+  expect((await page.evaluate(() => Song.title)).toLowerCase()).toContain('silent');
+});
+
 test('the in-game song menu lists the famous songs and loads one', async ({ page }) => {
   await page.goto(tkgUrl);
   await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
