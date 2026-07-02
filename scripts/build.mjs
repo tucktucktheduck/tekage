@@ -114,4 +114,14 @@ if (process.argv[1] && process.argv[1].replace(/\\/g, '/').endsWith('scripts/bui
   const lib = buildLibrary(catalog);
   writeFileSync('library.html', lib, 'utf8');
   console.log(`built library.html (${lib.length} bytes, ${catalog.length} songs)`);
+  // Stage the static-hosting output (Vercel/Netlify/GitHub Pages serve public/).
+  // Done here in Node (not shell cp) so it works on Windows dev machines too.
+  // index.html = the game (it has its own landing page); tkg.html kept under its
+  // own name because library.html links to it relatively.
+  const { mkdirSync, copyFileSync } = await import('fs');
+  mkdirSync('public', { recursive: true });
+  copyFileSync('tkg.html', 'public/index.html');
+  copyFileSync('tkg.html', 'public/tkg.html');
+  copyFileSync('library.html', 'public/library.html');
+  console.log('staged public/ (index.html, tkg.html, library.html)');
 }

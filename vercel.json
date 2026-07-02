@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "",
-  "buildCommand": "node scripts/build.mjs && mkdir -p public && cp tkg.html public/index.html && cp tkg.html public/tkg.html && cp library.html public/library.html",
+  "buildCommand": "node scripts/build.mjs",
   "outputDirectory": "public"
 }
