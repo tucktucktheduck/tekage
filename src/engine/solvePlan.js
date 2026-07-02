@@ -23,8 +23,9 @@ function applyMapping(){
   KEY_HAND = {};
   for(const k in MAP.left)  KEY_HAND[k]='left';
   for(const k in MAP.right) KEY_HAND[k]='right';
-  LKEYS = Object.entries(MAP.left ).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
-  RKEYS = Object.entries(MAP.right).map(([key,n])=>({key,ni:NOTE_IDX[n]}));
+  const off=n=> (typeof n==='number') ? n : NOTE_IDX[n];   // names OR numeric semitone offsets
+  LKEYS = Object.entries(MAP.left ).map(([key,n])=>({key,off:off(n),ni:off(n)})).filter(k=>Number.isFinite(k.off));
+  RKEYS = Object.entries(MAP.right).map(([key,n])=>({key,off:off(n),ni:off(n)})).filter(k=>Number.isFinite(k.off));
 }
 applyMapping();
 // Shift keys that move each slice (octave only — both hands are full-range).
@@ -38,140 +39,49 @@ const KEY_LABEL = {tab:'TAB', shift_l:'⇧', shift_r:'⇧', enter:'⏎', ';':';'
 const keyLabel = k => KEY_LABEL[k] || k.toUpperCase();
 
 // Lowest playable key for a midi note in `hand` at octave `oct` (or null).
+// Works for ANY slice shape: a key matches when its OFFSET from the slice
+// anchor ((oct+1)*12) equals the note's distance from that anchor — offsets
+// may exceed 11 for wide custom slices (e.g. an 18-key right hand).
 function keyForMidi(midi, hand, oct){
   const keys = hand==='left'?LKEYS:RKEYS;
-  const target = midi - (oct+1)*12;          // semitone within the octave window
-  if(target<0 || target>11) return null;
-  const f = keys.find(k=>k.ni===target);
+  const target = midi - (oct+1)*12;          // semitones above the slice anchor
+  const f = keys.find(k=>k.off===target);
   return f ? f.key : null;
 }
 
-/* Beam-search Viterbi over (leftOctave, rightOctave) state — the original
-   dagSolver cost model, trimmed to octave shifts since both hands are
-   full-range. No crossing: right-hand lowest ≥ left-hand highest. */
+/* solvePlan(notes) — legacy two-hand entry point, now a thin ADAPTER over the
+   generalized N-slice solver (slices.js). It builds the two current slices from
+   MAP (arbitrary key sets and offsets — 12+12 standard, 2+18 asymmetric, or one
+   mega hand), runs solvePlanSlices, and converts anchors back to the
+   left/right-OCTAVE shape the runtime and tests speak. Same cost model as the
+   old solver: shift count, time pressure, register preference, soft crossing,
+   soft srcHand (12/note) and melody-continuity (6/note) penalties. */
+function currentSlices(){
+  const out=[];
+  if(LKEYS.length) out.push(makeSlice('left',  Object.fromEntries(LKEYS.map(k=>[k.key,k.off])), {order:0, minAnchor:12, maxAnchor:96, step:12}));
+  if(RKEYS.length) out.push(makeSlice('right', Object.fromEntries(RKEYS.map(k=>[k.key,k.off])), {order:1, minAnchor:12, maxAnchor:96, step:12}));
+  return out;
+}
 function solvePlan(notes){
-  const BEAM_K=200;
-  if(!notes.length) return {plan:[], initialState:{leftOctave:4,rightOctave:5}, stateTimeline:[], handsUsed:new Set()};
-
-  // group onsets within 30ms
-  const events=[]; let cur={notes:[{...notes[0],origIdx:0}]};
-  for(let i=1;i<notes.length;i++){
-    if(notes[i].startSec - cur.notes[0].startSec < 0.03) cur.notes.push({...notes[i],origIdx:i});
-    else { events.push(cur); cur={notes:[{...notes[i],origIdx:i}]}; }
-  }
-  events.push(cur);
-  for(const ev of events){ if(ev.notes.length>9){ ev.notes.sort((a,b)=>a.midi-b.midi); ev.notes=ev.notes.slice(0,9); } }
-  // Only honor the source hand mapping when the music actually spans BOTH hands.
-  // A single line (e.g. the Core melody) must still spread across both hands
-  // (founder rule: "single-line songs use both hands, no one-hand collapse").
-  const hasBothHands = notes.some(n=>n.srcHand==='left') && notes.some(n=>n.srcHand==='right');
-
-  function handStates(handNotes, hand){
-    if(!handNotes.length) return [{oct:-1, assigns:[]}];
-    const out=[];
-    for(let oct=0;oct<=7;oct++){
-      const assigns=[]; const used=new Set(); let ok=true;
-      for(const note of handNotes){
-        const k=keyForMidi(note.midi,hand,oct);
-        if(!k || used.has(k)){ ok=false; break; }
-        used.add(k); assigns.push({origIdx:note.origIdx, hand, key:k, midi:note.midi, startSec:note.startSec, durationSec:note.durationSec});
-      }
-      if(ok) out.push({oct, assigns});
+  const fallback={plan:[], initialState:{leftOctave:4,rightOctave:5}, stateTimeline:[], handsUsed:new Set()};
+  if(!notes.length) return fallback;
+  const slices=currentSlices();
+  if(!slices.length) return fallback;
+  const r=solvePlanSlices(notes, slices);
+  const octOf=(anchors,id,dflt)=> anchors && anchors[id]!=null ? anchors[id]/12-1 : dflt;
+  const initialState={ leftOctave: octOf(r.initialAnchors,'left',4), rightOctave: octOf(r.initialAnchors,'right',5) };
+  const plan=r.plan.map(e=>{
+    if(e.type==='note') return {type:'note', noteIndex:e.noteIndex, hand:e.slice, key:e.key, midi:e.midi, startSec:e.startSec, durationSec:e.durationSec};
+    if(e.type==='shift'){
+      const sh = e.slice==='left' ? (e.dir>0?SHIFT.leftUp:SHIFT.leftDn) : (e.dir>0?SHIFT.rightUp:SHIFT.rightDn);
+      return {...sh, type:'shift', timeSec:e.timeSec};
     }
-    return out;
-  }
-  function eventSolutions(ev){
-    const n=ev.notes.length, out=[], lim=1<<n;
-    for(let mask=0;mask<lim;mask++){
-      const L=[],R=[];
-      for(let i=0;i<n;i++){ (mask&(1<<i))?R.push(ev.notes[i]):L.push(ev.notes[i]); }
-      if(L.length>5||R.length>5) continue;
-      if(L.length&&R.length){ if(Math.min(...R.map(x=>x.midi)) < Math.max(...L.map(x=>x.midi))) continue; } // no crossing
-      // honor the source's hand mapping (srcHand): penalize a split that puts a
-      // note on the hand the file didn't assign it to (soft — slice/reachability
-      // can still override when keeping it is impossible).
-      let handMiss=0;
-      if(hasBothHands){
-        for(const x of L) if(x.srcHand==='right') handMiss++;
-        for(const x of R) if(x.srcHand==='left')  handMiss++;
-      }
-      const ls=handStates(L,'left'), rs=handStates(R,'right');
-      for(const a of ls) for(const b of rs){
-        out.push({ leftOct:a.oct, rightOct:b.oct, needsLeft:L.length>0, needsRight:R.length>0,
-          assigns:[...a.assigns,...b.assigns], leftMidis:L.map(x=>x.midi), rightMidis:R.map(x=>x.midi), handMiss });
-      }
-    }
-    return out;
-  }
-  const sols = events.map(eventSolutions);
-
-  const midis=notes.map(n=>n.midi);
-  const mid=Math.round((Math.min(...midis)+Math.max(...midis))/2);
-  const initLO=Math.max(0,Math.min(7,Math.floor(mid/12)-2)), initRO=Math.min(7,initLO+1);
-  const sk=(lo,ro)=>lo+','+ro;
-
-  let beam=new Map([[sk(initLO,initRO),{cost:0,bt:null}]]);
-  for(let lo=Math.max(0,initLO-1);lo<=Math.min(7,initLO+1);lo++)
-    for(let ro=Math.max(0,initRO-1);ro<=Math.min(7,initRO+1);ro++){
-      const key=sk(lo,ro); if(!beam.has(key)) beam.set(key,{cost:5,bt:null}); }
-
-  const hist=[beam];
-  for(let ei=0;ei<events.length;ei++){
-    const cands=sols[ei];
-    const prevT=ei>0?events[ei-1].notes[0].startSec:0, curT=events[ei].notes[0].startSec, gap=curT-prevT;
-    const next=new Map();
-    if(!cands.length){
-      for(const [key,en] of beam) next.set(key,{cost:en.cost,bt:{prevKey:key,sol:null}});
-    } else {
-      for(const [pk,pe] of beam){
-        const [plo,pro]=pk.split(',').map(Number);
-        for(const s of cands){
-          const nlo=s.needsLeft?s.leftOct:plo, nro=s.needsRight?s.rightOct:pro;
-          const shifts=Math.abs(nlo-plo)+Math.abs(nro-pro);
-          let cost=shifts*10;
-          if(shifts>0 && gap<0.5) cost+=1000;
-          if(shifts>1 && gap<0.5*shifts) cost+=500*shifts;
-          if(s.needsLeft&&!s.needsRight){ for(const m of s.leftMidis) if(m>mid) cost+=20; }
-          else if(!s.needsLeft&&s.needsRight){ for(const m of s.rightMidis) if(m<mid) cost+=20; }
-          if(s.needsLeft&&s.needsRight && Math.max(...s.leftMidis)===Math.min(...s.rightMidis)) cost+=5;
-          if(s.handMiss) cost += s.handMiss*40;     // keep the file's hand assignment when feasible
-          const tot=pe.cost+cost, nk=sk(nlo,nro);
-          if(!next.has(nk)||next.get(nk).cost>tot) next.set(nk,{cost:tot,bt:{prevKey:pk,sol:s}});
-        }
-      }
-    }
-    beam = next.size>BEAM_K ? new Map([...next.entries()].sort((a,b)=>a[1].cost-b[1].cost).slice(0,BEAM_K)) : next;
-    hist.push(beam);
-  }
-
-  let bestKey=null,bestCost=Infinity;
-  for(const [k,e] of beam) if(e.cost<bestCost){bestCost=e.cost;bestKey=k;}
-  if(!bestKey) return {plan:[], initialState:{leftOctave:initLO,rightOctave:initRO}, stateTimeline:[], handsUsed:new Set()};
-
-  const path=[]; let ck=bestKey;
-  for(let ei=events.length-1;ei>=0;ei--){
-    const e=hist[ei+1].get(ck); if(!e||!e.bt) break;
-    path.unshift({stateKey:ck, sol:e.bt.sol, ei}); ck=e.bt.prevKey;
-  }
-  const [slo,sro]=ck.split(',').map(Number);
-  const initialState={leftOctave:slo,rightOctave:sro};
-  const plan=[], timeline=[{timeSec:0,leftOctave:slo,rightOctave:sro}];
-  const covered=new Set(); let pLO=slo,pRO=sro;
-
-  for(const step of path){
-    const [nlo,nro]=step.stateKey.split(',').map(Number);
-    const curT=events[step.ei].notes[0].startSec;
-    const shifts=[]; let t;
-    t=pLO; while(t<nlo){ shifts.push({...SHIFT.leftUp }); t++; } while(t>nlo){ shifts.push({...SHIFT.leftDn }); t--; }
-    t=pRO; while(t<nro){ shifts.push({...SHIFT.rightUp}); t++; } while(t>nro){ shifts.push({...SHIFT.rightDn}); t--; }
-    shifts.forEach((sh,si)=>{ sh.type='shift'; sh.timeSec=Math.max(0,curT-(shifts.length-si)*0.45); plan.push(sh); });
-    if(step.sol) for(const a of step.sol.assigns){ plan.push({type:'note',noteIndex:a.origIdx,hand:a.hand,key:a.key,midi:a.midi,startSec:a.startSec,durationSec:a.durationSec}); covered.add(a.origIdx); }
-    timeline.push({timeSec:curT,leftOctave:nlo,rightOctave:nro}); pLO=nlo; pRO=nro;
-  }
-  for(let i=0;i<notes.length;i++) if(!covered.has(i)) plan.push({type:'skip',noteIndex:i,midi:notes[i].midi,startSec:notes[i].startSec});
-  plan.sort((a,b)=>(a.timeSec??a.startSec??0)-(b.timeSec??b.startSec??0));
-  const handsUsed = new Set(plan.filter(e=>e.type==='note').map(e=>e.hand));
-  return {plan, initialState, stateTimeline:timeline, handsUsed};
+    return e; // skip
+  });
+  const stateTimeline=r.stateTimeline.map(s=>({ timeSec:s.timeSec,
+    leftOctave: octOf(s.anchors,'left',initialState.leftOctave),
+    rightOctave: octOf(s.anchors,'right',initialState.rightOctave) }));
+  return {plan, initialState, stateTimeline, handsUsed:r.slicesUsed};
 }
 
 /* Run the solver on whatever notes are currently "yours" and write the

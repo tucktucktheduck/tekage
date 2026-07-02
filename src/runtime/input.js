@@ -113,10 +113,11 @@ function shiftSlice(hand, dir){
 }
 function midiForGameKey(k){
   const hand = KEY_HAND[k]; if(!hand) return null;
-  const name = (hand==='left'?MAP.left:MAP.right)[k];
+  const v = (hand==='left'?MAP.left:MAP.right)[k];
+  const off = (typeof v==='number') ? v : NOTE_IDX[v];   // custom slices use numeric offsets
   const s = currentSlice();                       // displayed == audible
   const oct = hand==='left'?s.L:s.R;
-  return { midi: clamp((oct+1)*12 + NOTE_IDX[name], 21, 108), hand };
+  return { midi: clamp((oct+1)*12 + off, 21, 108), hand };
 }
 const down=new Map();         // key → midi currently held (for release + visuals)
 window.addEventListener('keydown',e=>{

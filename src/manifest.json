@@ -4,6 +4,7 @@
     "src/engine/parse.js",
     "src/engine/difficulty.js",
     "src/engine/deriveVersions.js",
+    "src/engine/slices.js",
     "src/engine/solvePlan.js",
     "src/runtime/audio.js",
     "src/runtime/skin.js",

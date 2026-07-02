@@ -213,21 +213,79 @@ function selectLines(voices){
 }
 
 // ── Stage 6 · difficulty-controlled thinning (the knob) ──
-// Nakamura & Yoshii 2018: trade fidelity vs a TARGET difficulty. We keep the
-// rhythmic skeleton (fidelity anchors), then add notes in salience order until
-// the difficulty descriptor (difficulty.js) reaches the tier's target band —
-// identity-preserving subset selection, so TKG still plays the real notes.
-function thinToDifficulty(notes, targetScore, durationSec){
+// Nakamura & Yoshii 2018: trade fidelity vs a TARGET difficulty — but with two
+// founder rules layered on top of the global-salience greedy:
+//   1. COVERAGE FIRST. Easy must never be "a break": if the source is playing
+//      in a time window, the player is playing in that window. We guarantee at
+//      least one note per window and cap silent gaps, BEFORE spending any of
+//      the difficulty budget. (Fixes "no notes for the first third of the song"
+//      — a global greedy spends the whole budget on the busy sections.)
+//   2. EVEN FILL. Remaining budget is spent round-robin across the SPARSEST
+//      windows (highest-salience note within each), so density rises evenly
+//      through the song instead of piling onto the chorus.
+// Fidelity anchors (strong beats / motif members) still can never disappear,
+// and everything stays an identity-preserving subset of the real notes.
+function thinToDifficulty(notes, targetScore, durationSec, opts){
   if(!notes.length) return [];
+  const WIN    = (opts&&opts.windowSec) || 3.0;   // coverage / evenness window
+  const MAXGAP = (opts&&opts.maxGapSec) || 2.0;   // longest allowed player silence while the source plays
   const sorted=[...notes].sort((a,b)=>a.startSec-b.startSec);
+  // coveragePool: the WHOLE song. Clair de Lune's opening has no melody voice
+  // at all — an Easy tier built only from the lead line shows nothing for 37
+  // seconds. When the selected lines are silent but the song isn't, coverage
+  // borrows the best accompaniment notes so the player is always playing.
+  const pool=((opts&&opts.coveragePool)||sorted).slice().sort((a,c)=>a.startSec-c.startSec);
+  const winOf=n=>Math.floor(n.startSec/WIN);
+  const lastT=Math.max(sorted[sorted.length-1].startSec, pool[pool.length-1].startSec);
+  const nWin=Math.max(1, Math.ceil((durationSec||lastT+1)/WIN));
+
+  // bucket the candidates per window, best-first (lead voice already outranks
+  // accompaniment via salience's voice-prominence term)
+  const buckets=new Array(nWin).fill(null).map(()=>[]);
+  for(const n of sorted){ const w=Math.min(nWin-1,Math.max(0,winOf(n))); buckets[w].push(n); }
+  for(const b of buckets) b.sort((a,c)=>(c.salience??0)-(a.salience??0));
+  const poolBuckets=new Array(nWin).fill(null).map(()=>[]);
+  for(const n of pool){ const w=Math.min(nWin-1,Math.max(0,winOf(n))); poolBuckets[w].push(n); }
+  for(const b of poolBuckets) b.sort((a,c)=>(c.salience??0)-(a.salience??0));
+
   const keep=new Set(sorted.filter(n=>(n._metric??0)>0.72 || (n._rep??0)>0.6));
+
+  // 1a · window coverage: any window the SONG plays in, the player plays in
+  for(let w=0;w<nWin;w++){
+    if(buckets[w].some(n=>keep.has(n))) continue;
+    if(buckets[w].length) keep.add(buckets[w][0]);
+    else if(poolBuckets[w].length) keep.add(poolBuckets[w][0]);   // borrow from the full song
+  }
+  // 1b · gap cap: no silent stretch longer than MAXGAP while the song plays
+  let changed=true;
+  while(changed){
+    changed=false;
+    const kept=[...keep].sort((a,c)=>a.startSec-c.startSec);
+    let prevT=0;
+    for(const k of kept){
+      if(k.startSec-prevT>MAXGAP){
+        const gapNotes=pool.filter(n=>!keep.has(n)&&n.startSec>prevT&&n.startSec<k.startSec);
+        if(gapNotes.length){ keep.add(gapNotes.sort((a,c)=>(c.salience??0)-(a.salience??0))[0]); changed=true; break; }
+      }
+      prevT=Math.max(prevT,k.startSec);
+    }
+  }
   if(keep.size===0){ const a=[...sorted].sort((x,y)=>(y.salience??0)-(x.salience??0))[0]; if(a) keep.add(a); }
-  const rest=sorted.filter(n=>!keep.has(n)).sort((a,b)=>(b.salience??0)-(a.salience??0));
-  const arr=()=>[...keep].sort((a,b)=>a.startSec-b.startSec);
-  let i=0;
-  // add in small batches to bound the O(n·score) cost on large (ingested) files
-  while(i<rest.length && scoreDifficulty(arr(),durationSec).score < targetScore){
-    for(let b=0;b<4 && i<rest.length;b++) keep.add(rest[i++]);
+
+  // 2 · even fill: repeatedly add the best remaining note from the sparsest
+  // window until the difficulty descriptor reaches the tier target. Batched
+  // rescoring bounds the O(n·score) cost on large (ingested) files.
+  const arr=()=>[...keep].sort((a,c)=>a.startSec-c.startSec);
+  const density=w=>{ let c=0; for(const n of buckets[w]) if(keep.has(n)) c++; return c/(buckets[w].length||1); };
+  const pending=buckets.map(b=>b.filter(n=>!keep.has(n)));
+  let remaining=pending.reduce((s,b)=>s+b.length,0);
+  while(remaining>0 && scoreDifficulty(arr(),durationSec).score < targetScore){
+    for(let batch=0;batch<4 && remaining>0;batch++){
+      let bw=-1,bd=Infinity;
+      for(let w=0;w<nWin;w++){ if(pending[w].length){ const d=density(w); if(d<bd){bd=d;bw=w;} } }
+      if(bw<0) break;
+      keep.add(pending[bw].shift()); remaining--;
+    }
   }
   return arr();
 }
@@ -287,8 +345,8 @@ function deriveVersions(parsed){
   const {lead, bass}=selectLines(voices);
   // tier target difficulties (ordinal score in [0,1]): Core = clearly easy,
   // Two-Voice = moderate; Full = the whole song untouched.
-  const core = thinToDifficulty(lead, 0.16, durationSec);
-  const two  = thinToDifficulty([...lead, ...bass].sort((a,b)=>a.startSec-b.startSec), 0.42, durationSec);
+  const core = thinToDifficulty(lead, 0.16, durationSec, { coveragePool: base });
+  const two  = thinToDifficulty([...lead, ...bass].sort((a,b)=>a.startSec-b.startSec), 0.42, durationSec, { coveragePool: base });
 
   let versions=[];
   if(core.length) versions.push({ id:'core', name:'Easy · Core', kind:'derived-core', notes:core });

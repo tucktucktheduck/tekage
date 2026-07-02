@@ -14,6 +14,61 @@
    stars, and the ingest confidence/auto-rating.
    ════════════════════════════════════════════════════════════ */
 
+/* ── QWERTY typing-strain model ──────────────────────────────
+   The founder's rule: "as a typer I'm going to feel like a typer, so that's
+   what the difficulty score should be rated against." Peak speed is a weak
+   proxy; what actually hurts is the FINGER SHAPE — u+i then y+; is brutal,
+   j+m is fine. Because the standard TKG layout maps each pitch class to a
+   fixed key (mirrored on both hands), typing strain is computable straight
+   from pitch classes, before any hand assignment.
+   Per pitch class: [finger 1=index…4=pinky, row 0=top/1=home/2=bottom, col]
+   (right-hand geometry; the left hand mirrors it, same strain). */
+const _KEYGEO = {
+  0:[1,1,0],  /* C  j  */ 2:[2,1,1],  /* D  k */ 4:[3,1,2], /* E l  */ 5:[4,1,3], /* F ; */
+  7:[1,2,0],  /* G  n  */ 9:[1,2,1],  /* A  m */ 11:[2,2,2],/* B ,  */
+  1:[1,0,0],  /* C# y  */ 3:[1,0,1],  /* D# u */ 6:[2,0,2], /* F# i */ 8:[3,0,3], /* G# o */ 10:[4,0,4] /* A# p */
+};
+function _geo(midi){ return _KEYGEO[((midi%12)+12)%12]; }
+// strain of pressing one chord (same-window notes) as a single hand shape
+function _chordStrain(ev){
+  if(ev.length<2) return 0;
+  const g=ev.map(n=>_geo(n.midi));
+  let s=0;
+  for(let i=0;i<g.length;i++) for(let j=i+1;j<g.length;j++){
+    const [fa,ra,ca]=g[i], [fb,rb,cb]=g[j];
+    if(fa===fb) s+=0.6;                                   // same finger, two keys
+    const rowSpan=Math.abs(ra-rb), fingerSpread=Math.abs(fa-fb);
+    if(rowSpan>=2) s+=0.5;                                // top+bottom row claw
+    else if(rowSpan===1) s+=0.15;                         // verticality (u over j)
+    if(Math.abs(ca-cb)<=0.5 && rowSpan>=1) s+=0.25;       // stacked same column
+    s += 0.10*fingerSpread*rowSpan;                       // wide + uneven (y + ;)
+  }
+  return s;
+}
+// strain of moving between two consecutive chords in the same short window
+function _bigramStrain(prev, cur, gapSec){
+  if(gapSec>0.6) return 0;
+  const speed = 1 - gapSec/0.6;                            // faster = harsher
+  let s=0;
+  for(const a of prev) for(const b of cur){
+    const [fa,ra]=_geo(a.midi), [fb,rb]=_geo(b.midi);
+    if(fa===fb && ((a.midi-b.midi)%12+12)%12!==0) s+=0.5;  // same-finger bigram
+    if(fa===fb && Math.abs(ra-rb)>=2) s+=0.3;              // same finger, row leap
+  }
+  return s*speed/Math.max(1,prev.length*cur.length);
+}
+// mean per-event typing strain over a note set, normalized to ~[0,1]
+function typingStrain(events){
+  if(!events.length) return 0;
+  let total=0;
+  for(let i=0;i<events.length;i++){
+    total += _chordStrain(events[i]);
+    if(i>0) total += _bigramStrain(events[i-1], events[i],
+      events[i][0].startSec - events[i-1][0].startSec);
+  }
+  return clamp((total/events.length)/1.6, 0, 1);           // ~1.6 strain/event = max
+}
+
 // group note onsets into chord "events" (notes within 30ms = simultaneous)
 function _onsetEvents(sorted){
   const events=[]; if(!sorted.length) return events;
@@ -30,7 +85,7 @@ function _onsetEvents(sorted){
 function difficultyFeatures(notes, durationSec){
   const N = notes.length;
   const dur = Math.max(0.5, durationSec || 0);
-  if(!N) return { density:0, speed:0, entropy:0, displacement:0, stretch:0, polyphony:1, span:0, irregularity:0 };
+  if(!N) return { density:0, speed:0, entropy:0, displacement:0, stretch:0, polyphony:1, span:0, irregularity:0, typing:0 };
   const sorted=[...notes].sort((a,b)=>a.startSec-b.startSec || a.midi-b.midi);
 
   // density — notes per second
@@ -78,10 +133,15 @@ function difficultyFeatures(notes, durationSec){
     irregularity = m>0 ? Math.min(1.5, sd/m)/1.5 : 0;
   }
 
-  return { density, speed, entropy, displacement, stretch, polyphony:maxPoly, span, irregularity };
+  // typing strain — the "feels like a typer" descriptor (finger shapes)
+  const typing = typingStrain(events);
+
+  return { density, speed, entropy, displacement, stretch, polyphony:maxPoly, span, irregularity, typing };
 }
 
-// ordinal difficulty in [0,1] from the descriptors (soft-capped + weighted)
+// ordinal difficulty in [0,1] from the descriptors (soft-capped + weighted).
+// Weights follow the founder's feel calibration: typing strain (finger shapes)
+// matters a lot; raw peak speed matters much less than it used to.
 function scoreDifficulty(notes, durationSec){
   const f = difficultyFeatures(notes, durationSec);
   const nd   = clamp(f.density/8, 0, 1);          // ~8 n/s = very busy
@@ -91,7 +151,8 @@ function scoreDifficulty(notes, durationSec){
   const nst  = clamp(f.stretch/1.5, 0, 1);        // 1.5-octave chords
   const npo  = clamp((f.polyphony-1)/4, 0, 1);    // 5+ simultaneous = max
   const nir  = f.irregularity;                      // 0..1
-  const score = 0.28*nd + 0.20*ns + 0.10*ne + 0.16*ndi + 0.12*nst + 0.08*npo + 0.06*nir;
+  const nty  = f.typing;                            // 0..1 finger-shape strain
+  const score = 0.26*nd + 0.10*ns + 0.08*ne + 0.14*ndi + 0.10*nst + 0.08*npo + 0.06*nir + 0.18*nty;
   return { score: clamp(score,0,1), ...f };
 }
 
