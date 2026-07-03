@@ -4,13 +4,29 @@
 const Transport = {
   playing:false, rate:1.0, songTime:0,
   anchorCtx:0, anchorSong:0, schedPtr:0, schedTimer:null,
-  // tempo: effective rate = targetRate (SPEED slider) * slowFactor (Auto-Slow, T21)
-  targetRate:1.0, slowFactor:1.0, slowTarget:1.0, autoSlow:false, _lastCtx:undefined,
+  targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0,
 
-  // Auto-Slow hooks (T21) — a miss eases the tempo toward the floor; each hit
-  // nudges the recovery target back up toward the SPEED target. No-ops unless on.
-  noteMissed(){ if(this.autoSlow) this.slowTarget = AUTOSLOW.floor; },
-  noteHit(){ if(this.autoSlow) this.slowTarget = Math.min(1, this.slowTarget + AUTOSLOW.recoverPerHit); },
+  // Auto-Slow (T21, reworked per the founder's note): the song WAITS FOR YOU.
+  // Not a tempo ramp after a miss — the clock brakes as an unpressed
+  // yours-note approaches the hit line, parks exactly ON the line (rate 0),
+  // and holds until the player presses it. "It only slows if you are not
+  // pressing the note." Hooks kept as no-ops for API compatibility (input.js
+  // calls them); the gate is recomputed from Score state every tick, so
+  // hit/miss events need no bookkeeping here.
+  noteMissed(){}, noteHit(){},
+  // the earliest yours-note the player hasn't played yet = the gate
+  _gateNote(){
+    if(!this.autoSlow || UI.mode!=='play' || !Score.on) return null;
+    const N=Song.notes;
+    while(this._gatePtr<N.length){
+      const n=N[this._gatePtr];
+      // skip engine notes, already-judged notes, and long-past notes (a seek
+      // or toggling the assist mid-song must never deadlock on history)
+      if(!isYours(n) || Score.byNote.has(n) || n.startSec < this.songTime - JUDGE_WINDOWS.okay){ this._gatePtr++; continue; }
+      return n;
+    }
+    return null;
+  },
 
   play(){
     if(!Song.notes.length) return;
@@ -18,8 +34,8 @@ const Transport = {
     if(this.songTime>=Song.duration) this.songTime=0;
     // Start a fresh scored run when PLAY begins from the top (T20).
     if(typeof UI!=='undefined' && UI.mode==='play' && this.songTime<=0.01) Score.reset();
-    // reset Auto-Slow and lock in the current SPEED target as the effective rate
-    this.slowFactor=1; this.slowTarget=1; this._lastCtx=undefined;
+    // reset the Auto-Slow gate and lock in the SPEED target as the rate
+    this.waiting=false; this._gatePtr=0;
     this.rate = clamp(this.targetRate, 0.05, 4);
     // Defer the clock anchor until the AudioContext is actually advancing.
     // A freshly-created context reports currentTime===0 until its audio thread
@@ -33,7 +49,7 @@ const Transport = {
   pause(){ this.playing=false; setPlayBtn(false); Audio.allNotesOff(); },
   toggle(){ this.playing?this.pause():this.play(); },
   restart(){ Audio.allNotesOff(); this.seek(0); if(!this.playing) draw(); },
-  seek(t){ Audio.allNotesOff(); this.songTime=clamp(t,0,Song.duration||0); if(this.playing){this._anchor();this._resetPtr();} if(typeof UI!=='undefined'&&UI.mode==='play') seedUserSlice(this.songTime); },
+  seek(t){ Audio.allNotesOff(); this.songTime=clamp(t,0,Song.duration||0); this._gatePtr=0; this.waiting=false; if(this.playing){this._anchor();this._resetPtr();} if(typeof UI!=='undefined'&&UI.mode==='play') seedUserSlice(this.songTime); },
 
   _anchor(){ this.anchorCtx=Audio.now(); this.anchorSong=this.songTime; },
   // change the effective rate continuously: re-anchor so songTime stays unbroken
@@ -58,16 +74,26 @@ const Transport = {
     }
     this.songTime = this.anchorSong + (Audio.now()-this.anchorCtx)*this.rate;
     if(UI.mode==='play') Score.sweep(this.songTime);   // fallen yours-notes -> miss
-    // Auto-Slow: ease slowFactor toward its target by the audio-clock dt, then drive
-    // the effective rate. Clock-driven (Audio.now), so audio + falling notes stay
-    // in lock-step regardless of tick jitter (docs/09: no wall-time timers).
+    // Auto-Slow (wait mode): brake toward the next unpressed yours-note so the
+    // clock parks exactly at the hit line, then hold at rate 0 until it's
+    // pressed. rate = base·rem/pre decays the remaining gap geometrically per
+    // tick (a smooth, fast swoop into the line that cannot overshoot at any
+    // tick spacing); `creep` guarantees arrival, `eps` snaps the final hold.
+    // Everything is driven off songTime, so audio + falling notes stay in
+    // lock-step (docs/09: no wall-time timers). Pressing the gated note
+    // credits it in Score, the gate advances, and the rate law releases to
+    // base on the very next tick — resume is instant.
+    const base = clamp(this.targetRate, 0.05, 4);
+    let rate = base;
+    this.waiting = false;
+    const g = this._gateNote();
+    if(g){
+      const rem = g.startSec - this.songTime;
+      if(rem <= AUTOSLOW.eps){ rate = 0; this.waiting = true; }
+      else if(rem < AUTOSLOW.pre){ rate = Math.max(base*rem/AUTOSLOW.pre, AUTOSLOW.creep); }
+    }
+    this._setRate(rate);
     const nowCtx=Audio.now();
-    if(this.autoSlow){
-      const dt = (this._lastCtx===undefined) ? 0 : Math.max(0, nowCtx-this._lastCtx);
-      this.slowFactor = easeToward(this.slowFactor, this.slowTarget, AUTOSLOW.easePerSec*dt);
-    } else { this.slowFactor=1; this.slowTarget=1; }
-    this._lastCtx=nowCtx;
-    this._setRate(clamp(this.targetRate*this.slowFactor, 0.05, 4));
     const ahead = nowCtx+0.12;
     while(this.schedPtr<Song.notes.length){
       const n=Song.notes[this.schedPtr];
@@ -79,7 +105,7 @@ const Transport = {
       //            couldn't reach (n.skip) — so the song stays whole while you
       //            play your version's notes yourself.
       if(UI.mode==='listen' || n.backing || n.skip){
-        Audio.strike(n.midi, when, n.durationSec/this.rate, clamp((n.vel||90)/127,0.2,1));
+        Audio.strike(n.midi, when, n.durationSec/Math.max(this.rate,0.05), clamp((n.vel||90)/127,0.2,1));
       }
       this.schedPtr++;
     }

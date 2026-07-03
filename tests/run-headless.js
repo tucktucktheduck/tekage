@@ -101,15 +101,57 @@ ok(P.easeToward(0.9, 1.0, 0.2) === 1.0, 'never overshoots the target (up)');
 ok(P.easeToward(0.5, 0.5, 0.2) === 0.5, 'at target stays put');
 ok(P.easeToward(1.0, 0.4, 0) === 1.0, 'zero dt = no movement');
 
-// — Auto-Slow trigger/recover semantics (T21) —
-P.Transport.autoSlow = true;
-P.Transport.slowTarget = 1; P.Transport.slowFactor = 1;
-P.Transport.noteMissed();
-ok(P.Transport.slowTarget === P.AUTOSLOW.floor, 'a miss sets the slow target to the floor');
-P.Transport.noteHit();
-ok(P.Transport.slowTarget > P.AUTOSLOW.floor && P.Transport.slowTarget <= 1, 'a hit recovers the slow target upward');
-P.Transport.autoSlow = false; P.Transport.noteMissed();
-ok(P.Transport.slowTarget !== P.AUTOSLOW.floor || true, 'noteMissed is a no-op when Auto-Slow is off');
+// — Auto-Slow (T21, wait mode): the song brakes, PARKS at an unpressed note,
+//   and resumes the instant it's pressed. Driven against the real transport
+//   with the harness's fake audio clock. —
+console.log('\n— AUTO-SLOW (wait mode) —');
+{
+  const T=P.Transport, S=P.Score;
+  const tick=(secs)=>{ const steps=Math.round(secs/0.025); for(let i=0;i<steps;i++){ CTXTIME+=0.025; T._tick(); } };
+  P.UI.mode='play'; P.UI.autoShift=false;
+  T.autoSlow=true; T.targetRate=1;
+  S.reset();
+  // choose a gate note comfortably into the song; pre-credit everything before it
+  const yours=P.Song.notes.filter(n=>P.isYours(n));
+  const gate=yours.find(n=>n.startSec>0.5) || yours[0];
+  for(const n of yours){ if(n.startSec<gate.startSec) S.byNote.set(n,{note:n,tier:'perfect'}); }
+  // hand-start the transport against the fake clock (play()'s anchor warmup
+  // needs a live AudioContext; here we anchor directly)
+  CTXTIME=100; T.playing=true; T._pendingAnchor=false; T._gatePtr=0; T.waiting=false;
+  T.songTime=0; T.anchorCtx=CTXTIME; T.anchorSong=0; T.rate=1;
+  tick(gate.startSec + 3.0);                       // drive WAY past the gate time
+  ok(T.songTime <= gate.startSec + 0.01, 'clock parks at the unpressed note ('+T.songTime.toFixed(3)+'s vs onset '+gate.startSec.toFixed(3)+'s)');
+  ok(T.waiting===true && T.rate===0, 'transport holds: waiting=true, rate=0');
+  ok(![...S.byNote.values()].some(r=>r.note===gate&&r.tier==='miss'), 'the gated note is never swept as a miss');
+  const parked=T.songTime;
+  tick(2.0);
+  ok(Math.abs(T.songTime-parked)<1e-6, 'holds indefinitely — Auto-Slow waits, no matter what');
+  // press it -> instant resume at full rate
+  S.byNote.set(gate,{note:gate,tier:'perfect'});
+  tick(0.05);
+  ok(T.rate>0.9 || T.waiting===false, 'crediting the note releases the gate immediately');
+  // chord gate: if the song has simultaneous yours-notes, one press is not enough
+  const chordAt=yours.find(n=>yours.some(m=>m!==n && Math.abs(m.startSec-n.startSec)<0.001) && n.startSec>gate.startSec);
+  if(chordAt){
+    const chord=yours.filter(m=>Math.abs(m.startSec-chordAt.startSec)<0.001);
+    for(const n of yours){ if(n.startSec>gate.startSec && n.startSec<chordAt.startSec-0.001) S.byNote.set(n,{note:n,tier:'perfect'}); }
+    tick(chordAt.startSec - T.songTime + 2.0);
+    ok(T.waiting===true && T.songTime<=chordAt.startSec+0.01, 'a chord gates the clock too');
+    S.byNote.set(chord[0],{note:chord[0],tier:'perfect'});
+    tick(0.5);
+    ok(T.waiting===true, 'one pressed chord note is not enough — still waiting');
+    for(const n of chord) S.byNote.set(n,{note:n,tier:'perfect'});
+    tick(0.1);
+    ok(T.waiting===false, 'pressing the whole chord releases the gate');
+  }
+  // no anticipatory braking: far from any unpressed note, rate is the full target
+  const far=yours.find(n=>!S.byNote.has(n) && n.startSec>T.songTime+1.0);
+  if(far){ tick(0.1); ok(T.rate>0.9, 'no slowdown while the next note is far away (rate '+T.rate.toFixed(2)+')'); }
+  // assist off: the same situation plays straight through
+  T.autoSlow=false; const t1=T.songTime; tick(1.0);
+  ok(T.songTime>t1+0.9, 'Auto-Slow off: the clock never gates');
+  T.playing=false; T.autoSlow=false; S.stop(); T.songTime=0; T._gatePtr=0;
+}
 
 // — Auto-Shift (T22): in PLAY with the assist on, currentSlice follows the plan —
 P.UI.mode = 'play';

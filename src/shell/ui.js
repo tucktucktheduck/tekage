@@ -222,9 +222,9 @@ function levelId(){
   return t+'#'+Song.notes.length+'x'+Math.round(Song.duration||0)+'#'+v;
 }
 if($('slowChk')) $('slowChk').onchange=()=>{ UI.autoSlow=$('slowChk').checked; Transport.autoSlow=UI.autoSlow;
-  if(!UI.autoSlow){ Transport.slowFactor=1; Transport.slowTarget=1; }
+  if(!UI.autoSlow){ Transport.waiting=false; }
   persistSettings();
-  flash(UI.autoSlow?'AUTO-SLOW on · the song eases down when you miss, recovers as you hit':'Auto-Slow off'); };
+  flash(UI.autoSlow?'AUTO-SLOW on · the song stops at the line and waits for your note':'Auto-Slow off'); };
 if($('shiftChk')) $('shiftChk').onchange=()=>{ UI.autoShift=$('shiftChk').checked;
   persistSettings();
   flash(UI.autoShift?'AUTO-SHIFT on · the engine moves your hands — just press the keys':'Auto-Shift off · you move your slices with Tab / ⏎'); };
