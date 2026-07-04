@@ -54,9 +54,9 @@ function draw(){
 
   const t = Transport.songTime;
   const laneTop=0, hitY=pianoTop;
-  const slice = currentSlice();
+  const anchors = currentAnchors();
 
-  drawSliceLanes(slice);          // faint corridors showing where each hand sits
+  drawSliceLanes(anchors);        // faint corridors showing where each slice sits
 
   // gather currently sounding (for key glow)
   activeKeys.clear();
@@ -81,8 +81,8 @@ function draw(){
 
   drawNotePulses();               // the note is the star: lights & pulses on a hit
 
-  drawPiano(slice);
-  drawSliceTabs(slice);           // the L / R hand markers sitting on the keys
+  drawPiano(anchors);
+  drawSliceTabs(anchors);         // per-slice markers sitting on the keys
   if(UI.mode==='play') drawShiftCues(t);
   if(Song.duration) drawProgress(t);
 }
@@ -123,18 +123,46 @@ function drawCover(img){
   g.drawImage(img, (W-dw)/2, (H-dh)/2, dw, dh);
 }
 
-/* faint vertical corridor for each hand's current one-octave slice */
-function drawSliceLanes(slice){
-  const used = Song.handsUsed || new Set(['left','right']);
+/* ── N-slice palette + geometry helpers (docs/14 §2.3/§2.5) ───────────
+   Slice colors come from Skin.sliceColor(slice) — the per-slice palette
+   (explicit color / legacy left-right / accessible cycle by order). The
+   two-hand HAND table is only a fallback for an unresolved id. */
+function usedSlices(){
+  const all = (typeof currentSlices==='function') ? currentSlices() : [];
+  const used = Song.slicesUsed || Song.handsUsed;
+  return (used && used.size) ? all.filter(s=>used.has(s.id)) : all;
+}
+function slicePal(slice){ return (Skin.sliceColor && slice) ? Skin.sliceColor(slice) : (HAND[slice&&slice.id]||HAND.right); }
+function palById(id){
+  const all = (typeof currentSlices==='function') ? currentSlices() : [];
+  const s = all.find(x=>x.id===id);
+  return s ? slicePal(s) : (HAND[id]||HAND.right);
+}
+// pitch window a slice covers at `anchor` = [anchor+lowestOffset, anchor+highestOffset]
+function sliceWindow(slice, anchor){
+  const o0 = (slice.offs&&slice.offs.length) ? slice.offs[0] : 0;
+  const o1 = (slice.offs&&slice.offs.length) ? slice.offs[slice.offs.length-1] : 11;
+  return { lo: clamp(anchor+o0, LO, HI), hi: clamp(anchor+o1, LO, HI) };
+}
+// rail x-positions for N slices: 2 -> classic left/right; N -> evenly spread; cap 4
+function railPositions(n){
+  const N=Math.min(Math.max(n,1),4);
+  if(N===1) return [W-22];
+  const L=22, R=W-22, out=[];
+  for(let i=0;i<N;i++) out.push(L + (R-L)*i/(N-1));
+  return out;
+}
+
+/* faint vertical corridor for each slice's current pitch window */
+function drawSliceLanes(anchors){
   g.save();
-  for(const hand of ['left','right']){
-    if(!used.has(hand)) continue;
-    const oct = hand==='left'?slice.L:slice.R;
-    const lo=clamp((oct+1)*12,LO,HI), hi=clamp((oct+1)*12+11,LO,HI);
+  for(const s of usedSlices()){
+    const a = anchors[s.id]; if(a==null) continue;
+    const {lo,hi} = sliceWindow(s, a);
     if(!geom[lo]||!geom[hi]) continue;
     const x0=geom[lo].x, x1=geom[hi].x + geom[hi].w;
     const grad=g.createLinearGradient(0,0,0,pianoTop);
-    const c=HAND[hand].rgb;
+    const c=slicePal(s).rgb;                              // overlapping lanes add up -> both tints
     grad.addColorStop(0,`rgba(${c},0)`); grad.addColorStop(1,`rgba(${c},.07)`);
     g.fillStyle=grad; g.fillRect(x0,0,x1-x0,pianoTop);
     g.strokeStyle=`rgba(${c},.10)`; g.lineWidth=1;
@@ -173,8 +201,7 @@ function drawNote(n, ty, by){
   const h = drawBy - top;
   if(h<=0.5) return;
 
-  const hand = n.hand || 'right';
-  const pal = HAND[hand];
+  const pal = palById(n.slice || n.hand || 'right');
   let fill, glow;
   if(n.skip){ fill='rgba(120,130,150,.30)'; glow='rgba(120,130,150,.18)'; }
   else { fill = sounding ? pal.fillBright : pal.fill; glow = sounding ? pal.glowBright : pal.glow; }
@@ -211,40 +238,55 @@ function drawNote(n, ty, by){
 }
 
 /* slice markers + key tint live in drawPiano/drawSliceTabs below */
-function drawSliceTabs(slice){
-  const used = Song.handsUsed || new Set(['left','right']);
-  for(const hand of ['left','right']){
-    if(!used.has(hand)) continue;
-    const oct = hand==='left'?slice.L:slice.R;
-    const lo=clamp((oct+1)*12,LO,HI), hi=clamp((oct+1)*12+11,LO,HI);
+function drawSliceTabs(anchors){
+  const y0 = pianoTop-12;
+  g.font="700 10px 'Orbitron', sans-serif";
+  // measure every used slice's bracket + pill, then pack pills into vertical
+  // levels so overlapping slice windows never overprint (docs/14 §2.3).
+  const items = [];
+  for(const s of usedSlices()){
+    const a = anchors[s.id]; if(a==null) continue;
+    const {lo,hi} = sliceWindow(s, a);
     if(!geom[lo]||!geom[hi]) continue;
     const x0=geom[lo].x, x1=geom[hi].x+geom[hi].w, cx=(x0+x1)/2;
-    const pal=HAND[hand]; const y=pianoTop-12;
-    // bracket spanning the octave
-    g.save();
-    g.strokeStyle=pal.fill; g.lineWidth=2; g.shadowBlur=8; g.shadowColor=pal.glow;
-    g.beginPath(); g.moveTo(x0+1,y+8); g.lineTo(x0+1,y); g.lineTo(x1-1,y); g.lineTo(x1-1,y+8); g.stroke();
-    // label pill
-    const txt = (hand==='left'?'L ':'R ')+'C'+(oct);
-    g.font="700 10px 'Orbitron', sans-serif"; g.textAlign='center'; g.textBaseline='middle';
+    const txt = s.label+' '+noteName(a)+octaveOf(a);
     const tw=g.measureText(txt).width+12;
+    items.push({ s, x0, x1, cx, txt, tw, pillL:cx-tw/2, pillR:cx+tw/2 });
+  }
+  items.sort((p,q)=>p.pillL-q.pillL);
+  const levelRight=[];                        // greedy interval coloring -> stagger level
+  for(const it of items){
+    let lvl=0; while(lvl<levelRight.length && levelRight[lvl] > it.pillL-6) lvl++;
+    it.level=lvl; levelRight[lvl]=it.pillR;
+  }
+  for(const it of items){
+    const pal=slicePal(it.s); const py=y0 - it.level*15;
+    g.save();
+    // bracket sits on the keys; only the pill stacks upward
+    g.strokeStyle=pal.fill; g.lineWidth=2; g.shadowBlur=8; g.shadowColor=pal.glow;
+    g.beginPath(); g.moveTo(it.x0+1,y0+8); g.lineTo(it.x0+1,y0); g.lineTo(it.x1-1,y0); g.lineTo(it.x1-1,y0+8); g.stroke();
+    g.textAlign='center'; g.textBaseline='middle';
     g.fillStyle=pal.fill; g.shadowBlur=10;
-    roundRect(cx-tw/2,y-13,tw,13,6); g.fill();
-    g.shadowBlur=0; g.fillStyle=pal.ink; g.fillText(txt,cx,y-6.5);
+    roundRect(it.cx-it.tw/2, py-13, it.tw, 13, 6); g.fill();
+    g.shadowBlur=0; g.fillStyle=pal.ink; g.fillText(it.txt, it.cx, py-6.5);
     g.restore();
   }
 }
 
-/* falling shift cues — left-hand on the left rail, right-hand on the right.
-   When one reaches the line it's your signal to shift that slice. */
+/* falling shift cues on per-slice rails: lowest order -> far left, highest ->
+   far right (2 slices = the classic left/right rails). When a cue reaches the
+   line it's your signal to shift that slice. Rails cap at 4; extra slices share
+   the nearest rail (docs/14 §2.3). */
 function drawShiftCues(t){
   const cues=Song.shiftCues||[]; const hitY=pianoTop;
+  const slices = usedSlices().slice().sort((a,b)=>a.order-b.order);
+  const rails = railPositions(slices.length);
+  const railOf={}; slices.forEach((s,i)=>{ railOf[s.id]=rails[Math.min(i, rails.length-1)]; });
   for(const c of cues){
     const by = hitY - (c.timeSec - t)*FALL;
     if(by<-30 || by>hitY+30) continue;
-    const left = c.hand==='left';
-    const railX = left ? 22 : W-22;
-    const pal=HAND[c.hand];
+    const railX = (railOf[c.slice] != null) ? railOf[c.slice] : (c.hand==='left'?22:W-22);
+    const pal=palById(c.slice || c.hand);
     const near = Math.abs(by-hitY)<14;
     g.save();
     g.translate(railX, by);
@@ -257,37 +299,38 @@ function drawShiftCues(t){
     g.font="700 7px 'Orbitron',sans-serif"; g.fillText(c.tag, 0, 7);
     g.restore();
   }
-  // rail labels (only for hands this arrangement actually uses)
-  const used = Song.handsUsed || new Set(['left','right']);
+  // rail labels — one per used slice, at its rail
   g.save();
   g.font="700 8px 'Orbitron',sans-serif"; g.textAlign='center'; g.globalAlpha=.5;
-  if(used.has('left')) { g.fillStyle=HAND.left.fill;  g.fillText('SHIFT L', 22, 14); }
-  if(used.has('right')){ g.fillStyle=HAND.right.fill; g.fillText('SHIFT R', W-22, 14); }
+  slices.forEach((s,i)=>{ g.fillStyle=slicePal(s).fill; g.fillText('SHIFT '+s.label, rails[Math.min(i, rails.length-1)], 14); });
   g.restore();
 }
 
-function inSlice(m, slice){
-  const used = Song.handsUsed || new Set(['left','right']);
-  if(used.has('left')  && m>= (slice.L+1)*12 && m<=(slice.L+1)*12+11) return 'left';
-  if(used.has('right') && m>= (slice.R+1)*12 && m<=(slice.R+1)*12+11) return 'right';
+// which used slice's window covers `midi` at the current anchors (first by
+// config order on overlap) — drives the faint per-slice key tint.
+function sliceIdAt(m, anchors){
+  for(const s of usedSlices()){
+    const a=anchors[s.id]; if(a==null) continue;
+    const {lo,hi}=sliceWindow(s, a);
+    if(m>=lo && m<=hi) return s.id;
+  }
   return null;
 }
-function drawPiano(slice){
+function drawPiano(anchors){
   const namesOn = UI.keyNames;
   // white keys
   for(let m=LO;m<=HI;m++){
     const ge=geom[m]; if(ge.isBlk) continue;
     const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
     let topCol='#f3f6fb', botCol='#c4ccd8';
-    if(hand==='right'){ topCol=HAND.right.keyTop; botCol=HAND.right.keyBot; }
-    else if(hand==='left'){ topCol=HAND.left.keyTop; botCol=HAND.left.keyBot; }
+    if(hand){ const p=palById(hand); topCol=p.keyTop; botCol=p.keyBot; }
     const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
     grad.addColorStop(0,topCol); grad.addColorStop(1,botCol);
     g.fillStyle=grad; g.fillRect(ge.x,ge.y,ge.w-1,ge.h);
     // slice tint (only when key isn't already lit)
-    const sl=inSlice(m,slice);
-    if(sl && !hand){ g.fillStyle = HAND[sl].tint; g.fillRect(ge.x,ge.y,ge.w-1,ge.h); }
-    if(hand){ g.save(); g.shadowBlur=18; g.shadowColor=HAND[hand].glowBright;
+    const sid=sliceIdAt(m,anchors);
+    if(sid && !hand){ g.fillStyle = palById(sid).tint; g.fillRect(ge.x,ge.y,ge.w-1,ge.h); }
+    if(hand){ g.save(); g.shadowBlur=18; g.shadowColor=palById(hand).glowBright;
       g.fillStyle='rgba(255,255,255,0.001)'; g.fillRect(ge.x,ge.y,ge.w-1,6); g.restore(); }
     g.strokeStyle='#2a3242'; g.lineWidth=1; g.strokeRect(ge.x+0.5,ge.y+0.5,ge.w-1,ge.h-1);
     if(namesOn && noteName(m)==='C'){
@@ -301,12 +344,11 @@ function drawPiano(slice){
     const ge=geom[m]; if(!ge.isBlk) continue;
     const act=activeKeys.get(m), pr=pressed.get(m), hand=act||pr;
     let top='#23282f', bot='#05070b';
-    if(hand==='right'){ top=HAND.right.fillBright; bot=HAND.right.fill; }
-    else if(hand==='left'){ top=HAND.left.fillBright; bot=HAND.left.fill; }
-    else { const sl=inSlice(m,slice); if(sl){ top = HAND[sl].tint; bot='#05070b'; } }
+    if(hand){ const p=palById(hand); top=p.fillBright; bot=p.fill; }
+    else { const sid=sliceIdAt(m,anchors); if(sid){ top = palById(sid).tint; bot='#05070b'; } }
     const grad=g.createLinearGradient(0,ge.y,0,ge.y+ge.h);
     grad.addColorStop(0,top); grad.addColorStop(1,bot);
-    if(hand){ g.save(); g.shadowBlur=16; g.shadowColor=HAND[hand].glowBright; }
+    if(hand){ g.save(); g.shadowBlur=16; g.shadowColor=palById(hand).glowBright; }
     g.fillStyle=grad; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.fill();
     if(hand) g.restore();
     g.strokeStyle='#000'; g.lineWidth=1; roundRect(ge.x,ge.y,ge.w,ge.h,2); g.stroke();

@@ -39,13 +39,46 @@ const Skin = (()=>{
     };
   }
 
+  // Accessible, high-contrast cycle for slices beyond the two legacy hands
+  // (docs/14 §2.5). Kept distinct in hue + luminance so N slices stay legible.
+  const SLICE_CYCLE = ['#1a8fff','#ff8a2b','#37d67a','#c957ff','#ffd23f','#ff5470','#22d3ee','#a3e635'];
+  let _sliceCache = {};   // resolved-base-hex -> palette (cleared on apply())
+
   const S = {
     primary: DEF.primary, secondary: DEF.secondary, bg: DEF.bg, bgImage: null, bgMode: 'color',
     HAND: { left: palette(DEF.secondary, DEF.secondary), right: palette(DEF.primary, DEF.primary) },
 
+    // per-slice palette (docs/14 §2.5): explicit slice.color wins; the legacy
+    // left/right ids take secondary/primary (so the classic look is unchanged);
+    // any other slice cycles the accessible palette by its order. Memoized per
+    // resolved base color; the cache is cleared whenever the skin changes.
+    sliceColor(slice){
+      slice = slice || {};
+      let base = (typeof slice.color==='string' && hexToRgb(slice.color)) ? slice.color : null;
+      if(!base){
+        if(slice.id==='right')      base = this.primary;
+        else if(slice.id==='left')  base = this.secondary;
+        else { const o = Number.isFinite(slice.order) ? (slice.order|0) : 0;
+               base = SLICE_CYCLE[((o % SLICE_CYCLE.length) + SLICE_CYCLE.length) % SLICE_CYCLE.length]; }
+      }
+      if(!_sliceCache[base]) _sliceCache[base] = palette(base, base);
+      return _sliceCache[base];
+    },
+    // publish --slice-<id> CSS custom properties for the DOM MapView / Teklet
+    // (docs/14 §2.5). No-op without a document (headless).
+    applySliceVars(slices){
+      try {
+        if(typeof document==='undefined' || !document.documentElement) return;
+        const st = document.documentElement.style;
+        for(const s of (slices||[])){ const p=this.sliceColor(s);
+          st.setProperty('--slice-'+s.id, p.hex); st.setProperty('--slice-'+s.id+'-ink', p.ink); }
+      } catch(e){ /* ignore */ }
+    },
+
     // (re)derive the palette from a skin config fragment. Never throws.
     apply(skin){
       try {
+        _sliceCache = {};                 // slice palettes rederive against the new skin
         skin = skin || {};
         const colors = skin.colors || {};
         // accept docs/10 {colors:{primary,secondary},background:{...}} AND legacy {left,right,bg}
