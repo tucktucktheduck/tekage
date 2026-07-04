@@ -28,9 +28,16 @@ test('T21: Auto-Slow parks the clock at an unpressed note and resumes on the pre
   const parked = await page.evaluate(() => ({
     t: Transport.songTime, rate: Transport.rate,
     gate: Song.notes.find(n => isYours(n) && !Score.byNote.has(n))?.startSec ?? -1,
+    hold: AUTOSLOW.hold, okay: JUDGE_WINDOWS.okay,
   }));
   expect(parked.rate).toBe(0);
-  expect(parked.t).toBeLessThanOrEqual(parked.gate + 0.01);   // ON the line, not past it
+  // "wait only when you're late": the note falls at full speed THROUGH its onset
+  // line and the clock parks just past it, at gate + AUTOSLOW.hold, kept inside the
+  // okay window so the note stays creditable. It never brakes before the line —
+  // that early freeze was the old glitch this rework removed.
+  expect(parked.t).toBeGreaterThan(parked.gate);
+  expect(parked.t).toBeLessThanOrEqual(parked.gate + parked.okay);   // still creditable
+  expect(parked.t).toBeCloseTo(parked.gate + parked.hold, 1);        // parks at the hold offset
 
   // it waits — no matter what (real time passes, songTime doesn't)
   await page.waitForTimeout(700);

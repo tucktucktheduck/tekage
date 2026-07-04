@@ -23,7 +23,7 @@ const Score = {
     let best=null, bestD=Infinity;
     for(const n of (Song.activeNotes||[])){
       if(this.byNote.has(n)) continue;
-      const match = (voiceKey && KEY_HAND[voiceKey]) ? (n.key===voiceKey) : (n.midi===midi);
+      const match = (voiceKey && (KEY_SLICE[voiceKey]||KEY_HAND[voiceKey])) ? (n.key===voiceKey) : (n.midi===midi);
       if(!match) continue;
       const d=Math.abs(n.startSec-songTime);
       if(d<bestD){ bestD=d; best=n; }
@@ -80,7 +80,7 @@ function userOn(midi, hand, voiceKey){
   else {
     // outside a scored run, still flash the key when it lines up with a note onset
     for(const n of (Song.activeNotes||[])){
-      const match = (vk && KEY_HAND[vk]) ? (n.key===vk) : (n.midi===midi);
+      const match = (vk && (KEY_SLICE[vk]||KEY_HAND[vk])) ? (n.key===vk) : (n.midi===midi);
       if(match && Math.abs(n.startSec-t)<0.18){ hitFlash.set(midi,performance.now()); break; }
     }
   }
@@ -105,32 +105,42 @@ cvs.addEventListener('click',e=>{
 });
 
 /* Computer keyboard = the TKG instrument. You press the key shown on the
-   falling note; it sounds at your slice's CURRENT octave for that hand. The
-   shift keys move each slice independently — the whole point of TKG. */
-function shiftSlice(hand, dir){
-  if(hand==='left')  userSlice.L = clamp(userSlice.L+dir, 0, 7);
-  else               userSlice.R = clamp(userSlice.R+dir, 0, 7);
+   falling note; it sounds at that slice's CURRENT anchor. The shift keys move
+   each slice independently — the whole point of TKG. Slices are keyed by id, so
+   any number of them (not just left/right) shift and sound correctly. */
+function shiftSlice(sliceId, dir){
+  const s = currentSlices().find(x=>x.id===sliceId); if(!s) return;
+  const a = (userAnchors[sliceId]!=null) ? userAnchors[sliceId]
+          : (s.initialAnchor!=null ? s.initialAnchor : (s.minAnchor+s.maxAnchor)/2);
+  userAnchors[sliceId] = clamp(a + dir*s.step, s.minAnchor, s.maxAnchor);
 }
 function midiForGameKey(k){
-  const hand = KEY_HAND[k]; if(!hand) return null;
-  const v = (hand==='left'?MAP.left:MAP.right)[k];
-  const off = (typeof v==='number') ? v : NOTE_IDX[v];   // custom slices use numeric offsets
-  const s = currentSlice();                       // displayed == audible
-  const oct = hand==='left'?s.L:s.R;
-  return { midi: clamp((oct+1)*12 + off, 21, 108), hand };
+  const sliceId = (typeof KEY_SLICE!=='undefined' && KEY_SLICE[k]) || KEY_HAND[k];
+  if(!sliceId) return null;
+  const s = currentSlices().find(x=>x.id===sliceId);
+  let off;
+  if(s){ const e = s.keys.find(x=>x.key===k); if(e) off = e.off; }
+  if(off===undefined){                              // fallback to the legacy MAP
+    const v = (KEY_HAND[k]==='left'?MAP.left:MAP.right)[k];
+    off = (typeof v==='number') ? v : NOTE_IDX[v];
+  }
+  if(!Number.isFinite(off)) return null;
+  const anchors = currentAnchors();                 // displayed == audible
+  const base = (anchors[sliceId]!=null) ? anchors[sliceId] : (s ? s.initialAnchor : 60);
+  return { midi: clamp(base + off, 21, 108), hand: sliceId, slice: sliceId };
 }
 const down=new Map();         // key → midi currently held (for release + visuals)
 window.addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); Transport.toggle(); return; }
   if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } if(typeof Teklet!=='undefined' && Teklet.open){ Teklet.hide(); } return; }
-  // shift keys (always live so you can position before pressing play)
-  if(e.code==='Tab'){        e.preventDefault(); if(!e.repeat) shiftSlice('left', +1);  return; }
-  if(e.code==='Enter'){      e.preventDefault(); if(!e.repeat) shiftSlice('right',+1);  return; }
-  if(e.code==='ShiftLeft'){  e.preventDefault(); if(!e.repeat) shiftSlice('left', -1);  return; }
-  if(e.code==='ShiftRight'){ e.preventDefault(); if(!e.repeat) shiftSlice('right',-1);  return; }
+  // shift keys (per-slice, from config — always live so you can position before play)
+  const sh = (typeof SHIFT_BY_CODE!=='undefined') ? SHIFT_BY_CODE[e.code] : null;
+  if(sh){ e.preventDefault(); if(!e.repeat) shiftSlice(sh.sliceId, sh.dir); return; }
   if(e.repeat) return;
-  const k=e.key.toLowerCase();
-  if(KEY_HAND[k] && !down.has(k)){
+  // match note keys by physical code first (robust to shifted punctuation /
+  // non-US layouts / CapsLock-as-shift), falling back to the printed key.
+  const k = gameKeyFor(e);
+  if((KEY_SLICE[k]||KEY_HAND[k]) && !down.has(k)){
     Audio.resume();
     const r=midiForGameKey(k); if(!r) return;
     down.set(k, r.midi); userOn(r.midi, r.hand, k);
@@ -139,9 +149,14 @@ window.addEventListener('keydown',e=>{
   }
 });
 window.addEventListener('keyup',e=>{
-  const k=e.key.toLowerCase();
+  const k = gameKeyFor(e);
   if(down.has(k)){ userOff(down.get(k), k); if(MapView.open) MapView.light(k, down.get(k), false); down.delete(k); }
 });
+// e -> the game-key legend it targets (e.code via CODE_TO_GAMEKEY, else e.key)
+function gameKeyFor(e){
+  if(typeof CODE_TO_GAMEKEY!=='undefined' && CODE_TO_GAMEKEY[e.code]) return CODE_TO_GAMEKEY[e.code];
+  return (e.key||'').toLowerCase();
+}
 // Panic: never let a note ring after focus/visibility loss (eaten key-ups).
 function panicRelease(){ Audio.allNotesOff(); pressed.clear(); down.clear(); mouseDownMidi=null; }
 window.addEventListener('blur', panicRelease);
