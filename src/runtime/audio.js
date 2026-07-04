@@ -41,7 +41,8 @@ const Audio = (()=>{
     o1.type='triangle';o2.type='sine';o3.type='sine';
     o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
+    // fade-in (~12ms) so the onset doesn't click, then settle to sustain
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.012);
     g.gain.linearRampToValueAtTime(a*0.75,t+0.12);
     const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
     o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
@@ -54,7 +55,7 @@ const Audio = (()=>{
   function release(voiceId, immediate){
     const v=voices.get(voiceId); if(!v) return; voices.delete(voiceId);
     if(v.key!=null && keyVoice.get(v.key)===voiceId) keyVoice.delete(v.key);
-    const t=ctx.currentTime, rel=immediate?0.02:0.16;
+    const t=ctx.currentTime, rel=immediate?0.03:0.16;
     try{ v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value,t);
          v.g.gain.linearRampToValueAtTime(0.0001,t+rel); }catch(e){}
     hardStop(v, t+rel+0.05);
@@ -69,10 +70,13 @@ const Audio = (()=>{
     o1.type='triangle';o2.type='sine';o3.type='sine';
     o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
-    g.gain.linearRampToValueAtTime(a*0.7,t+0.10);
-    const rel=Math.max(dur,0.08);
-    g.gain.setTargetAtTime(0.0001, t+rel, 0.18);
+    // click-free envelope: ~12ms fade-in, then a sustain hold that ALWAYS ends
+    // before the release starts (short notes used to overlap the two ramps -> a
+    // pop on note-out), then an exponential fade-out.
+    const atk=0.012, rel=Math.max(dur,0.10), hold=Math.min(0.10, Math.max(dur,0.03));
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+atk);
+    g.gain.linearRampToValueAtTime(a*0.7,t+hold);
+    g.gain.setTargetAtTime(0.0001, t+rel, 0.14);
     const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
     o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
     o1.start(t);o2.start(t);o3.start(t);

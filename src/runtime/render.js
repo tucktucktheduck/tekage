@@ -64,10 +64,13 @@ function draw(){
   // ── falling notes: ONLY the notes that are "yours" drop ──
   const onscreen=[];
   const list = Song.activeNotes || [];
+  const gateNote = (typeof Transport!=='undefined' && Transport.autoSlow) ? Transport.gateNote : null;
   for(const n of list){
     const by = hitY - (n.startSec - t)*FALL;            // bottom edge
     const ty = by - n.durationSec*FALL;                 // top edge
-    if(by < laneTop-40 || ty > hitY+4) continue;        // offscreen
+    // keep the Auto-Slow gated note drawable even after it slips past the line,
+    // so a short note you're being asked to play never hides under the piano.
+    if(n!==gateNote && (by < laneTop-40 || ty > hitY+4)) continue;   // offscreen
     onscreen.push({n,ty,by});
     if(t>=n.startSec && t<=n.startSec+n.durationSec) activeKeys.set(n.midi, n.hand||'right');
   }
@@ -196,6 +199,11 @@ function drawNote(n, ty, by){
   const hitY=pianoTop;
   const w=ge.noteW, x=ge.cx - w/2;
   const sounding = (Transport.songTime>=n.startSec && Transport.songTime<=n.startSec+n.durationSec);
+  // Auto-Slow gate: while the clock waits on this note past the line, pin it just
+  // above the hit line (min height) so it stays visible instead of sliding under
+  // the piano — you can always see the note you're asked to play.
+  const isGate = (typeof Transport!=='undefined' && Transport.autoSlow && Transport.gateNote===n);
+  if(isGate && by > hitY){ const hh=Math.max(n.durationSec*FALL, 26); by=hitY; ty=hitY-hh; }
   const drawBy = Math.min(by, hitY);
   const top = Math.max(ty, -20);
   const h = drawBy - top;
@@ -204,7 +212,7 @@ function drawNote(n, ty, by){
   const pal = palById(n.slice || n.hand || 'right');
   let fill, glow;
   if(n.skip){ fill='rgba(120,130,150,.30)'; glow='rgba(120,130,150,.18)'; }
-  else { fill = sounding ? pal.fillBright : pal.fill; glow = sounding ? pal.glowBright : pal.glow; }
+  else { fill = sounding ? pal.fillBright : pal.fill; glow = (sounding||isGate) ? pal.glowBright : pal.glow; }
 
   g.save();
   g.shadowBlur = sounding?16:11; g.shadowColor=glow;

@@ -1540,7 +1540,8 @@ const Audio = (()=>{
     o1.type='triangle';o2.type='sine';o3.type='sine';
     o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
+    // fade-in (~12ms) so the onset doesn't click, then settle to sustain
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.012);
     g.gain.linearRampToValueAtTime(a*0.75,t+0.12);
     const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
     o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
@@ -1553,7 +1554,7 @@ const Audio = (()=>{
   function release(voiceId, immediate){
     const v=voices.get(voiceId); if(!v) return; voices.delete(voiceId);
     if(v.key!=null && keyVoice.get(v.key)===voiceId) keyVoice.delete(v.key);
-    const t=ctx.currentTime, rel=immediate?0.02:0.16;
+    const t=ctx.currentTime, rel=immediate?0.03:0.16;
     try{ v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value,t);
          v.g.gain.linearRampToValueAtTime(0.0001,t+rel); }catch(e){}
     hardStop(v, t+rel+0.05);
@@ -1568,10 +1569,13 @@ const Audio = (()=>{
     o1.type='triangle';o2.type='sine';o3.type='sine';
     o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.006);
-    g.gain.linearRampToValueAtTime(a*0.7,t+0.10);
-    const rel=Math.max(dur,0.08);
-    g.gain.setTargetAtTime(0.0001, t+rel, 0.18);
+    // click-free envelope: ~12ms fade-in, then a sustain hold that ALWAYS ends
+    // before the release starts (short notes used to overlap the two ramps -> a
+    // pop on note-out), then an exponential fade-out.
+    const atk=0.012, rel=Math.max(dur,0.10), hold=Math.min(0.10, Math.max(dur,0.03));
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+atk);
+    g.gain.linearRampToValueAtTime(a*0.7,t+hold);
+    g.gain.setTargetAtTime(0.0001, t+rel, 0.14);
     const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
     o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
     o1.start(t);o2.start(t);o3.start(t);
@@ -1764,7 +1768,7 @@ function selectVersion(id){
 const Transport = {
   playing:false, rate:1.0, songTime:0,
   anchorCtx:0, anchorSong:0, schedPtr:0, schedTimer:null,
-  targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0,
+  targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0, gateNote:null,
 
   // Auto-Slow (T21, "wait only when you're late"): the song WAITS FOR YOU, but
   // only if you don't play in time. A yours-note falls at full speed through its
@@ -1797,7 +1801,7 @@ const Transport = {
     // Start a fresh scored run when PLAY begins from the top (T20).
     if(typeof UI!=='undefined' && UI.mode==='play' && this.songTime<=0.01) Score.reset();
     // reset the Auto-Slow gate and lock in the SPEED target as the rate
-    this.waiting=false; this._gatePtr=0;
+    this.waiting=false; this._gatePtr=0; this.gateNote=null;
     this.rate = clamp(this.targetRate, 0.05, 4);
     // Defer the clock anchor until the AudioContext is actually advancing.
     // A freshly-created context reports currentTime===0 until its audio thread
@@ -1808,7 +1812,7 @@ const Transport = {
     if(!this.schedTimer) this.schedTimer=setInterval(()=>this._tick(),25);
     setPlayBtn(true);
   },
-  pause(){ this.playing=false; setPlayBtn(false); Audio.allNotesOff(); },
+  pause(){ this.playing=false; this.gateNote=null; setPlayBtn(false); Audio.allNotesOff(); },
   toggle(){ this.playing?this.pause():this.play(); },
   restart(){ Audio.allNotesOff(); this.seek(0); if(!this.playing) draw(); },
   seek(t){ Audio.allNotesOff(); this.songTime=clamp(t,0,Song.duration||0); this._gatePtr=0; this.waiting=false; if(this.playing){this._anchor();this._resetPtr();} if(typeof UI!=='undefined'&&UI.mode==='play') seedUserSlice(this.songTime); },
@@ -1851,6 +1855,7 @@ const Transport = {
     let rate = base;
     this.waiting = false;
     const g = this._gateNote();
+    this.gateNote = g;                                   // render pins this note at the line so it stays visible
     if(g){
       const rem = (g.startSec + AUTOSLOW.hold) - this.songTime;   // time until the hold point
       if(rem <= AUTOSLOW.eps){ rate = 0; this.waiting = true; }
@@ -1954,10 +1959,13 @@ function draw(){
   // ── falling notes: ONLY the notes that are "yours" drop ──
   const onscreen=[];
   const list = Song.activeNotes || [];
+  const gateNote = (typeof Transport!=='undefined' && Transport.autoSlow) ? Transport.gateNote : null;
   for(const n of list){
     const by = hitY - (n.startSec - t)*FALL;            // bottom edge
     const ty = by - n.durationSec*FALL;                 // top edge
-    if(by < laneTop-40 || ty > hitY+4) continue;        // offscreen
+    // keep the Auto-Slow gated note drawable even after it slips past the line,
+    // so a short note you're being asked to play never hides under the piano.
+    if(n!==gateNote && (by < laneTop-40 || ty > hitY+4)) continue;   // offscreen
     onscreen.push({n,ty,by});
     if(t>=n.startSec && t<=n.startSec+n.durationSec) activeKeys.set(n.midi, n.hand||'right');
   }
@@ -2086,6 +2094,11 @@ function drawNote(n, ty, by){
   const hitY=pianoTop;
   const w=ge.noteW, x=ge.cx - w/2;
   const sounding = (Transport.songTime>=n.startSec && Transport.songTime<=n.startSec+n.durationSec);
+  // Auto-Slow gate: while the clock waits on this note past the line, pin it just
+  // above the hit line (min height) so it stays visible instead of sliding under
+  // the piano — you can always see the note you're asked to play.
+  const isGate = (typeof Transport!=='undefined' && Transport.autoSlow && Transport.gateNote===n);
+  if(isGate && by > hitY){ const hh=Math.max(n.durationSec*FALL, 26); by=hitY; ty=hitY-hh; }
   const drawBy = Math.min(by, hitY);
   const top = Math.max(ty, -20);
   const h = drawBy - top;
@@ -2094,7 +2107,7 @@ function drawNote(n, ty, by){
   const pal = palById(n.slice || n.hand || 'right');
   let fill, glow;
   if(n.skip){ fill='rgba(120,130,150,.30)'; glow='rgba(120,130,150,.18)'; }
-  else { fill = sounding ? pal.fillBright : pal.fill; glow = sounding ? pal.glowBright : pal.glow; }
+  else { fill = sounding ? pal.fillBright : pal.fill; glow = (sounding||isGate) ? pal.glowBright : pal.glow; }
 
   g.save();
   g.shadowBlur = sounding?16:11; g.shadowColor=glow;

@@ -25,12 +25,17 @@ test('T21: Auto-Slow parks the clock at an unpressed note and resumes on the pre
 
   // the clock must brake and PARK at the first yours-note's hit line
   await expect.poll(() => page.evaluate(() => Transport.waiting), { timeout: 8000 }).toBe(true);
-  const parked = await page.evaluate(() => ({
-    t: Transport.songTime, rate: Transport.rate,
-    gate: Song.notes.find(n => isYours(n) && !Score.byNote.has(n))?.startSec ?? -1,
-    hold: AUTOSLOW.hold, okay: JUDGE_WINDOWS.okay,
-  }));
+  const parked = await page.evaluate(() => {
+    const g = Song.notes.find(n => isYours(n) && !Score.byNote.has(n));
+    return {
+      t: Transport.songTime, rate: Transport.rate,
+      gate: g?.startSec ?? -1,
+      gateIsExposed: Transport.gateNote === g,   // render pins THIS note at the line (visible short notes)
+      hold: AUTOSLOW.hold, okay: JUDGE_WINDOWS.okay,
+    };
+  });
   expect(parked.rate).toBe(0);
+  expect(parked.gateIsExposed).toBe(true);
   // "wait only when you're late": the note falls at full speed THROUGH its onset
   // line and the clock parks just past it, at gate + AUTOSLOW.hold, kept inside the
   // okay window so the note stays creditable. It never brakes before the line —

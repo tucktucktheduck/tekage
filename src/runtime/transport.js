@@ -4,7 +4,7 @@
 const Transport = {
   playing:false, rate:1.0, songTime:0,
   anchorCtx:0, anchorSong:0, schedPtr:0, schedTimer:null,
-  targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0,
+  targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0, gateNote:null,
 
   // Auto-Slow (T21, "wait only when you're late"): the song WAITS FOR YOU, but
   // only if you don't play in time. A yours-note falls at full speed through its
@@ -37,7 +37,7 @@ const Transport = {
     // Start a fresh scored run when PLAY begins from the top (T20).
     if(typeof UI!=='undefined' && UI.mode==='play' && this.songTime<=0.01) Score.reset();
     // reset the Auto-Slow gate and lock in the SPEED target as the rate
-    this.waiting=false; this._gatePtr=0;
+    this.waiting=false; this._gatePtr=0; this.gateNote=null;
     this.rate = clamp(this.targetRate, 0.05, 4);
     // Defer the clock anchor until the AudioContext is actually advancing.
     // A freshly-created context reports currentTime===0 until its audio thread
@@ -48,7 +48,7 @@ const Transport = {
     if(!this.schedTimer) this.schedTimer=setInterval(()=>this._tick(),25);
     setPlayBtn(true);
   },
-  pause(){ this.playing=false; setPlayBtn(false); Audio.allNotesOff(); },
+  pause(){ this.playing=false; this.gateNote=null; setPlayBtn(false); Audio.allNotesOff(); },
   toggle(){ this.playing?this.pause():this.play(); },
   restart(){ Audio.allNotesOff(); this.seek(0); if(!this.playing) draw(); },
   seek(t){ Audio.allNotesOff(); this.songTime=clamp(t,0,Song.duration||0); this._gatePtr=0; this.waiting=false; if(this.playing){this._anchor();this._resetPtr();} if(typeof UI!=='undefined'&&UI.mode==='play') seedUserSlice(this.songTime); },
@@ -91,6 +91,7 @@ const Transport = {
     let rate = base;
     this.waiting = false;
     const g = this._gateNote();
+    this.gateNote = g;                                   // render pins this note at the line so it stays visible
     if(g){
       const rem = (g.startSec + AUTOSLOW.hold) - this.songTime;   // time until the hold point
       if(rem <= AUTOSLOW.eps){ rate = 0; this.waiting = true; }
