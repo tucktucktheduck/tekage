@@ -61,6 +61,25 @@ if($('resetBtn')) $('resetBtn').onclick=()=>{
   if(typeof ProgressStore!=='undefined') ProgressStore.reset();
   if(typeof location!=='undefined' && location.reload) location.reload();
 };
+/* Fresh start (factory reset): erase EVERY TKG key on this device so nothing about
+   the player survives — not just overwrite the profile — then hard-reload to the
+   first-run landing (onboarded resets to false). Wrapped so blocked storage can't
+   throw; if storage is unavailable the profile only lived in memory anyway and the
+   reload clears it. */
+if($('freshBtn')) $('freshBtn').onclick=()=>{
+  const ok = (typeof confirm==='function') ? confirm('Erase ALL TKG memory on this device?\n\nThis wipes your settings, colors, best scores, and progress. The game will load as if you had never played it. This cannot be undone.') : true;
+  if(!ok) return;
+  try{
+    if(typeof ProgressStore!=='undefined') ProgressStore.reset();
+    if(typeof localStorage!=='undefined'){
+      for(const k of Object.keys(localStorage)){ if(k.indexOf('tkg.')===0) localStorage.removeItem(k); }
+    }
+    if(typeof sessionStorage!=='undefined'){
+      for(const k of Object.keys(sessionStorage)){ if(k.indexOf('tkg.')===0) sessionStorage.removeItem(k); }
+    }
+  }catch(e){}
+  if(typeof location!=='undefined' && location.reload) location.reload();
+};
 
 /* Song library menu (T24): the built-in starter songs + the demo, so you can
    "pick a song and play" without owning a MIDI. Upload still lives on LOAD MIDI. */
