@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan,normalizeSlices,SLICE_PRESETS,makeSlice,solvePlanSlices,codeLabel,get SLICES(){return SLICES;},get KEY_SLICE(){return KEY_SLICE;},get SHIFT_BY_CODE(){return SHIFT_BY_CODE;},get CODE_TO_GAMEKEY(){return CODE_TO_GAMEKEY;}};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -334,6 +334,73 @@ ok(P.UI.mode==='listen', 'mode is driven by config');
 // restore built-in defaults so nothing downstream is affected
 P.loadConfig({});
 ok(P.UI.mode==='play' && !!P.midiForGameKey('j'), 'loadConfig({}) restores built-in defaults');
+
+// ── DYNAMIC SLICES v2 (docs/14): presets + normalizeSlices + never-throw ──
+console.log('\n— DYNAMIC SLICES v2 —');
+{
+  const offsOf = s => s.offs.slice().sort((a,b)=>a-b);
+  const range = (a,b)=>{ const o=[]; for(let i=a;i<=b;i++) o.push(i); return o; };
+
+  // presets ship
+  ok(P.SLICE_PRESETS && P.SLICE_PRESETS.standard && P.SLICE_PRESETS.keyboardgame, 'standard + keyboardgame presets ship');
+  ok(P.SLICE_PRESETS.legacy === null, 'legacy preset is a reserved (null) slot');
+
+  // standard preset == legacy BUILTIN behaviour (byte-equivalent offsets)
+  const std = P.normalizeSlices({ slices:{ preset:'standard' } });
+  ok(std.length===2 && std[0].id==='left' && std[1].id==='right', 'standard normalizes to left+right');
+  const legacy = P.normalizeSlices({ slices:{ mapping: null } });   // BUILTIN fallback
+  ok(JSON.stringify(offsOf(std[0]))===JSON.stringify(offsOf(legacy[0])) &&
+     JSON.stringify(offsOf(std[1]))===JSON.stringify(offsOf(legacy[1])),
+     'standard preset offsets match the legacy BUILTIN layout');
+  ok(std[0].shiftKeys.up==='Tab' && std[1].shiftKeys.up==='Enter', 'standard shift keys carried through');
+
+  // versell chromatic completeness (docs/14 §3.2 sanity check)
+  const kg = P.normalizeSlices({ slices:{ preset:'keyboardgame' } });
+  ok(kg.length===2, 'keyboardgame normalizes to two slices');
+  ok(JSON.stringify(offsOf(kg[0]))===JSON.stringify(range(-7,11)), 'versell left slice spans every semitone -7..11');
+  ok(JSON.stringify(offsOf(kg[1]))===JSON.stringify(range(0,23)),  'versell right slice spans every semitone 0..23');
+  ok(kg[0].shiftKeys.up==='CapsLock' && kg[0].shiftKeys.down==='ShiftLeft', 'versell left shift keys (CapsLock/ShiftLeft)');
+
+  // duplicate key across slices: first wins, later dropped
+  const dup = P.normalizeSlices({ slices:{ list:[
+    { id:'a', keys:{ x:0, y:2 } }, { id:'b', keys:{ x:5, z:7 } } ] } });
+  const aKeys = dup.find(s=>s.id==='a').keys.map(k=>k.key);
+  const bKeys = dup.find(s=>s.id==='b').keys.map(k=>k.key);
+  ok(aKeys.includes('x') && !bKeys.includes('x'), 'duplicate key kept on the first slice only');
+
+  // shift key colliding with a note key legend is stripped
+  const coll = P.normalizeSlices({ slices:{ list:[
+    { id:'a', keys:{ a:0 }, shiftKeys:{ up:'KeyA', down:'Tab' } } ] } });
+  ok(!coll[0].shiftKeys.up && coll[0].shiftKeys.down==='Tab', 'shift key that collides with a note key is dropped, valid one kept');
+
+  // NEVER throws on garbage; always yields >=1 playable slice
+  const garbage = [
+    null, undefined, 42, 'nope', {}, { slices:{} }, { slices:{ list:[] } },
+    { slices:{ list:'nope' } },
+    { slices:{ list:[ { id:'x', keys:{ a:NaN, b:'ZZ', c:3 } } ] } },
+    { slices:{ list:[ { keys:{ a:0 }, step:0, minAnchor:200, maxAnchor:-5 } ] } },
+    { slices:{ list:[ { id:'d1', keys:{ a:0 } }, { id:'d2', keys:{ a:1 } } ] } },
+    { slices:{ list: Array.from({length:40}, (_,i)=>({ id:'s'+i, keys:{ ['k'+i]: i } })) } },
+    { slices:{ list:[ { id:'z', keys:{ q:0 }, shiftKeys:{ up:'Space', down:'Escape' } } ] } },
+  ];
+  let threw=false, allPlayable=true;
+  for(const g of garbage){ try{ const r=P.normalizeSlices(g); if(!Array.isArray(r)||!r.length) allPlayable=false; }catch(e){ threw=true; } }
+  ok(!threw, 'normalizeSlices never throws on garbage input');
+  ok(allPlayable, 'every garbage config still yields at least one slice');
+
+  // loadConfig with garbage lists never throws + leaves a playable runtime
+  let cfgThrew=false;
+  for(const g of garbage){ try{ P.loadConfig(g && g.slices ? g : {}); }catch(e){ cfgThrew=true; } }
+  ok(!cfgThrew, 'loadConfig survives every garbage slice config');
+
+  // keyboardgame preset drives the runtime (2-slice path playable today, docs/14)
+  P.loadConfig({ slices:{ preset:'keyboardgame' } });
+  ok(P.KEY_SLICE.h==='right' && P.KEY_SLICE.q==='left', 'keyboardgame: KEY_SLICE routes keys to slices');
+  ok(P.SHIFT_BY_CODE.CapsLock && P.SHIFT_BY_CODE.CapsLock.sliceId==='left', 'keyboardgame: CapsLock shifts the left slice');
+  ok(!!P.midiForGameKey('h'), 'keyboardgame: a right-slice key resolves to a midi note');
+  P.loadConfig({});   // restore
+  ok(P.SLICES.length===2 && !!P.midiForGameKey('j'), 'defaults restored after preset load');
+}
 
 // ── T24: starter library — every song builds + extracts cleanly ──
 console.log('\n— STARTER LIBRARY (T24) —');

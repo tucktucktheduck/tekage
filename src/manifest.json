@@ -12,6 +12,7 @@
     "src/runtime/transport.js",
     "src/runtime/render.js",
     "src/runtime/input.js",
+    "src/content/presets.js",
     "src/shell/ui.js",
     "src/shell/config.js",
     "src/content/progressStore.js",
