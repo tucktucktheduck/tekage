@@ -11,6 +11,7 @@ tickClock(); setInterval(tickClock,10000);
 // boot
 layout();
 if(typeof buildSongMenu==='function') buildSongMenu();   // T24: populate the library menu
+if(typeof buildPresetPicker==='function') buildPresetPicker();   // docs/14 §4: layout preset picker
 loadDemo();
 if(typeof ProgressStore!=='undefined'){
   ProgressStore.load();

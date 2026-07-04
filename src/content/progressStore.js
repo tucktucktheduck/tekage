@@ -38,6 +38,7 @@ function defaultProfile(){
     settings: { speed:1.0, vol:0.75, mode:'play', versionId:null,
                 assists:{ keyNames:true, autoSlow:false, autoShift:false },
                 skin:{ primary:'#ff8a2b', secondary:'#1a8fff', bg:'#05060a' },
+                slices:{ preset:'standard', list:null },   // active keyboard layout (docs/14)
                 hideParseWarning:false },
     stars:  {},   // levelId -> best stars (0..5)
     best:   {},   // levelId -> best accuracy (0..1)
@@ -63,6 +64,10 @@ function mergeProfile(loaded){
         if(hex.test(s.skin.primary))   p.settings.skin.primary=s.skin.primary;
         if(hex.test(s.skin.secondary)) p.settings.skin.secondary=s.skin.secondary;
         if(hex.test(s.skin.bg))        p.settings.skin.bg=s.skin.bg;
+      }
+      if(s.slices && typeof s.slices==='object'){
+        if(typeof s.slices.preset==='string') p.settings.slices.preset=s.slices.preset;
+        if(Array.isArray(s.slices.list))      p.settings.slices.list=s.slices.list;
       }
       p.settings.hideParseWarning = !!s.hideParseWarning;
     }

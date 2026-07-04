@@ -53,6 +53,52 @@ if($('tekletClose')) $('tekletClose').onclick=()=>Teklet.hide();
 /* Tutorial replay (anytime) + reset progress. The tutorial button relaunches the
    Blurt walkthrough even after onboarding; reset wipes settings + best scores. */
 function startTutorial(){ Teklet.hide(); if(typeof Onboarding!=='undefined') Onboarding.replay(); }
+
+/* ── Layout preset picker (docs/14 §4.1) ─────────────────────────────
+   Switch the whole keyboard layout live. Selecting a preset re-charts the
+   loaded song for the new slices at the current difficulty ("mix it up and
+   play"), redraws, and persists. buildPresetPicker() is called from the boot
+   sequence (main.js) AFTER config.js has assigned TKGConfig. */
+function liveConfig(){
+  const c = (typeof TKGConfig!=='undefined') ? _cfgClone(TKGConfig) : {};
+  if(typeof UI!=='undefined'){ c.mode=UI.mode; c.assists={ keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift }; }
+  if(typeof Skin!=='undefined' && Skin.toConfig) c.skin=Skin.toConfig();
+  return c;
+}
+function applyLayout(sliceConfig, label){
+  if(typeof Transport!=='undefined' && Transport.playing){ flash('Pause to change your layout'); return; }
+  const c=liveConfig(); c.slices=sliceConfig;
+  loadConfig(c);                                                       // rebuild SLICES + every lookup
+  if(typeof Song!=='undefined' && Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();  // re-chart at current difficulty
+  if(typeof draw==='function') draw();
+  syncPresetUI();
+  persistSettings(true);                                               // deliberate action — save now
+  if(label) flash('Layout: '+label+' · your chart re-mapped to these keys');
+}
+function applyPreset(id){
+  const p=(typeof SLICE_PRESETS!=='undefined')?SLICE_PRESETS[id]:null;
+  applyLayout({ preset:id, list:null, mapping:null }, (p&&p.label)||id);
+}
+function buildPresetPicker(){
+  const host=$('presetPicker'); if(!host) return;
+  host.innerHTML='';
+  const P=(typeof SLICE_PRESETS!=='undefined')?SLICE_PRESETS:{};
+  for(const id of ['standard','keyboardgame']){
+    const p=P[id]; if(!p) continue;
+    const b=document.createElement('button'); b.className='tk preset'; b.dataset.preset=id;
+    b.textContent=p.label||id; b.title='Switch to the '+(p.label||id)+' layout';
+    b.onclick=()=>applyPreset(id); host.appendChild(b);
+  }
+  // Legacy — reserved slot, disabled until the founder supplies the map (§3.3)
+  const leg=document.createElement('button'); leg.className='tk preset'; leg.dataset.preset='legacy';
+  leg.textContent='Legacy'; leg.disabled=true; leg.title='Legacy layout — upload pending'; host.appendChild(leg);
+  syncPresetUI();
+}
+function syncPresetUI(){
+  const sl=(typeof TKGConfig!=='undefined')?TKGConfig.slices:null;
+  const active = sl ? (sl.list ? 'custom' : sl.preset) : 'standard';
+  document.querySelectorAll('#presetPicker .preset').forEach(b=>b.classList.toggle('sel', b.dataset.preset===active));
+}
 if($('tutorialBtn'))  $('tutorialBtn').onclick=startTutorial;
 if($('tutorialBtn2')) $('tutorialBtn2').onclick=startTutorial;
 if($('resetBtn')) $('resetBtn').onclick=()=>{
@@ -202,20 +248,25 @@ function syncAssistUI(){
    slider doesn't hammer storage. Never persists for a baked export (its config
    defines the intended experience). */
 let _persistT=null;
-function persistSettings(){
+function _settingsSnapshot(){
+  return {
+    speed: Transport.targetRate,
+    vol: (parseFloat($('vol').value)||75)/100,
+    mode: UI.mode,
+    versionId: Song.version ? Song.version.id : null,
+    assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
+    skin: (typeof Skin!=='undefined') ? { primary:_hex6(Skin.primary,'#ff8a2b'), secondary:_hex6(Skin.secondary,'#1a8fff'), bg:_hex6(Skin.bg,'#05060a') } : undefined,
+    slices: (typeof TKGConfig!=='undefined' && TKGConfig.slices) ? { preset:TKGConfig.slices.preset||'standard', list:TKGConfig.slices.list||null } : undefined,
+  };
+}
+// Debounced by default (slider drags). Pass true to flush NOW — deliberate,
+// infrequent actions (like switching layout) must survive an immediate reload.
+function persistSettings(immediate){
   if(typeof ProgressStore==='undefined') return;
   if(typeof window!=='undefined' && window.__TKG_CONFIG__) return;
   clearTimeout(_persistT);
-  _persistT=setTimeout(()=>{
-    ProgressStore.saveSettings({
-      speed: Transport.targetRate,
-      vol: (parseFloat($('vol').value)||75)/100,
-      mode: UI.mode,
-      versionId: Song.version ? Song.version.id : null,
-      assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
-      skin: (typeof Skin!=='undefined') ? { primary:_hex6(Skin.primary,'#ff8a2b'), secondary:_hex6(Skin.secondary,'#1a8fff'), bg:_hex6(Skin.bg,'#05060a') } : undefined,
-    });
-  }, 250);
+  if(immediate){ ProgressStore.saveSettings(_settingsSnapshot()); return; }
+  _persistT=setTimeout(()=>ProgressStore.saveSettings(_settingsSnapshot()), 250);
 }
 /* Restore persisted settings onto the live controls at boot (standard game only). */
 function applyPersistedSettings(){
@@ -234,6 +285,14 @@ function applyPersistedSettings(){
     if(typeof TKGConfig!=='undefined') TKGConfig.skin=Skin.toConfig();
     syncSkinUI();
   }
+  // restore a non-default keyboard layout BEFORE the version so the re-chart uses it
+  if(s.slices && (Array.isArray(s.slices.list) || (s.slices.preset && s.slices.preset!=='standard'))){
+    const c=liveConfig();
+    c.slices={ preset:s.slices.preset||'custom', list:s.slices.list||null, mapping:null };
+    loadConfig(c);
+    if(Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
+  }
+  if(typeof syncPresetUI==='function') syncPresetUI();
   if(s.versionId && Song.versions.some(v=>v.id===s.versionId)){
     selectVersion(s.versionId);
     document.querySelectorAll('#verRow .ver').forEach(x=>x.classList.toggle('sel', x.dataset.id===s.versionId));

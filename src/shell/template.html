@@ -98,6 +98,10 @@ button.tk.ver.sel .vden{color:#ffba7a;}
   font-family:'Orbitron';font-weight:700;font-size:13px;letter-spacing:3px;color:#cfe3ff;}
 .mapHeadBtns{display:flex;gap:8px;}
 #mapLinesBtn.sel{border-color:var(--blue);color:var(--blue);background:rgba(26,143,255,.10);}
+#presetPicker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;}
+button.tk.preset.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);}
+button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
+.tkHint{font-size:10px;line-height:1.35;color:#7f8aa3;margin-top:2px;}
 .mapHint{font-family:'Rajdhani';font-weight:500;font-size:12.5px;color:#8aa2c2;margin:8px 0 14px;letter-spacing:.3px;}
 #mapBody{position:relative;}
 #mapKb{display:flex;flex-direction:column;gap:6px;align-items:center;}
@@ -306,6 +310,11 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
         <button class="tk" id="bgImgBtn" title="Upload a background image or video (MP4/WebM/MOV)">BG IMG / VIDEO</button>
         <input type="file" id="bgImgInput" accept="image/*,video/*" style="display:none">
       </div>
+    </div>
+    <div class="tkSection">
+      <div class="tkLabel">LAYOUT · your keyboard</div>
+      <div id="presetPicker"></div>
+      <div class="tkHint" id="layoutHint">Pick a keyboard layout — the song re-maps to it and plays. Standard = two hands; Keyboard Game = a wide two-octave right hand.</div>
     </div>
     <div class="tkSection">
       <div class="tkLabel">SONG</div>
