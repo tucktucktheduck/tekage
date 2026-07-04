@@ -40,11 +40,15 @@ function releaseVerdict(offsetSec){
    smooth playback-rate ramp (slow on a miss, recover on hits) without ever
    overshooting. maxDelta is computed by the caller from the audio-clock dt,
    so the ramp is clock-driven, never wall-time. */
-// Auto-Slow (T21, wait mode): the clock BRAKES over the last `pre` song-seconds
-// before an unpressed yours-note and parks AT the hit line until it's pressed.
-// eps = "parked" threshold (sub-pixel), creep = minimum brake rate so the
-// approach reaches the line in finite time instead of asymptoting short of it.
-const AUTOSLOW = { pre:0.12, eps:0.004, creep:0.02 };
+// Auto-Slow (T21, "wait only when you're late"): notes fall at full speed through
+// their whole hit window, so on-time play never stutters and there's no freeze
+// before the first note. Only when a yours-note is about to pass its LATE (miss)
+// edge still unpressed does the clock ease to a stop and hold it at the line until
+// the press credits it. `hold` = park offset past the onset — kept just inside the
+// okay window (JUDGE_WINDOWS.okay = 0.15) so the held note stays creditable and is
+// never swept as a miss. `pre` = brake span before the hold point; `eps` snaps the
+// final park; `creep` keeps the approach finite instead of asymptoting short.
+const AUTOSLOW = { hold:0.13, pre:0.06, eps:0.004, creep:0.02 };
 function easeToward(cur, target, maxDelta){
   if(maxDelta<=0) return cur;
   if(cur < target) return Math.min(target, cur+maxDelta);

@@ -101,7 +101,13 @@ function loadLibrarySong(id){
 document.querySelectorAll('#modeSeg button').forEach(b=>{
   b.onclick=()=>{ document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.remove('sel'));
     b.classList.add('sel'); UI.mode=b.dataset.mode;
-    if(UI.mode==='play'){ seedUserSlice(Transport.songTime); }
+    if(UI.mode==='play'){
+      seedUserSlice(Transport.songTime);
+      // Entering PLAY while the transport is already running (e.g. straight from
+      // LISTEN) must start a scored run — otherwise Score.on stays false and the
+      // Auto-Slow gate (which needs it) silently never engages.
+      if(Transport.playing && typeof Score!=='undefined'){ Score.reset(); Transport.waiting=false; Transport._gatePtr=0; }
+    }
     else { Score.stop(); hideReport(); Transport.seek(0); Transport.play(); }   // LISTEN: auto-play the whole song from the start (not a scored run)
     persistSettings();
     flash(UI.mode==='play'?'PLAY MODE · press the keys shown · move your slices with Tab / ⇧ (left) and ⏎ / ⇧ (right)':'LISTEN MODE · sit back — the whole song plays and the slices glide'); };
@@ -224,7 +230,7 @@ function levelId(){
 if($('slowChk')) $('slowChk').onchange=()=>{ UI.autoSlow=$('slowChk').checked; Transport.autoSlow=UI.autoSlow;
   if(!UI.autoSlow){ Transport.waiting=false; }
   persistSettings();
-  flash(UI.autoSlow?'AUTO-SLOW on · the song stops at the line and waits for your note':'Auto-Slow off'); };
+  flash(UI.autoSlow?'AUTO-SLOW on · plays full speed — waits at a note only if you’re late':'Auto-Slow off'); };
 if($('shiftChk')) $('shiftChk').onchange=()=>{ UI.autoShift=$('shiftChk').checked;
   persistSettings();
   flash(UI.autoShift?'AUTO-SHIFT on · the engine moves your hands — just press the keys':'Auto-Shift off · you move your slices with Tab / ⏎'); };

@@ -6,13 +6,15 @@ const Transport = {
   anchorCtx:0, anchorSong:0, schedPtr:0, schedTimer:null,
   targetRate:1.0, autoSlow:false, waiting:false, _gatePtr:0,
 
-  // Auto-Slow (T21, reworked per the founder's note): the song WAITS FOR YOU.
-  // Not a tempo ramp after a miss — the clock brakes as an unpressed
-  // yours-note approaches the hit line, parks exactly ON the line (rate 0),
-  // and holds until the player presses it. "It only slows if you are not
-  // pressing the note." Hooks kept as no-ops for API compatibility (input.js
-  // calls them); the gate is recomputed from Score state every tick, so
-  // hit/miss events need no bookkeeping here.
+  // Auto-Slow (T21, "wait only when you're late"): the song WAITS FOR YOU, but
+  // only if you don't play in time. A yours-note falls at full speed through its
+  // whole hit window; the clock brakes only in the last moment before that note
+  // would pass its LATE (miss) edge unpressed, then parks at the line and holds
+  // until the press credits it. "It only slows if you are not pressing the note"
+  // — timely play never stutters, and the first note never freezes before it
+  // falls. Hooks kept as no-ops for API compatibility (input.js calls them); the
+  // gate is recomputed from Score state every tick, so hit/miss events need no
+  // bookkeeping here.
   noteMissed(){}, noteHit(){},
   // the earliest yours-note the player hasn't played yet = the gate
   _gateNote(){
@@ -74,21 +76,23 @@ const Transport = {
     }
     this.songTime = this.anchorSong + (Audio.now()-this.anchorCtx)*this.rate;
     if(UI.mode==='play') Score.sweep(this.songTime);   // fallen yours-notes -> miss
-    // Auto-Slow (wait mode): brake toward the next unpressed yours-note so the
-    // clock parks exactly at the hit line, then hold at rate 0 until it's
-    // pressed. rate = base·rem/pre decays the remaining gap geometrically per
-    // tick (a smooth, fast swoop into the line that cannot overshoot at any
-    // tick spacing); `creep` guarantees arrival, `eps` snaps the final hold.
-    // Everything is driven off songTime, so audio + falling notes stay in
-    // lock-step (docs/09: no wall-time timers). Pressing the gated note
-    // credits it in Score, the gate advances, and the rate law releases to
-    // base on the very next tick — resume is instant.
+    // Auto-Slow (wait only when late): the gated note falls at full speed through
+    // its entire hit window. The clock brakes only over the last `pre` seconds
+    // before the `hold` point (just inside the late/miss edge) and then parks
+    // there at rate 0 until the press credits it. So a note pressed in time is
+    // gone from the gate before any braking, and nothing stutters; only a note
+    // you're about to MISS eases to a stop and waits. rate = base·rem/pre decays
+    // the remaining gap geometrically per tick (a smooth swoop that cannot
+    // overshoot at any tick spacing); `creep` guarantees arrival, `eps` snaps the
+    // final hold. Everything is driven off songTime, so audio + falling notes
+    // stay in lock-step (docs/09: no wall-time timers). Crediting the note
+    // advances the gate and the rate law releases to base next tick — instant.
     const base = clamp(this.targetRate, 0.05, 4);
     let rate = base;
     this.waiting = false;
     const g = this._gateNote();
     if(g){
-      const rem = g.startSec - this.songTime;
+      const rem = (g.startSec + AUTOSLOW.hold) - this.songTime;   // time until the hold point
       if(rem <= AUTOSLOW.eps){ rate = 0; this.waiting = true; }
       else if(rem < AUTOSLOW.pre){ rate = Math.max(base*rem/AUTOSLOW.pre, AUTOSLOW.creep); }
     }
@@ -105,7 +109,11 @@ const Transport = {
       //            couldn't reach (n.skip) — so the song stays whole while you
       //            play your version's notes yourself.
       if(UI.mode==='listen' || n.backing || n.skip){
-        Audio.strike(n.midi, when, n.durationSec/Math.max(this.rate,0.05), clamp((n.vel||90)/127,0.2,1));
+        // Length the note by the STEADY target rate, not the instantaneous rate:
+        // an Auto-Slow brake/park (rate → 0) must never stretch an engine note to
+        // a droning multi-second smear (the old glitch). base already folds in a
+        // genuine SPEED-slider slowdown, so slow playback still lengthens notes.
+        Audio.strike(n.midi, when, n.durationSec/Math.max(base,0.05), clamp((n.vel||90)/127,0.2,1));
       }
       this.schedPtr++;
     }

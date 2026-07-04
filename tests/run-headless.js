@@ -31,7 +31,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -101,12 +101,13 @@ ok(P.easeToward(0.9, 1.0, 0.2) === 1.0, 'never overshoots the target (up)');
 ok(P.easeToward(0.5, 0.5, 0.2) === 0.5, 'at target stays put');
 ok(P.easeToward(1.0, 0.4, 0) === 1.0, 'zero dt = no movement');
 
-// — Auto-Slow (T21, wait mode): the song brakes, PARKS at an unpressed note,
-//   and resumes the instant it's pressed. Driven against the real transport
-//   with the harness's fake audio clock. —
-console.log('\n— AUTO-SLOW (wait mode) —');
+// — Auto-Slow (T21, wait ONLY when late): notes fall at full speed through their
+//   whole hit window; the clock eases to a stop and PARKS a note only if it's
+//   about to pass the late/miss edge unpressed, then resumes the instant it's
+//   pressed. Driven against the real transport with the harness's fake clock. —
+console.log('\n— AUTO-SLOW (wait only when late) —');
 {
-  const T=P.Transport, S=P.Score;
+  const T=P.Transport, S=P.Score, OK=P.JUDGE_WINDOWS.okay;
   const tick=(secs)=>{ const steps=Math.round(secs/0.025); for(let i=0;i<steps;i++){ CTXTIME+=0.025; T._tick(); } };
   P.UI.mode='play'; P.UI.autoShift=false;
   T.autoSlow=true; T.targetRate=1;
@@ -119,15 +120,18 @@ console.log('\n— AUTO-SLOW (wait mode) —');
   // needs a live AudioContext; here we anchor directly)
   CTXTIME=100; T.playing=true; T._pendingAnchor=false; T._gatePtr=0; T.waiting=false;
   T.songTime=0; T.anchorCtx=CTXTIME; T.anchorSong=0; T.rate=1;
-  tick(gate.startSec + 3.0);                       // drive WAY past the gate time
-  ok(T.songTime <= gate.startSec + 0.01, 'clock parks at the unpressed note ('+T.songTime.toFixed(3)+'s vs onset '+gate.startSec.toFixed(3)+'s)');
-  ok(T.waiting===true && T.rate===0, 'transport holds: waiting=true, rate=0');
-  ok(![...S.byNote.values()].some(r=>r.note===gate&&r.tier==='miss'), 'the gated note is never swept as a miss');
+  // still on-time to hit the note (inside its window): NO early braking — full speed
+  tick(gate.startSec - 0.20);
+  ok(T.rate>0.9 && !T.waiting, 'no braking while the note is still on-time to hit (rate '+T.rate.toFixed(2)+')');
+  tick(gate.startSec + 3.0);                       // leave it unpressed, drive WAY past
+  ok(T.waiting===true && T.rate===0, 'unpressed past the window: eases to a stop and holds (waiting, rate 0)');
+  ok(T.songTime>=gate.startSec && T.songTime<=gate.startSec+OK+1e-6, 'parks at the late edge, still inside the hit window ('+T.songTime.toFixed(3)+'s, onset '+gate.startSec.toFixed(3)+'s)');
+  ok(![...S.byNote.values()].some(r=>r.note===gate&&r.tier==='miss'), 'the held note is never swept as a miss');
   const parked=T.songTime;
   tick(2.0);
   ok(Math.abs(T.songTime-parked)<1e-6, 'holds indefinitely — Auto-Slow waits, no matter what');
   // press it -> instant resume at full rate
-  S.byNote.set(gate,{note:gate,tier:'perfect'});
+  S.byNote.set(gate,{note:gate,tier:'okay'});
   tick(0.05);
   ok(T.rate>0.9 || T.waiting===false, 'crediting the note releases the gate immediately');
   // chord gate: if the song has simultaneous yours-notes, one press is not enough
@@ -136,13 +140,24 @@ console.log('\n— AUTO-SLOW (wait mode) —');
     const chord=yours.filter(m=>Math.abs(m.startSec-chordAt.startSec)<0.001);
     for(const n of yours){ if(n.startSec>gate.startSec && n.startSec<chordAt.startSec-0.001) S.byNote.set(n,{note:n,tier:'perfect'}); }
     tick(chordAt.startSec - T.songTime + 2.0);
-    ok(T.waiting===true && T.songTime<=chordAt.startSec+0.01, 'a chord gates the clock too');
-    S.byNote.set(chord[0],{note:chord[0],tier:'perfect'});
+    ok(T.waiting===true && T.songTime<=chordAt.startSec+OK+1e-6, 'a chord holds the clock too');
+    S.byNote.set(chord[0],{note:chord[0],tier:'okay'});
     tick(0.5);
     ok(T.waiting===true, 'one pressed chord note is not enough — still waiting');
-    for(const n of chord) S.byNote.set(n,{note:n,tier:'perfect'});
+    for(const n of chord) S.byNote.set(n,{note:n,tier:'okay'});
     tick(0.1);
     ok(T.waiting===false, 'pressing the whole chord releases the gate');
+  }
+  // an IN-TIME press never brakes the clock (the whole point: no stutter). Credit
+  // the next note before it reaches the late edge and confirm full speed holds.
+  const timely=yours.find(n=>!S.byNote.has(n) && n.startSec>T.songTime+0.6);
+  if(timely){
+    for(const n of yours){ if(!S.byNote.has(n) && n.startSec<timely.startSec) S.byNote.set(n,{note:n,tier:'perfect'}); }
+    T._gatePtr=0;                                    // rescan from the front after crediting the run-up
+    tick(timely.startSec - T.songTime - 0.05);
+    S.byNote.set(timely,{note:timely,tier:'perfect'});
+    tick(0.1);
+    ok(T.rate>0.9 && !T.waiting, 'an in-time press keeps the clock at full speed (no stutter, rate '+T.rate.toFixed(2)+')');
   }
   // no anticipatory braking: far from any unpressed note, rate is the full target
   const far=yours.find(n=>!S.byNote.has(n) && n.startSec>T.songTime+1.0);
