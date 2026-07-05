@@ -75,9 +75,53 @@ function applyLayout(sliceConfig, label){
   persistSettings(true);                                               // deliberate action — save now
   if(label) flash('Layout: '+label+' · your chart re-mapped to these keys');
 }
+let _basePreset='standard';   // last non-custom preset (for the map editor's RESET)
 function applyPreset(id){
+  _basePreset=id;
   const p=(typeof SLICE_PRESETS!=='undefined')?SLICE_PRESETS[id]:null;
   applyLayout({ preset:id, list:null, mapping:null }, (p&&p.label)||id);
+}
+
+/* ── Map editing (docs/14 §4.3) — serialize the live slices back to a config
+   list, tweak one key, re-apply as a 'custom' layout (re-charts + persists). */
+function slicesToList(){
+  if(typeof currentSlices!=='function') return [];
+  return currentSlices().map(s=>{
+    const o={ id:s.id, label:s.label, order:s.order, step:s.step,
+      minAnchor:s.minAnchor, maxAnchor:s.maxAnchor,
+      keys:Object.fromEntries(s.keys.map(k=>[k.key,k.off])) };
+    if(s.initialAnchor!=null) o.initialAnchor=s.initialAnchor;
+    if(s.color) o.color=s.color;
+    if(s.shiftKeys && (s.shiftKeys.up||s.shiftKeys.down)) o.shiftKeys={ up:s.shiftKeys.up, down:s.shiftKeys.down };
+    return o;
+  });
+}
+function applyEditedList(list){
+  const c=liveConfig(); c.slices={ preset:'custom', list, mapping:null };
+  loadConfig(c);
+  if(typeof Song!=='undefined' && Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
+  if(typeof draw==='function') draw();
+  if(typeof syncPresetUI==='function') syncPresetUI();
+  persistSettings(true);
+}
+function _anchorOfSlice(s, anchors){ const a=anchors&&anchors[s.id]; return (a!=null)?a:(s.initialAnchor!=null?s.initialAnchor:60); }
+// Assign computer key `key` to sound `midi`: put it in the slice whose window
+// covers that pitch (else keep its current slice / first). Offset = midi - anchor.
+function remapKey(key, midi){
+  if(typeof currentSlices!=='function') return;
+  const anchors=(typeof currentAnchors==='function')?currentAnchors():{};
+  const slices=currentSlices();
+  let target=null;
+  for(const s of slices){ const offs=s.offs; if(!offs||!offs.length) continue;
+    const a=_anchorOfSlice(s,anchors);
+    if(midi>=a+offs[0] && midi<=a+offs[offs.length-1]){ target=s; break; } }
+  if(!target){ const cur=(typeof KEY_SLICE!=='undefined')?KEY_SLICE[key]:null; target=slices.find(s=>s.id===cur)||slices[0]; }
+  if(!target) return;
+  const off=midi - _anchorOfSlice(target,anchors);
+  const list=slicesToList();
+  for(const s of list){ if(s.keys && (key in s.keys)) delete s.keys[key]; }
+  const tl=list.find(s=>s.id===target.id); if(!tl) return; tl.keys[key]=off;
+  applyEditedList(list);
 }
 function buildPresetPicker(){
   const host=$('presetPicker'); if(!host) return;
@@ -382,89 +426,126 @@ syncAssistUI();
    and it lights BOTH the letter and its piano key. A separate toggle
    draws simple straight lines for the whole mapping. */
 const MapView = (()=>{
+  // full keyboard so every layout (incl. the versell number-row + punctuation keys) renders
   const KB_ROWS = [
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l',';'],
+    ['`','1','2','3','4','5','6','7','8','9','0','-','='],
+    ['q','w','e','r','t','y','u','i','o','p','[',']','\\'],
+    ['a','s','d','f','g','h','j','k','l',';',"'"],
     ['z','x','c','v','b','n','m',',','.','/'],
   ];
-  let built=false, linesOn=false;
-  const keyCell=new Map();   // letter -> element
+  const LABELS={ '`':'`','-':'-','=':'=','[':'[',']':']','\\':'\\',';':';',"'":"'",',':',','.':'.','/':'/'};
+  let linesOn=false, editMode=false, armed=null;
+  const keyCell=new Map();   // legend -> element
   const pianoCell=new Map(); // midi -> element
+  const palOf = id => { const s=(typeof currentSlices==='function')?currentSlices().find(x=>x.id===id):null;
+    return (s && typeof Skin!=='undefined' && Skin.sliceColor)?Skin.sliceColor(s):null; };
 
   function build(){
-    const kb=$('mapKb'); kb.innerHTML='';
+    const kb=$('mapKb'); if(!kb) return; kb.innerHTML=''; keyCell.clear();
     for(const row of KB_ROWS){
       const r=document.createElement('div'); r.className='mapRow';
       for(const k of row){
         const c=document.createElement('div');
-        const hand=KEY_HAND[k];
-        c.className='mapKey'+(hand?(' mapped '+hand):' dim');
-        c.textContent = (k===';'?';':k.toUpperCase());
-        c.dataset.k=k; keyCell.set(k,c); r.appendChild(c);
+        const sid=(typeof KEY_SLICE!=='undefined')?KEY_SLICE[k]:null;
+        c.className='mapKey'+(sid?' mapped':' dim');
+        if(sid){ const p=palOf(sid); if(p) c.style.setProperty('--sc', p.fill); }
+        c.textContent = LABELS[k]||k.toUpperCase();
+        c.dataset.k=k; c.onclick=()=>onKey(k);
+        keyCell.set(k,c); r.appendChild(c);
       }
       kb.appendChild(r);
     }
   }
+  function windowAndSlices(){
+    const slices=(typeof currentSlices==='function')?currentSlices():[];
+    const anchors=(typeof currentAnchors==='function')?currentAnchors():{};
+    let lo=200,hi=0;
+    for(const s of slices){ if(!s.offs||!s.offs.length) continue; const a=_anchorOfSlice(s,anchors);
+      lo=Math.min(lo,a+s.offs[0]); hi=Math.max(hi,a+s.offs[s.offs.length-1]); }
+    if(lo>hi){ lo=48; hi=72; }
+    lo=clamp(lo,21,108); hi=clamp(hi,21,108); if(hi-lo<11) hi=Math.min(108,lo+11);
+    return {lo,hi,slices,anchors};
+  }
+  function sliceAtMidi(m, slices, anchors){
+    for(const s of slices){ if(!s.offs||!s.offs.length) continue; const a=_anchorOfSlice(s,anchors);
+      if(m>=a+s.offs[0] && m<=a+s.offs[s.offs.length-1]) return s; }
+    return null;
+  }
   function buildPiano(){
-    const s=currentSlice();
-    const loOct=Math.min(s.L,s.R), hiOct=Math.max(s.L,s.R);
-    const lo=(loOct+1)*12, hi=(hiOct+1)*12+11;
-    const pno=$('mapPiano'); pno.innerHTML=''; pianoCell.clear();
+    const pno=$('mapPiano'); if(!pno) return; pno.innerHTML=''; pianoCell.clear();
+    const {lo,hi,slices,anchors}=windowAndSlices();
     const whites=[]; for(let m=lo;m<=hi;m++){ if(![1,3,6,8,10].includes(m%12)) whites.push(m); }
-    const wW=100/whites.length;
-    // white keys
+    const wW=100/Math.max(1,whites.length);
     whites.forEach((m,idx)=>{
       const el=document.createElement('div'); el.className='mapWhite';
-      const hand = (m>=(s.L+1)*12&&m<=(s.L+1)*12+11)?'left':((m>=(s.R+1)*12&&m<=(s.R+1)*12+11)?'right':null);
-      if(hand) el.classList.add('in-'+hand); else el.classList.add('dim');
+      const s=sliceAtMidi(m,slices,anchors), p=s?palOf(s.id):null;
+      if(p) el.style.background='linear-gradient(180deg,'+p.keyTop+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=(idx*wW)+'%'; el.style.width=wW+'%';
       if(m%12===0){ const lab=document.createElement('span'); lab.className='mapClab'; lab.textContent='C'+(Math.floor(m/12)-1); el.appendChild(lab); }
+      el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
     });
-    // black keys
     for(let m=lo;m<=hi;m++){ if(![1,3,6,8,10].includes(m%12)) continue;
-      const leftWhite=m-1; const wi=whites.indexOf(leftWhite); if(wi<0) continue;
+      const wi=whites.indexOf(m-1); if(wi<0) continue;
       const el=document.createElement('div'); el.className='mapBlack';
-      const hand = (m>=(s.L+1)*12&&m<=(s.L+1)*12+11)?'left':((m>=(s.R+1)*12&&m<=(s.R+1)*12+11)?'right':null);
-      if(hand) el.classList.add('in-'+hand); else el.classList.add('dim');
+      const s=sliceAtMidi(m,slices,anchors), p=s?palOf(s.id):null;
+      if(p) el.style.background='linear-gradient(180deg,'+p.fillBright+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=((wi+1)*wW - wW*0.3)+'%'; el.style.width=(wW*0.6)+'%';
+      el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
     }
     drawLines();
   }
   function drawLines(){
-    const svg=$('mapSvg'); svg.innerHTML=''; if(!linesOn) return;
+    const svg=$('mapSvg'); if(!svg) return; svg.innerHTML=''; if(!linesOn) return;
     const host=$('mapBody').getBoundingClientRect();
     svg.setAttribute('viewBox',`0 0 ${host.width} ${host.height}`);
     for(const [k,cell] of keyCell){
-      const hand=KEY_HAND[k]; if(!hand) continue;
-      const r=midiForGameKey(k); if(!r) continue;
+      const sid=(typeof KEY_SLICE!=='undefined')?KEY_SLICE[k]:null; if(!sid) continue;
+      const r=(typeof midiForGameKey==='function')?midiForGameKey(k):null; if(!r) continue;
       const pc=pianoCell.get(r.midi); if(!pc) continue;
       const a=cell.getBoundingClientRect(), b=pc.getBoundingClientRect();
-      const x1=a.left+a.width/2-host.left, y1=a.bottom-host.top;
-      const x2=b.left+b.width/2-host.left, y2=b.top-host.top;
+      const p=palOf(sid);
       const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
-      ln.setAttribute('x1',x1);ln.setAttribute('y1',y1);ln.setAttribute('x2',x2);ln.setAttribute('y2',y2);
-      ln.setAttribute('stroke', hand==='left'?'rgba(26,143,255,.5)':'rgba(255,138,43,.5)');
-      ln.setAttribute('stroke-width','1.5'); svg.appendChild(ln);
+      ln.setAttribute('x1',a.left+a.width/2-host.left);ln.setAttribute('y1',a.bottom-host.top);
+      ln.setAttribute('x2',b.left+b.width/2-host.left);ln.setAttribute('y2',b.top-host.top);
+      ln.setAttribute('stroke', p?p.glow:'rgba(180,190,210,.5)'); ln.setAttribute('stroke-width','1.5'); svg.appendChild(ln);
     }
   }
-  function light(k,midi,on){
-    const c=keyCell.get(k); if(c) c.classList.toggle('lit',on);
-    const p=pianoCell.get(midi); if(p) p.classList.toggle('lit',on);
-  }
+  function light(k,midi,on){ const c=keyCell.get(k); if(c) c.classList.toggle('lit',on);
+    const p=pianoCell.get(midi); if(p) p.classList.toggle('lit',on); }
+
+  function disarm(){ if(armed){ const c=keyCell.get(armed); if(c) c.classList.remove('armed'); } armed=null; }
+  function onKey(k){ if(!editMode) return; if(armed===k){ disarm(); setHint(); return; }
+    disarm(); armed=k; const c=keyCell.get(k); if(c) c.classList.add('armed'); setHint(); }
+  function onPiano(m){ if(!editMode || !armed) return; const k=armed; disarm();
+    remapKey(k,m); rebuild(); setHint(); flash('Mapped '+(LABELS[k]||k.toUpperCase())+' -> '+noteName(m)+octaveOf(m)); }
+  function setHint(){ const h=$('mapHint'); if(!h) return;
+    h.textContent = editMode
+      ? (armed ? 'Now click a piano note to map "'+(LABELS[armed]||armed.toUpperCase())+'" to it. (Click the key again to cancel.)'
+               : 'EDIT is ON — click a key, then click a piano note to remap it. Key colors show the slices.')
+      : 'Press any key to light it. Tap EDIT to remap keys; RESET restores the preset.'; }
+  function setEdit(on){ editMode=on; const b=$('mapEditBtn'); if(b) b.classList.toggle('sel',on);
+    const pnl=$('mapPanel'); if(pnl) pnl.classList.toggle('editing',on); if(!on) disarm(); setHint(); }
+  function rebuild(){ build(); buildPiano(); }
+
   return {
     open:false,
+    get editing(){ return editMode; },
     toggle(){ this.open?this.hide():this.show(); },
-    show(){ if(!built){build();built=true;} buildPiano(); $('mapOverlay').classList.add('open'); this.open=true; },
-    hide(){ $('mapOverlay').classList.remove('open'); this.open=false; },
+    show(){ rebuild(); setHint(); $('mapOverlay').classList.add('open'); this.open=true; },
+    hide(){ setEdit(false); $('mapOverlay').classList.remove('open'); this.open=false; },
     light,
     toggleLines(){ linesOn=!linesOn; $('mapLinesBtn').classList.toggle('sel',linesOn); drawLines(); },
+    edit(on){ setEdit(on===undefined?!editMode:on); },
   };
 })();
 $('mapClose').onclick=()=>MapView.hide();
 $('mapLinesBtn').onclick=()=>MapView.toggleLines();
+if($('mapEditBtn'))  $('mapEditBtn').onclick=()=>MapView.edit();
+if($('mapResetBtn')) $('mapResetBtn').onclick=()=>{ if(typeof applyPreset==='function') applyPreset(_basePreset||'standard'); MapView.show(); flash('Layout reset to '+_basePreset); };
 $('mapOverlay').addEventListener('click',e=>{ if(e.target.id==='mapOverlay') MapView.hide(); });
+if($('editMapBtn')) $('editMapBtn').onclick=()=>{ if(typeof Teklet!=='undefined') Teklet.hide(); MapView.show(); MapView.edit(true); };
 
 // drag-drop
 const wrap=document.getElementById('stageWrap');

@@ -110,12 +110,12 @@ button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
   font-family:'Orbitron';font-weight:700;font-size:13px;border:1px solid #1e2740;
   background:#0e1424;color:#3a465e;transition:transform .05s,box-shadow .12s,background .12s;}
 .mapKey.dim{opacity:.32;}
-.mapKey.mapped{color:#dce8fb;background:#16203a;border-color:#2a3a5e;}
-.mapKey.mapped.left{border-color:rgba(26,143,255,.55);box-shadow:0 1px 0 rgba(26,143,255,.25) inset;}
-.mapKey.mapped.right{border-color:rgba(255,138,43,.55);box-shadow:0 1px 0 rgba(255,138,43,.25) inset;}
+.mapKey.mapped{color:#dce8fb;background:#16203a;border-color:var(--sc,#2a3a5e);box-shadow:0 1px 0 rgba(255,255,255,.06) inset;}
 .mapKey.lit{transform:translateY(1px);}
-.mapKey.mapped.left.lit{background:#1a8fff;color:#fff;box-shadow:0 0 16px rgba(26,143,255,.8);}
-.mapKey.mapped.right.lit{background:#ff8a2b;color:#1a0e04;box-shadow:0 0 16px rgba(255,138,43,.85);}
+.mapKey.mapped.lit{background:var(--sc,#1a8fff);color:#05070b;box-shadow:0 0 16px var(--sc,rgba(26,143,255,.8));}
+.mapKey.armed{border-color:#fff;box-shadow:0 0 0 2px #fff,0 0 14px rgba(255,255,255,.6);}
+#mapPanel.editing .mapKey,#mapPanel.editing .mapWhite,#mapPanel.editing .mapBlack{cursor:pointer;}
+#mapEditBtn.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);}
 #mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
   background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
 .mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
@@ -320,7 +320,8 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
     <div class="tkSection">
       <div class="tkLabel">LAYOUT · your keyboard</div>
       <div id="presetPicker"></div>
-      <div class="tkHint" id="layoutHint">Pick a keyboard layout — the song re-maps to it and plays. Standard = two hands; Keyboard Game = a wide two-octave right hand.</div>
+      <button class="tk" id="editMapBtn" title="Open the keyboard map and remap keys">&#9998; CUSTOMIZE MAP</button>
+      <div class="tkHint" id="layoutHint">Pick a layout — the song re-maps to it and plays. Or tap CUSTOMIZE MAP to remap keys yourself. Standard = two hands; Keyboard Game = a wide two-octave right hand.</div>
     </div>
     <div class="tkSection">
       <div class="tkLabel">SONG</div>
@@ -341,6 +342,8 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
     <div class="mapHead">
       <span>KEYBOARD MAP</span>
       <div class="mapHeadBtns">
+        <button class="tk" id="mapEditBtn" title="Remap: click a key, then a piano note">EDIT</button>
+        <button class="tk" id="mapResetBtn" title="Reset to the selected preset">RESET</button>
         <button class="tk" id="mapLinesBtn">LINES</button>
         <button class="tk" id="mapClose">CLOSE ✕</button>
       </div>
