@@ -300,6 +300,12 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
         <span class="lbl">Vol</span>
         <input type="range" class="vol" id="vol" min="0" max="100" value="75">
       </div>
+      <div class="grp">
+        <button class="tk" id="sf2Btn" title="Load a piano sample pack (.sf2 SoundFont) as the instrument">&#127929; UPLOAD PIANO (SF2)</button>
+        <button class="tk" id="synthBtn" title="Use the built-in synth" style="display:none">RESET SYNTH</button>
+        <input type="file" id="sf2Input" accept=".sf2,.sfont,application/octet-stream" style="display:none">
+      </div>
+      <div class="tkHint" id="sf2Hint">Built-in synth. Load an .sf2 soundfont for a sampled piano (session only).</div>
     </div>
     <div class="tkSection">
       <div class="tkLabel">SKIN · make it yours</div>
@@ -1505,13 +1511,113 @@ const userSlice = {
    hard ceiling; allNotesOff() is the panic button. Together these
    kill stuck/ghost notes regardless of missed key-ups, tab blur,
    or seek/pause races.
+
+   A voice's SOUND is either the built-in 3-oscillator synth OR, when
+   the player loads a SoundFont (.sf2), the matching sampled instrument
+   (parseSoundFont below). Voice bookkeeping is source-agnostic: a voice
+   just holds `srcs` (the nodes to stop) + `g` (its gain), so the sampler
+   and the synth share every teardown/watchdog path.
    ════════════════════════════════════════════════════════════ */
+
+// ── minimal SoundFont (SF2) reader ───────────────────────────────────
+// Parses just enough of the SF2 "hydra" to sample-play a piano: the smpl
+// PCM pool + one instrument's key-range -> sample zones. Returns
+// { name, zones:[{lo,hi,root,tuneCents,loop,rate,pcm,loopStart,loopEnd,sampleId}] }
+// or null on ANY problem (the caller keeps the synth — never throws).
+function _sfStr(u8,o,n){ let s=''; for(let i=0;i<n;i++){ const c=u8[o+i]; if(!c) break; s+=String.fromCharCode(c); } return s; }
+function parseSoundFont(buffer){
+  try{
+    const dv=new DataView(buffer), u8=new Uint8Array(buffer);
+    const tag=o=>String.fromCharCode(u8[o],u8[o+1],u8[o+2],u8[o+3]);
+    if(buffer.byteLength<12 || tag(0)!=='RIFF' || tag(8)!=='sfbk') return null;
+    // walk top-level chunks; collect smpl (sdta) + the pdta sub-chunks
+    let smplOff=0, smplLen=0; const pdta={};
+    let p=12;
+    while(p+8<=buffer.byteLength){
+      const id=tag(p), sz=dv.getUint32(p+4,true), body=p+8;
+      if(id==='LIST'){
+        const listType=tag(body); let q=body+4;
+        while(q+8<=body+sz){
+          const cid=tag(q), csz=dv.getUint32(q+4,true), cbody=q+8;
+          if(listType==='sdta' && cid==='smpl'){ smplOff=cbody; smplLen=csz; }
+          else if(listType==='pdta'){ pdta[cid]={off:cbody,len:csz}; }
+          q=cbody+csz+(csz&1);
+        }
+      }
+      p=body+sz+(sz&1);
+    }
+    if(!smplOff || !pdta.shdr || !pdta.inst || !pdta.ibag || !pdta.igen) return null;
+
+    // 16-bit LE PCM -> Float32 pool
+    const nSamp=smplLen>>1, pool=new Float32Array(nSamp);
+    for(let i=0;i<nSamp;i++) pool[i]=dv.getInt16(smplOff+i*2,true)/32768;
+
+    const recs=(c,size,fn)=>{ const out=[]; if(!c) return out; const n=Math.floor(c.len/size);
+      for(let i=0;i<n;i++) out.push(fn(c.off+i*size)); return out; };
+    const shdr=recs(pdta.shdr,46,b=>({ name:_sfStr(u8,b,20),
+      start:dv.getUint32(b+20,true), end:dv.getUint32(b+24,true),
+      startLoop:dv.getUint32(b+28,true), endLoop:dv.getUint32(b+32,true),
+      rate:dv.getUint32(b+36,true), pitch:u8[b+40], corr:dv.getInt8(b+41),
+      type:dv.getUint16(b+44,true) }));
+    const inst=recs(pdta.inst,22,b=>({ name:_sfStr(u8,b,20), bag:dv.getUint16(b+20,true) }));
+    const ibag=recs(pdta.ibag,4,b=>({ gen:dv.getUint16(b,true) }));
+    const igen=recs(pdta.igen,4,b=>({ op:dv.getUint16(b,true), amt:dv.getUint16(b+2,true),
+      samt:dv.getInt16(b+2,true), lo:u8[b+2], hi:u8[b+3] }));
+
+    // choose an instrument: follow preset 0 -> its instrument gen (op 41) if the
+    // preset chunks exist, else instrument 0.
+    let instIndex=0;
+    if(pdta.phdr && pdta.pbag && pdta.pgen){
+      const phdr=recs(pdta.phdr,38,b=>({ name:_sfStr(u8,b,20), bag:dv.getUint16(b+24,true) }));
+      const pbag=recs(pdta.pbag,4,b=>({ gen:dv.getUint16(b,true) }));
+      const pgen=recs(pdta.pgen,4,b=>({ op:dv.getUint16(b,true), amt:dv.getUint16(b+2,true) }));
+      if(phdr.length>=2){
+        for(let bi=phdr[0].bag; bi<phdr[1].bag && bi<pbag.length; bi++){
+          const gs=pbag[bi].gen, ge=(pbag[bi+1]?pbag[bi+1].gen:pgen.length);
+          for(let gi=gs; gi<ge; gi++) if(pgen[gi] && pgen[gi].op===41) instIndex=pgen[gi].amt;
+        }
+      }
+    }
+    instIndex=clamp(instIndex,0,Math.max(0,inst.length-2));
+    if(instIndex>=inst.length-1) return null;
+
+    // instrument zones: each bag's generators -> a key-range mapped to a sample.
+    // A leading bag with no sampleID is a global zone (running defaults).
+    const zones=[];
+    let gLo=0,gHi=127,gRoot=-1,gCoarse=0,gFine=0,gMode=0;
+    const bg0=inst[instIndex].bag, bg1=inst[instIndex+1]?inst[instIndex+1].bag:ibag.length;
+    for(let bi=bg0; bi<bg1 && bi<ibag.length; bi++){
+      const gs=ibag[bi].gen, ge=(ibag[bi+1]?ibag[bi+1].gen:igen.length);
+      let lo=gLo,hi=gHi,root=gRoot,coarse=gCoarse,fine=gFine,mode=gMode,sampleId=-1;
+      for(let gi=gs; gi<ge; gi++){ const g=igen[gi]; if(!g) continue;
+        switch(g.op){
+          case 43: lo=g.lo; hi=g.hi; break;   // keyRange
+          case 58: root=g.amt; break;         // overridingRootKey
+          case 51: coarse=g.samt; break;      // coarseTune (semitones)
+          case 52: fine=g.samt; break;        // fineTune (cents)
+          case 54: mode=g.amt; break;         // sampleModes (1|3 = loop)
+          case 53: sampleId=g.amt; break;     // sampleID (terminal generator)
+        }
+      }
+      if(sampleId<0){ gLo=lo; gHi=hi; if(root>=0)gRoot=root; gCoarse=coarse; gFine=fine; gMode=mode; continue; }
+      const sh=shdr[sampleId]; if(!sh || sh.end<=sh.start) continue;
+      zones.push({ lo, hi, root:(root>=0?root:sh.pitch), tuneCents:coarse*100+fine+sh.corr,
+        loop:(mode===1||mode===3), rate:sh.rate||44100, pcm:pool.subarray(sh.start, sh.end),
+        loopStart:(sh.startLoop-sh.start)/(sh.rate||44100), loopEnd:(sh.endLoop-sh.start)/(sh.rate||44100),
+        sampleId });
+    }
+    if(!zones.length) return null;
+    return { name:(inst[instIndex].name||'SoundFont'), zones };
+  }catch(e){ return null; }
+}
+
 const Audio = (()=>{
   let ctx=null, master=null, verb=null;
   const voices=new Map();         // voiceId -> Voice
   const keyVoice=new Map();       // input key (or midi) -> voiceId  (held notes)
   let nextId=1;
   const MAX_VOICE_SEC=12;         // absolute ceiling — nothing rings longer
+  let instrument=null;            // loaded SoundFont { name, zones:[...,.buffer] } or null (synth)
 
   function ensure(){
     if(ctx) return;
@@ -1533,23 +1639,57 @@ const Audio = (()=>{
   function now(){ ensure(); return ctx.currentTime; }
   function setVolume(v){ ensure(); master.gain.value=v; }
 
-  // build the oscillator stack for one voice
-  function build(midi, vel){
-    const f=midiToFreq(midi), t=ctx.currentTime;
+  // ── SoundFont API ──────────────────────────────────────────────
+  // Load an uploaded .sf2 as the instrument. Returns its name, or null (kept
+  // synth). AudioBuffers are built once here (ctx exists); reused per sample.
+  function loadSoundfont(buffer){
+    ensure();
+    const sf=parseSoundFont(buffer); if(!sf) return null;
+    const cache={};
+    for(const z of sf.zones){
+      let buf=cache[z.sampleId];
+      if(!buf){ const n=Math.max(1,z.pcm.length); buf=ctx.createBuffer(1,n,z.rate||44100); buf.getChannelData(0).set(z.pcm); cache[z.sampleId]=buf; }
+      z.buffer=buf;
+    }
+    instrument=sf; return sf.name;
+  }
+  function useSynth(){ instrument=null; }
+  function instrumentName(){ return instrument ? instrument.name : null; }
+  function zoneFor(midi){ if(!instrument) return null; for(const z of instrument.zones){ if(midi>=z.lo && midi<=z.hi && z.buffer) return z; } return null; }
+
+  // Create (but DON'T start) the source nodes for one voice, connected to `g`.
+  // Sampler when a SoundFont covers this note; otherwise the 3-oscillator synth.
+  function voiceSources(midi, g){
+    const z=zoneFor(midi);
+    if(z){
+      const src=ctx.createBufferSource(); src.buffer=z.buffer;
+      src.playbackRate.value=Math.pow(2,(midi - z.root)/12 + z.tuneCents/1200);
+      if(z.loop && z.loopEnd>z.loopStart){ src.loop=true; src.loopStart=z.loopStart; src.loopEnd=z.loopEnd; }
+      src.connect(g); return [src];
+    }
+    const f=midiToFreq(midi);
     const o1=ctx.createOscillator(),o2=ctx.createOscillator(),o3=ctx.createOscillator();
     o1.type='triangle';o2.type='sine';o3.type='sine';
     o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
+    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
+    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);
+    return [o1,o2,o3];
+  }
+
+  // build the voice for a LIVE held note
+  function build(midi, vel){
+    const t=ctx.currentTime;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
     // fade-in (~12ms) so the onset doesn't click, then settle to sustain
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.012);
     g.gain.linearRampToValueAtTime(a*0.75,t+0.12);
-    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
-    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
-    o1.start(t);o2.start(t);o3.start(t);
-    return {o1,o2,o3,g};
+    const srcs=voiceSources(midi, g); g.connect(master);
+    for(const s of srcs) s.start(t);
+    return {srcs,g};
   }
-  function hardStop(v, when){ try{ const s=when??ctx.currentTime; v.o1.stop(s);v.o2.stop(s);v.o3.stop(s);
-    v.o1.disconnect();v.o2.disconnect();v.o3.disconnect();v.g.disconnect(); }catch(e){} }
+  function hardStop(v, when){ try{ const s=when??ctx.currentTime;
+    if(v.srcs) for(const n of v.srcs){ try{n.stop(s);}catch(e){} try{n.disconnect();}catch(e){} }
+    v.g.disconnect(); }catch(e){} }
 
   function release(voiceId, immediate){
     const v=voices.get(voiceId); if(!v) return; voices.delete(voiceId);
@@ -1564,10 +1704,6 @@ const Audio = (()=>{
   function strike(midi, when, dur, vel=0.8){
     ensure();
     const t=Math.max(when, ctx.currentTime);
-    const f=midiToFreq(midi);
-    const o1=ctx.createOscillator(),o2=ctx.createOscillator(),o3=ctx.createOscillator();
-    o1.type='triangle';o2.type='sine';o3.type='sine';
-    o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
     const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
     // click-free envelope: ~12ms fade-in, then a sustain hold that ALWAYS ends
     // before the release starts (short notes used to overlap the two ramps -> a
@@ -1576,16 +1712,15 @@ const Audio = (()=>{
     g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+atk);
     g.gain.linearRampToValueAtTime(a*0.7,t+hold);
     g.gain.setTargetAtTime(0.0001, t+rel, 0.14);
-    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
-    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);g.connect(master);
-    o1.start(t);o2.start(t);o3.start(t);
-    const id=nextId++; const v={o1,o2,o3,g,key:null,held:false,endByCtx:t+rel+1.2,bornCtx:ctx.currentTime};
+    const srcs=voiceSources(midi, g); g.connect(master);
+    for(const s of srcs){ try{ s.start(t); }catch(e){} }
+    const id=nextId++; const v={srcs,g,key:null,held:false,endByCtx:t+rel+1.2,bornCtx:ctx.currentTime};
     voices.set(id,v);
     // Schedule an absolute safety stop, but DON'T disconnect now: hardStop()
-    // disconnects synchronously, which would rip the just-started oscillators out
-    // of the graph before any sound reaches master (silent playback). The per-frame
+    // disconnects synchronously, which would rip the just-started nodes out of the
+    // graph before any sound reaches master (silent playback). The per-frame
     // watchdog + release() free the nodes after the note has finished.
-    try{ const s=t+rel+1.2; o1.stop(s); o2.stop(s); o3.stop(s); }catch(e){}
+    try{ const s=t+rel+1.2; for(const n of srcs) n.stop(s); }catch(e){}
     return id;
   }
 
@@ -1613,7 +1748,8 @@ const Audio = (()=>{
     }
   }
   function liveCount(){ return voices.size; }
-  return {resume,now,setVolume,strike,noteOn,noteOff,allNotesOff,tick,liveCount};
+  return {resume,now,setVolume,strike,noteOn,noteOff,allNotesOff,tick,liveCount,
+          loadSoundfont,useSynth,instrumentName};
 })();
 
 /* ==== FILE: src/runtime/skin.js ==== */
@@ -2872,6 +3008,27 @@ if($('bgImgInput')) $('bgImgInput').onchange=e=>{
   flash(kind==='video' ? 'Background video set · loops behind your notes · skins never affect gameplay'
                         : 'Background image set · skins never affect gameplay');
 };
+/* Instrument (SF2 SoundFont) — load a sampled piano as the voice. Session-only
+   (soundfonts are far too big for storage); reverts to the synth on reload. */
+function setSf2UI(name){
+  const hint=$('sf2Hint'), reset=$('synthBtn');
+  if(name){ if(hint) hint.textContent='Instrument: '+name+' (sampled · session only)'; if(reset) reset.style.display=''; }
+  else { if(hint) hint.textContent='Built-in synth. Load an .sf2 soundfont for a sampled piano (session only).'; if(reset) reset.style.display='none'; }
+}
+if($('sf2Btn'))  $('sf2Btn').onclick=()=>$('sf2Input') && $('sf2Input').click();
+if($('synthBtn'))$('synthBtn').onclick=()=>{ if(typeof Audio!=='undefined') Audio.useSynth(); setSf2UI(null); flash('Back to the built-in synth'); };
+if($('sf2Input')) $('sf2Input').onchange=e=>{
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  flash('Reading '+f.name+' …');
+  const rd=new FileReader();
+  rd.onload=()=>{ let name=null; try{ name=Audio.loadSoundfont(rd.result); }catch(err){ name=null; }
+    if(name){ setSf2UI(name); flash('Piano loaded: '+name+' · sampled instrument (session only)'); }
+    else flash('Could not read that .sf2 · keeping the built-in synth'); };
+  rd.onerror=()=>flash('Could not read that file');
+  rd.readAsArrayBuffer(f);
+  e.target.value='';
+};
+
 function syncSkinUI(){
   if(typeof Skin==='undefined') return;
   if($('skinPrimary'))   $('skinPrimary').value   = _hex6(Skin.primary,   '#ff8a2b');

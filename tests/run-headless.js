@@ -18,9 +18,10 @@ const fakeCtx=new Proxy({},{ get:(t,p)=>{ if(!(p in t)) t[p]=()=>({addColorStop:
 
 let CTXTIME=0;
 function fakeParam(){ return {value:0,setValueAtTime:noop,linearRampToValueAtTime:noop,setTargetAtTime:noop,cancelScheduledValues:noop}; }
-function fakeNode(){ return {connect:()=>fakeNode(),disconnect:noop,start:noop,stop:noop,gain:fakeParam(),frequency:fakeParam(),type:'',buffer:null}; }
+function fakeNode(){ return {connect:()=>fakeNode(),disconnect:noop,start:noop,stop:noop,gain:fakeParam(),frequency:fakeParam(),playbackRate:fakeParam(),loop:false,loopStart:0,loopEnd:0,type:'',buffer:null}; }
 function FakeAudioContext(){ this.state='running'; this.sampleRate=44100;
   this.destination={}; this.createGain=fakeNode; this.createOscillator=fakeNode; this.createConvolver=fakeNode;
+  this.createBufferSource=fakeNode;
   this.createDynamicsCompressor=fakeNode; this.createBuffer=(c,l)=>({getChannelData:()=>new Float32Array(l)});
   this.resume=noop; Object.defineProperty(this,'currentTime',{get:()=>CTXTIME}); }
 
@@ -31,7 +32,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan,normalizeSlices,SLICE_PRESETS,makeSlice,solvePlanSlices,codeLabel,get SLICES(){return SLICES;},get KEY_SLICE(){return KEY_SLICE;},get SHIFT_BY_CODE(){return SHIFT_BY_CODE;},get CODE_TO_GAMEKEY(){return CODE_TO_GAMEKEY;}};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan,normalizeSlices,SLICE_PRESETS,makeSlice,solvePlanSlices,codeLabel,parseSoundFont,get SLICES(){return SLICES;},get KEY_SLICE(){return KEY_SLICE;},get SHIFT_BY_CODE(){return SHIFT_BY_CODE;},get CODE_TO_GAMEKEY(){return CODE_TO_GAMEKEY;}};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -277,6 +278,58 @@ for(let i=0;i<200;i++) A.noteOn(40+(i%48),0.7,'k'+(i%12));
 A.allNotesOff(true); ok(A.liveCount()===0,'200 presses w/o release + panic -> 0');
 CTXTIME=0; A.strike(60,0,0.2,0.8); ok(A.liveCount()===1,'strike() registers a voice');
 CTXTIME=20; A.tick(); ok(A.liveCount()===0,'watchdog reaps overdue/over-age voice on tick()');
+
+console.log('\n— SF2 SOUNDFONT (minimal sampler) —');
+{
+  // assemble a tiny but valid SF2: one 8-frame sample, one instrument with a
+  // full-range zone, one preset pointing at it. Proves parseSoundFont's hydra walk.
+  const asc=s=>{ const a=new Uint8Array(s.length); for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i); return a; };
+  const cat=arrs=>{ let n=0; for(const a of arrs)n+=a.length; const o=new Uint8Array(n); let k=0; for(const a of arrs){o.set(a,k);k+=a.length;} return o; };
+  const chunk=(id,data)=>{ const d=data instanceof Uint8Array?data:new Uint8Array(data); const pad=d.length&1;
+    const b=new Uint8Array(8+d.length+pad); b.set(asc(id),0); new DataView(b.buffer).setUint32(4,d.length,true); b.set(d,8); return b; };
+  const list=(t,cs)=>chunk('LIST',cat([asc(t),...cs]));
+  const name20=s=>{ const a=new Uint8Array(20); for(let i=0;i<Math.min(20,s.length);i++)a[i]=s.charCodeAt(i); return a; };
+  const shdr=cat([
+    (()=>{ const b=new Uint8Array(46); b.set(name20('sample'),0); const dv=new DataView(b.buffer);
+      dv.setUint32(20,0,true);dv.setUint32(24,8,true);dv.setUint32(28,2,true);dv.setUint32(32,6,true);
+      dv.setUint32(36,22050,true);b[40]=60;dv.setInt8(41,0);dv.setUint16(44,1,true); return b; })(),
+    (()=>{ const b=new Uint8Array(46); b.set(name20('EOS'),0); return b; })(),
+  ]);
+  const inst=cat([ (()=>{const b=new Uint8Array(22);b.set(name20('inst'),0);new DataView(b.buffer).setUint16(20,0,true);return b;})(),
+                   (()=>{const b=new Uint8Array(22);b.set(name20('EOI'),0);new DataView(b.buffer).setUint16(20,1,true);return b;})() ]);
+  const bag=(gen)=>{ const b=new Uint8Array(4); new DataView(b.buffer).setUint16(0,gen,true); return b; };
+  const ibag=cat([ bag(0), bag(2) ]);
+  const gen=(op,amt)=>{ const b=new Uint8Array(4); const dv=new DataView(b.buffer); dv.setUint16(0,op,true); dv.setUint16(2,amt,true); return b; };
+  const genRange=(op,lo,hi)=>{ const b=new Uint8Array(4); new DataView(b.buffer).setUint16(0,op,true); b[2]=lo;b[3]=hi; return b; };
+  const igen=cat([ genRange(43,0,127), gen(53,0), gen(0,0) ]);
+  const phdr=cat([ (()=>{const b=new Uint8Array(38);b.set(name20('Piano'),0);new DataView(b.buffer).setUint16(24,0,true);return b;})(),
+                   (()=>{const b=new Uint8Array(38);b.set(name20('EOP'),0);new DataView(b.buffer).setUint16(24,1,true);return b;})() ]);
+  const pbag=cat([ bag(0), bag(1) ]);
+  const pgen=cat([ gen(41,0), gen(0,0) ]);
+  const pcm=new Int16Array([0,4000,8000,4000,0,-4000,-8000,-4000]);
+  const smpl=new Uint8Array(pcm.buffer.slice(0));
+  const sfbytes=chunk('RIFF', cat([ asc('sfbk'),
+    list('sdta',[chunk('smpl',smpl)]),
+    list('pdta',[chunk('phdr',phdr),chunk('pbag',pbag),chunk('pgen',pgen),chunk('inst',inst),chunk('ibag',ibag),chunk('igen',igen),chunk('shdr',shdr)]) ]));
+  const sf2buf=sfbytes.buffer.slice(sfbytes.byteOffset, sfbytes.byteOffset+sfbytes.byteLength);
+
+  const sf=P.parseSoundFont(sf2buf);
+  ok(sf && sf.zones.length===1, 'parseSoundFont reads one zone from a minimal SF2');
+  if(sf){ const z=sf.zones[0];
+    ok(z.lo===0 && z.hi===127, 'zone covers the full key range');
+    ok(z.root===60, 'zone root pitch = 60 (sample originalPitch)');
+    ok(z.pcm.length===8, 'zone PCM length matches the sample'); }
+  ok(P.parseSoundFont(new ArrayBuffer(4))===null, 'garbage buffer -> null (never throws)');
+  ok(P.parseSoundFont(asc('RIFFxxxxNOTsfbk').buffer)===null, 'non-sfbk RIFF -> null');
+
+  // load it as the instrument and confirm sampler voices honor the same invariants
+  ok(A.loadSoundfont(sf2buf)==='inst', 'loadSoundfont returns the instrument name');
+  ok(A.instrumentName()==='inst', 'instrumentName reports the loaded soundfont');
+  A.noteOn(60,0.8,'sfk'); ok(A.liveCount()===1,'sampler voice: noteOn registers one voice');
+  A.allNotesOff(true); ok(A.liveCount()===0,'sampler voice: allNotesOff clears it');
+  ok(A.loadSoundfont(new ArrayBuffer(4))===null, 'loading garbage keeps the current instrument');
+  A.useSynth(); ok(A.instrumentName()===null, 'useSynth reverts to the built-in synth');
+}
 
 console.log('\n— DRAW STRESS (play+listen across versions) —');
 let drew=0,err=null;

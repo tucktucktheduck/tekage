@@ -340,6 +340,27 @@ if($('bgImgInput')) $('bgImgInput').onchange=e=>{
   flash(kind==='video' ? 'Background video set · loops behind your notes · skins never affect gameplay'
                         : 'Background image set · skins never affect gameplay');
 };
+/* Instrument (SF2 SoundFont) — load a sampled piano as the voice. Session-only
+   (soundfonts are far too big for storage); reverts to the synth on reload. */
+function setSf2UI(name){
+  const hint=$('sf2Hint'), reset=$('synthBtn');
+  if(name){ if(hint) hint.textContent='Instrument: '+name+' (sampled · session only)'; if(reset) reset.style.display=''; }
+  else { if(hint) hint.textContent='Built-in synth. Load an .sf2 soundfont for a sampled piano (session only).'; if(reset) reset.style.display='none'; }
+}
+if($('sf2Btn'))  $('sf2Btn').onclick=()=>$('sf2Input') && $('sf2Input').click();
+if($('synthBtn'))$('synthBtn').onclick=()=>{ if(typeof Audio!=='undefined') Audio.useSynth(); setSf2UI(null); flash('Back to the built-in synth'); };
+if($('sf2Input')) $('sf2Input').onchange=e=>{
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  flash('Reading '+f.name+' …');
+  const rd=new FileReader();
+  rd.onload=()=>{ let name=null; try{ name=Audio.loadSoundfont(rd.result); }catch(err){ name=null; }
+    if(name){ setSf2UI(name); flash('Piano loaded: '+name+' · sampled instrument (session only)'); }
+    else flash('Could not read that .sf2 · keeping the built-in synth'); };
+  rd.onerror=()=>flash('Could not read that file');
+  rd.readAsArrayBuffer(f);
+  e.target.value='';
+};
+
 function syncSkinUI(){
   if(typeof Skin==='undefined') return;
   if($('skinPrimary'))   $('skinPrimary').value   = _hex6(Skin.primary,   '#ff8a2b');

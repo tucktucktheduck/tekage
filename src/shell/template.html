@@ -300,6 +300,12 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
         <span class="lbl">Vol</span>
         <input type="range" class="vol" id="vol" min="0" max="100" value="75">
       </div>
+      <div class="grp">
+        <button class="tk" id="sf2Btn" title="Load a piano sample pack (.sf2 SoundFont) as the instrument">&#127929; UPLOAD PIANO (SF2)</button>
+        <button class="tk" id="synthBtn" title="Use the built-in synth" style="display:none">RESET SYNTH</button>
+        <input type="file" id="sf2Input" accept=".sf2,.sfont,application/octet-stream" style="display:none">
+      </div>
+      <div class="tkHint" id="sf2Hint">Built-in synth. Load an .sf2 soundfont for a sampled piano (session only).</div>
     </div>
     <div class="tkSection">
       <div class="tkLabel">SKIN · make it yours</div>
