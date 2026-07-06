@@ -71,9 +71,9 @@ test('changing a slice step keeps each key on its exact note (no drift, no telep
   const r = await page.evaluate(() => {
     UI.mode='play';
     const before = midiForGameKey('a').midi;          // 'a' is in the left slice
-    sliceSetProp('left','step',24);                   // 2-octave step
+    sliceSetProp('left','step',7);                    // change the semitone step
     return { before, after: midiForGameKey('a').midi, step: currentSlices().find(s=>s.id==='left').step };
   });
-  expect(r.step).toBe(24);
+  expect(r.step).toBe(7);
   expect(r.after).toBe(r.before);                     // key 'a' did not move off its note
 });

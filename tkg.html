@@ -3250,10 +3250,10 @@ function renderSliceList(){
     const a=_anchorOfSlice(s,anchors);
     const span = (s.offs&&s.offs.length) ? (noteName(a+s.offs[0])+octaveOf(a+s.offs[0])+'-'+noteName(a+s.offs[s.offs.length-1])+octaveOf(a+s.offs[s.offs.length-1])) : 'empty';
     const info=document.createElement('span'); info.className='sliceInfo'; info.textContent=s.keys.length+' keys · '+span; row.appendChild(info);
-    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='4'; step.value=Math.max(1,Math.round(s.step/12)); step.className='sliceStep';
-    step.title='Octaves per shift — a shift moves this slice by whole octaves, so each key always keeps its note (only the octave changes)';
-    step.onchange=()=>sliceSetProp(s.id,'step',(parseInt(step.value,10)||1)*12); row.appendChild(step);
-    const unit=document.createElement('span'); unit.className='sliceUnit'; unit.textContent='oct'; row.appendChild(unit);
+    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='24'; step.value=s.step; step.className='sliceStep';
+    step.title='Shift step in SEMITONES — how far each shift moves this slice (1 = one semitone, 12 = an octave). The whole slice moves together; every key keeps its assignment.';
+    step.onchange=()=>sliceSetProp(s.id,'step',parseInt(step.value,10)||1); row.appendChild(step);
+    const unit=document.createElement('span'); unit.className='sliceUnit'; unit.textContent='st'; row.appendChild(unit);
     const col=document.createElement('input'); col.type='color'; col.className='sliceColor'; col.value=(p?_hex6(p.hex,'#1a8fff'):'#1a8fff'); col.title='Slice color';
     col.oninput=()=>sliceSetProp(s.id,'color',col.value); row.appendChild(col);
     const shLbl=arr=> Array.isArray(arr)&&arr.length ? arr.map(codeLabel).join('/') : (arr?codeLabel(arr):'—');
@@ -3610,10 +3610,11 @@ function normalizeSlices(config, _depth){
           continue; }
         usedKeys.add(k); keys[k] = off;
       }
-      // step is a WHOLE-OCTAVE jump (multiple of 12): a shift moves the slice by
-      // octaves only, so a key always keeps its note name — it just changes octave
-      // (founder's model). Any non-octave value is snapped to the nearest octave.
-      const step = Number.isFinite(raw.step) ? Math.max(12, Math.round(raw.step/12)*12) : 12;
+      // step = how many SEMITONES a shift moves this slice (1 = chromatic, 12 = an
+      // octave). The whole slice transposes together, so the key->offset mapping is
+      // preserved; only the anchor moves. Any int >= 1 is allowed (founder wants
+      // semitone control). The shift grid is relative to the anchor (slices.js).
+      const step = (Number.isFinite(raw.step) && raw.step>=1) ? Math.floor(raw.step) : 12;
       const cA = v => clamp(Math.round(v), 0, 108);
       let minA = Number.isFinite(raw.minAnchor) ? cA(raw.minAnchor) : 12;
       let maxA = Number.isFinite(raw.maxAnchor) ? cA(raw.maxAnchor) : 96;

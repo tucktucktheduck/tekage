@@ -428,13 +428,12 @@ console.log('\n— DYNAMIC SLICES v2 —');
     { id:'a', keys:{ a:0 }, shiftKeys:{ up:'KeyA', down:'Tab' } } ] } });
   ok(!coll[0].shiftKeys.up && coll[0].shiftKeys.down.includes('Tab'), 'shift key that collides with a note key is dropped, valid one kept');
 
-  // step is a WHOLE-OCTAVE jump: a non-octave value snaps to a multiple of 12, and
-  // changing step must NOT rebind keys (anchor stays; key still plays its note).
+  // step is in SEMITONES (1 allowed); changing it must NOT rebind keys — the anchor
+  // stays put and the key still plays its note (shift grid is relative to the anchor).
   const sl7 = P.normalizeSlices({ slices:{ list:[ { id:'x', initialAnchor:60, step:7, minAnchor:12, maxAnchor:96, keys:{ h:0 } } ] } })[0];
-  ok(sl7.step===12, 'a non-octave step snaps to a whole octave (12)');
-  const sl2 = P.normalizeSlices({ slices:{ list:[ { id:'x', initialAnchor:60, step:24, minAnchor:12, maxAnchor:96, keys:{ h:0 } } ] } })[0];
-  ok(sl2.step===24 && sl2.initialAnchor===60, 'a 2-octave step is kept, and the anchor is NOT re-snapped');
-  ok(P.anchorsFor(sl2,60).includes(60), 'after a step change, key h still plays its note (midi 60) — mapping preserved');
+  ok(sl7.step===7, 'a semitone/non-octave step is kept as-is (shift by semitone allowed)');
+  ok(sl7.initialAnchor===60, 'changing step does NOT re-snap the slice anchor');
+  ok(P.anchorsFor(sl7,60).includes(60), 'after a step change, key h still plays its note (midi 60) — mapping preserved');
 
   // NEVER throws on garbage; always yields >=1 playable slice
   const garbage = [

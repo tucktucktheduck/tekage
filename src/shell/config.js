@@ -113,10 +113,11 @@ function normalizeSlices(config, _depth){
           continue; }
         usedKeys.add(k); keys[k] = off;
       }
-      // step is a WHOLE-OCTAVE jump (multiple of 12): a shift moves the slice by
-      // octaves only, so a key always keeps its note name — it just changes octave
-      // (founder's model). Any non-octave value is snapped to the nearest octave.
-      const step = Number.isFinite(raw.step) ? Math.max(12, Math.round(raw.step/12)*12) : 12;
+      // step = how many SEMITONES a shift moves this slice (1 = chromatic, 12 = an
+      // octave). The whole slice transposes together, so the key->offset mapping is
+      // preserved; only the anchor moves. Any int >= 1 is allowed (founder wants
+      // semitone control). The shift grid is relative to the anchor (slices.js).
+      const step = (Number.isFinite(raw.step) && raw.step>=1) ? Math.floor(raw.step) : 12;
       const cA = v => clamp(Math.round(v), 0, 108);
       let minA = Number.isFinite(raw.minAnchor) ? cA(raw.minAnchor) : 12;
       let maxA = Number.isFinite(raw.maxAnchor) ? cA(raw.maxAnchor) : 96;

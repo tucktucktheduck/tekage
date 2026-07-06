@@ -18,7 +18,7 @@ test('slice manager: add / edit / delete + last-slice guard', async ({ page }) =
     out.n0 = currentSlices().length;
     const id = sliceAdd();                    out.n1 = currentSlices().length;
     out.added = !!currentSlices().find(s=>s.id===id);
-    sliceSetProp(id,'step',24);               out.step  = currentSlices().find(s=>s.id===id).step;   // 2 octaves
+    sliceSetProp(id,'step',7);                out.step  = currentSlices().find(s=>s.id===id).step;   // semitones
     sliceSetProp(id,'label','Zz');            out.label = currentSlices().find(s=>s.id===id).label;
     out.delOk = sliceDelete(id);              out.n2 = currentSlices().length;
     // reduce to one, then deletion must be refused
@@ -30,7 +30,7 @@ test('slice manager: add / edit / delete + last-slice guard', async ({ page }) =
   expect(r.n0).toBe(2);
   expect(r.n1).toBe(3);
   expect(r.added).toBe(true);
-  expect(r.step).toBe(24);
+  expect(r.step).toBe(7);
   expect(r.label).toBe('Zz');
   expect(r.delOk).toBe(true);
   expect(r.n2).toBe(2);
