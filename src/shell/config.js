@@ -120,9 +120,11 @@ function normalizeSlices(config, _depth){
       if(minA > maxA){ const t=minA; minA=maxA; maxA=t; }
       const order = Number.isFinite(raw.order) ? raw.order : i;
       const slice = makeSlice(id, keys, { step, minAnchor:minA, maxAnchor:maxA, order });
-      // runtime metadata
+      // runtime metadata. The anchor is the slice's BASE; the shift grid is relative
+      // to it (slices.js anchorsFor), so we DON'T re-snap it onto the step grid —
+      // that snap is what slid every key onto a new note when step changed.
       let ia = Number.isFinite(raw.initialAnchor) ? raw.initialAnchor : (minA+maxA)/2;
-      slice.initialAnchor = clamp(Math.round(ia/step)*step, minA, maxA);
+      slice.initialAnchor = clamp(Math.round(ia), minA, maxA);
       slice.label = (typeof raw.label==='string' && raw.label) ? raw.label.slice(0,2)
                   : id.slice(0,2).toUpperCase();
       slice.color = (typeof raw.color==='string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw.color)) ? raw.color : null;
@@ -150,11 +152,16 @@ function normalizeSlices(config, _depth){
   };
   for(const slice of out){
     const rs = slice._rawShift || {};
-    const sk = {};
+    const sk = {};   // { up:[codes], down:[codes] } — a direction may have several keys
     for(const dir of ['up','down']){
-      const code = rs[dir];
-      if(validShift(code)){ sk[dir] = code; takenShift.add(code); }
-      else if(code){ try{ console.warn('TKG: shift key "'+code+'" for slice '+slice.id+' ('+dir+') dropped (collision/reserved)'); }catch(_){ } }
+      const raw = rs[dir];
+      const codes = Array.isArray(raw) ? raw : (raw!=null ? [raw] : []);
+      const valid = [];
+      for(const code of codes){
+        if(validShift(code)){ valid.push(code); takenShift.add(code); }
+        else if(code){ try{ console.warn('TKG: shift key "'+code+'" for slice '+slice.id+' ('+dir+') dropped (collision/reserved)'); }catch(_){ } }
+      }
+      if(valid.length) sk[dir] = valid;
     }
     slice.shiftKeys = sk;
     delete slice._rawShift;
@@ -232,8 +239,8 @@ function applyConfig(c){
     for(const s of SLICES){
       for(const e of s.keys) KEY_SLICE[e.key] = s.id;
       const sk = s.shiftKeys || {};
-      if(sk.up)   SHIFT_BY_CODE[sk.up]   = { sliceId:s.id, dir:+1 };
-      if(sk.down) SHIFT_BY_CODE[sk.down] = { sliceId:s.id, dir:-1 };
+      for(const code of (sk.up   || [])) SHIFT_BY_CODE[code] = { sliceId:s.id, dir:+1 };
+      for(const code of (sk.down || [])) SHIFT_BY_CODE[code] = { sliceId:s.id, dir:-1 };
     }
     // physical-code -> note key legend (for robust e.code matching in input.js)
     for(const code in STD_CODE_LEGEND){

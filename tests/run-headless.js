@@ -32,7 +32,7 @@ global.navigator={}; global.performance={now:()=>0};
 global.requestAnimationFrame=noop; global.setInterval=noop; global.setTimeout=noop; global.clearTimeout=noop;
 global.FileReader=function(){}; global.AudioContext=FakeAudioContext; global.webkitAudioContext=FakeAudioContext;
 
-src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan,normalizeSlices,SLICE_PRESETS,makeSlice,solvePlanSlices,codeLabel,parseSoundFont,get SLICES(){return SLICES;},get KEY_SLICE(){return KEY_SLICE;},get SHIFT_BY_CODE(){return SHIFT_BY_CODE;},get CODE_TO_GAMEKEY(){return CODE_TO_GAMEKEY;}};\n";
+src += "\n;global.__probe={Song,analyze,buildDemo,deriveVersions,starsForDensity,separateVoices,selectVersion,noteName,isYours,UI,resolvePlan,solvePlan,Audio,sliceAt,currentSlice,midiForGameKey,loadConfig,TKGConfig,userSlice,draw,Transport,judge,releaseVerdict,summarizeScore,Score,easeToward,AUTOSLOW,JUDGE_WINDOWS,seedUserSlice,userSlice,sliceAt,currentSlice,loadConfig,ProgressStore,MemoryAdapter,WebStorageAdapter,mergeProfile,LIBRARY,buildLibrarySong,buildLibraryById,songById,analyze,Skin,difficultyFeatures,scoreDifficulty,starsFromDifficulty,parseConfidence,detectSourceHands,solvePlan,normalizeSlices,SLICE_PRESETS,makeSlice,solvePlanSlices,anchorsFor,codeLabel,parseSoundFont,get SLICES(){return SLICES;},get KEY_SLICE(){return KEY_SLICE;},get SHIFT_BY_CODE(){return SHIFT_BY_CODE;},get CODE_TO_GAMEKEY(){return CODE_TO_GAMEKEY;}};\n";
 eval(src);
 const P=global.__probe;
 let fails=0; const ok=(c,m)=>{ console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)fails++; };
@@ -405,14 +405,16 @@ console.log('\n— DYNAMIC SLICES v2 —');
   ok(JSON.stringify(offsOf(std[0]))===JSON.stringify(offsOf(legacy[0])) &&
      JSON.stringify(offsOf(std[1]))===JSON.stringify(offsOf(legacy[1])),
      'standard preset offsets match the legacy BUILTIN layout');
-  ok(std[0].shiftKeys.up==='Tab' && std[1].shiftKeys.up==='Enter', 'standard shift keys carried through');
+  ok(std[0].shiftKeys.up.includes('Tab') && std[0].shiftKeys.up.includes('CapsLock') && std[1].shiftKeys.up.includes('Enter'),
+     'standard shift keys carried through (left up = Tab + CapsLock)');
 
   // versell chromatic completeness (docs/14 §3.2 sanity check)
   const kg = P.normalizeSlices({ slices:{ preset:'keyboardgame' } });
   ok(kg.length===2, 'keyboardgame normalizes to two slices');
   ok(JSON.stringify(offsOf(kg[0]))===JSON.stringify(range(-7,11)), 'versell left slice spans every semitone -7..11');
   ok(JSON.stringify(offsOf(kg[1]))===JSON.stringify(range(0,23)),  'versell right slice spans every semitone 0..23');
-  ok(kg[0].shiftKeys.up==='CapsLock' && kg[0].shiftKeys.down==='ShiftLeft', 'versell left shift keys (CapsLock/ShiftLeft)');
+  ok(kg[0].shiftKeys.up.includes('CapsLock') && kg[0].shiftKeys.up.includes('Tab') && kg[0].shiftKeys.down.includes('ShiftLeft'),
+     'versell left shift keys (CapsLock + Tab up, ShiftLeft down)');
 
   // duplicate key across slices: first wins, later dropped
   const dup = P.normalizeSlices({ slices:{ list:[
@@ -424,7 +426,13 @@ console.log('\n— DYNAMIC SLICES v2 —');
   // shift key colliding with a note key legend is stripped
   const coll = P.normalizeSlices({ slices:{ list:[
     { id:'a', keys:{ a:0 }, shiftKeys:{ up:'KeyA', down:'Tab' } } ] } });
-  ok(!coll[0].shiftKeys.up && coll[0].shiftKeys.down==='Tab', 'shift key that collides with a note key is dropped, valid one kept');
+  ok(!coll[0].shiftKeys.up && coll[0].shiftKeys.down.includes('Tab'), 'shift key that collides with a note key is dropped, valid one kept');
+
+  // step change must NOT rebind keys: the anchor stays put and the key can still
+  // play its note (the shift grid is relative to the anchor, docs/14).
+  const sl7 = P.normalizeSlices({ slices:{ list:[ { id:'x', initialAnchor:60, step:7, minAnchor:12, maxAnchor:96, keys:{ h:0 } } ] } })[0];
+  ok(sl7.initialAnchor===60, 'changing step does NOT re-snap the slice anchor');
+  ok(P.anchorsFor(sl7,60).includes(60), 'after a step change, key h still plays its note (midi 60) — mapping preserved');
 
   // NEVER throws on garbage; always yields >=1 playable slice
   const garbage = [

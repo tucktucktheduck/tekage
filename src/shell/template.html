@@ -130,6 +130,9 @@ button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
 .sliceMini{padding:3px 7px;font-size:11px;}
 .mapSaveRow{display:flex;gap:6px;margin-top:10px;}
 #presetName{flex:1;height:30px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:6px;color:#dce8fb;padding:0 10px;font-family:'Rajdhani';font-weight:600;}
+.mapKeyLegend{position:absolute;left:0;right:0;text-align:center;font-family:'Share Tech Mono';font-weight:700;pointer-events:none;}
+.mapWhite .mapKeyLegend{top:34%;font-size:11px;color:#0a1020;}
+.mapBlack .mapKeyLegend{top:5px;font-size:9px;color:#fff;}
 #mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
   background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
 .mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
@@ -357,6 +360,7 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
       <span>KEYBOARD MAP</span>
       <div class="mapHeadBtns">
         <button class="tk" id="mapEditBtn" title="Remap: click a key, then a piano note">EDIT</button>
+        <button class="tk" id="mapUnmapBtn" title="Unmap the armed key">UNMAP</button>
         <button class="tk" id="mapResetBtn" title="Reset to the selected preset">RESET</button>
         <button class="tk" id="mapLinesBtn">LINES</button>
         <button class="tk" id="mapClose">CLOSE ✕</button>

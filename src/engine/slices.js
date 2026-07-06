@@ -38,13 +38,19 @@ function makeSlice(id, keys, opts){
   };
 }
 
-// anchors at which `slice` can play `midi` (on the slice's shift grid)
+// anchors at which `slice` can play `midi` (on the slice's shift grid). The grid
+// is RELATIVE to the slice's base anchor (its initialAnchor, else minAnchor), not
+// absolute multiples of step — so a key stays bound to its note when `step` changes
+// (docs/14: shifting only uncovers the octave; H is always a C). For the shipped
+// presets the base is a multiple of 12, so this is identical to the old a%step grid.
 function anchorsFor(slice, midi){
   const out = [];
+  const base = (slice.initialAnchor != null) ? slice.initialAnchor : slice.minAnchor;
+  const step = slice.step || 12;
   for (const off of slice.offs) {
     const a = midi - off;
     if (a < slice.minAnchor || a > slice.maxAnchor) continue;
-    if (a % slice.step !== 0) continue;
+    if ((((a - base) % step) + step) % step !== 0) continue;
     out.push(a);
   }
   return out;

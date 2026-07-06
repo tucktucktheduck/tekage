@@ -49,3 +49,18 @@ test('map editor: remap a key live, mark custom, persist; DOM click path works',
   expect(dom.preset).toBe('custom');
   expect(dom.wMidi).toBe(dom.m);                  // 'w' now sounds at the clicked note
 });
+
+test('unmap removes a key; both Tab and CapsLock shift the left slice up', async ({ page }) => {
+  await page.goto(tkgUrl);
+  await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
+  const r = await page.evaluate(() => {
+    const before = KEY_SLICE['a'];               // 'a' is mapped (left) on the standard layout
+    unmapKey('a');
+    return { before, after: KEY_SLICE['a'] || null,
+             tab: SHIFT_BY_CODE['Tab'], caps: SHIFT_BY_CODE['CapsLock'] };
+  });
+  expect(r.before).toBe('left');
+  expect(r.after).toBeNull();                     // unmapped
+  expect(r.tab).toEqual({ sliceId:'left', dir:1 });
+  expect(r.caps).toEqual({ sliceId:'left', dir:1 });   // both keys shift left up
+});

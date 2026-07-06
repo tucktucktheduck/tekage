@@ -130,6 +130,9 @@ button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
 .sliceMini{padding:3px 7px;font-size:11px;}
 .mapSaveRow{display:flex;gap:6px;margin-top:10px;}
 #presetName{flex:1;height:30px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:6px;color:#dce8fb;padding:0 10px;font-family:'Rajdhani';font-weight:600;}
+.mapKeyLegend{position:absolute;left:0;right:0;text-align:center;font-family:'Share Tech Mono';font-weight:700;pointer-events:none;}
+.mapWhite .mapKeyLegend{top:34%;font-size:11px;color:#0a1020;}
+.mapBlack .mapKeyLegend{top:5px;font-size:9px;color:#fff;}
 #mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
   background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
 .mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
@@ -357,6 +360,7 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
       <span>KEYBOARD MAP</span>
       <div class="mapHeadBtns">
         <button class="tk" id="mapEditBtn" title="Remap: click a key, then a piano note">EDIT</button>
+        <button class="tk" id="mapUnmapBtn" title="Unmap the armed key">UNMAP</button>
         <button class="tk" id="mapResetBtn" title="Reset to the selected preset">RESET</button>
         <button class="tk" id="mapLinesBtn">LINES</button>
         <button class="tk" id="mapClose">CLOSE ✕</button>
@@ -1122,13 +1126,19 @@ function makeSlice(id, keys, opts){
   };
 }
 
-// anchors at which `slice` can play `midi` (on the slice's shift grid)
+// anchors at which `slice` can play `midi` (on the slice's shift grid). The grid
+// is RELATIVE to the slice's base anchor (its initialAnchor, else minAnchor), not
+// absolute multiples of step — so a key stays bound to its note when `step` changes
+// (docs/14: shifting only uncovers the octave; H is always a C). For the shipped
+// presets the base is a multiple of 12, so this is identical to the old a%step grid.
 function anchorsFor(slice, midi){
   const out = [];
+  const base = (slice.initialAnchor != null) ? slice.initialAnchor : slice.minAnchor;
+  const step = slice.step || 12;
   for (const off of slice.offs) {
     const a = midi - off;
     if (a < slice.minAnchor || a > slice.maxAnchor) continue;
-    if (a % slice.step !== 0) continue;
+    if ((((a - base) % step) + step) % step !== 0) continue;
     out.push(a);
   }
   return out;
@@ -1446,7 +1456,8 @@ function solvePlan(notes){
                                  key:e.key, midi:e.midi, startSec:e.startSec, durationSec:e.durationSec };
     if(e.type==='shift'){
       const sk=(byId[e.slice] && byId[e.slice].shiftKeys) || {};
-      const code = e.dir>0 ? sk.up : sk.down;
+      const arr = e.dir>0 ? sk.up : sk.down;
+      const code = Array.isArray(arr) ? arr[0] : arr;
       return { type:'shift', slice:e.slice, hand:e.slice, dir:e.dir, timeSec:e.timeSec,
                key: code||null, glyph: e.dir>0?'⭡':'⭣', tag: code?cueLabel(code):(e.dir>0?'▲':'▼') };
     }
@@ -2654,7 +2665,7 @@ const SLICE_PRESETS = {
     label: 'TKG Standard',
     list: [
       { id:'left', label:'L', order:0, step:12, minAnchor:12, maxAnchor:96, initialAnchor:60,
-        shiftKeys:{ up:'Tab', down:'ShiftLeft' }, color:null,
+        shiftKeys:{ up:['Tab','CapsLock'], down:'ShiftLeft' }, color:null,
         keys:{ q:1, w:3, e:6, r:8, t:10, a:0, s:2, d:4, f:5, x:7, c:9, v:11 } },
       { id:'right', label:'R', order:1, step:12, minAnchor:12, maxAnchor:96, initialAnchor:72,
         shiftKeys:{ up:'Enter', down:'ShiftRight' }, color:null,
@@ -2672,7 +2683,7 @@ const SLICE_PRESETS = {
     label: 'Keyboard Game',
     list: [
       { id:'left', label:'L', order:0, step:12, minAnchor:12, maxAnchor:84, initialAnchor:48,
-        shiftKeys:{ up:'CapsLock', down:'ShiftLeft' }, color:null,
+        shiftKeys:{ up:['CapsLock','Tab'], down:'ShiftLeft' }, color:null,
         keys:{ q:-7, '2':-6, a:-5, w:-4, z:-3, '3':-2, x:-1,
                s:0, e:1, c:2, '4':3, d:4, v:5, r:6, f:7, '5':8, b:9, t:10, g:11 } },
       { id:'right', label:'R', order:1, step:12, minAnchor:24, maxAnchor:84, initialAnchor:72,
@@ -2822,6 +2833,14 @@ function remapKey(key, midi, forceId){
   applyEditedList(list);
 }
 
+// Remove a computer key from the layout entirely (unmap it from every slice).
+function unmapKey(key){
+  const list=slicesToList(); let found=false;
+  for(const s of list){ if(s.keys && (key in s.keys)){ delete s.keys[key]; found=true; } }
+  if(found) applyEditedList(list);
+  return found;
+}
+
 /* ── Slice manager ops (docs/14 §4.4-4.6). Each mutates the serialized list and
    re-applies it as a 'custom' layout via applyEditedList. ── */
 function _uniqueSliceId(list){ let i=1, id; do{ id='s'+i++; }while(list.some(s=>s.id===id)); return id; }
@@ -2855,11 +2874,12 @@ function sliceReorder(id, dir){
 }
 function sliceSetShift(id, dir, code){
   const list=slicesToList(); const s=list.find(x=>x.id===id); if(!s) return;
-  s.shiftKeys=s.shiftKeys||{}; s.shiftKeys[dir]=code;
+  s.shiftKeys=s.shiftKeys||{}; s.shiftKeys[dir]=[code];
   applyEditedList(list);
   // normalizeSlices strips a colliding/reserved shift key — warn if it didn't stick
   const applied=(typeof currentSlices==='function')?currentSlices().find(x=>x.id===id):null;
-  if(applied && (!applied.shiftKeys || applied.shiftKeys[dir]!==code))
+  const arr=applied && applied.shiftKeys ? applied.shiftKeys[dir] : null;
+  if(!(Array.isArray(arr) && arr.includes(code)))
     flash('That key collides with a note key or is reserved — pick another');
 }
 // Save the current layout as a named preset (persists; appears in the picker).
@@ -3223,9 +3243,10 @@ function renderSliceList(){
     step.onchange=()=>sliceSetProp(s.id,'step',step.value); row.appendChild(step);
     const col=document.createElement('input'); col.type='color'; col.className='sliceColor'; col.value=(p?_hex6(p.hex,'#1a8fff'):'#1a8fff'); col.title='Slice color';
     col.oninput=()=>sliceSetProp(s.id,'color',col.value); row.appendChild(col);
-    const su=document.createElement('button'); su.className='tk sliceShift'; su.textContent='↑'+((s.shiftKeys&&s.shiftKeys.up)?codeLabel(s.shiftKeys.up):'—'); su.title='Set the shift-UP key';
+    const shLbl=arr=> Array.isArray(arr)&&arr.length ? arr.map(codeLabel).join('/') : (arr?codeLabel(arr):'—');
+    const su=document.createElement('button'); su.className='tk sliceShift'; su.textContent='↑'+shLbl(s.shiftKeys&&s.shiftKeys.up); su.title='Set the shift-UP key';
     su.onclick=()=>captureShift(s.id,'up',su); row.appendChild(su);
-    const sd=document.createElement('button'); sd.className='tk sliceShift'; sd.textContent='↓'+((s.shiftKeys&&s.shiftKeys.down)?codeLabel(s.shiftKeys.down):'—'); sd.title='Set the shift-DOWN key';
+    const sd=document.createElement('button'); sd.className='tk sliceShift'; sd.textContent='↓'+shLbl(s.shiftKeys&&s.shiftKeys.down); sd.title='Set the shift-DOWN key';
     sd.onclick=()=>captureShift(s.id,'down',sd); row.appendChild(sd);
     const up=document.createElement('button'); up.className='tk sliceMini'; up.textContent='▲'; up.disabled=idx===0; up.onclick=()=>sliceReorder(s.id,-1); row.appendChild(up);
     const dn=document.createElement('button'); dn.className='tk sliceMini'; dn.textContent='▼'; dn.disabled=idx===slices.length-1; dn.onclick=()=>sliceReorder(s.id,1); row.appendChild(dn);
@@ -3285,9 +3306,20 @@ const MapView = (()=>{
       if(m>=a+s.offs[0] && m<=a+s.offs[s.offs.length-1]) return s; }
     return null;
   }
+  // which computer key(s) play each midi note, at the current anchors — so we can
+  // print the key legend right on the piano note it maps to (clarity, founder ask).
+  function legendMap(slices, anchors){
+    const map={};
+    for(const s of slices){ const a=_anchorOfSlice(s,anchors);
+      for(const e of s.keys){ const m=a+e.off; if(m<21||m>108) continue;
+        (map[m]=map[m]||[]).push(LABELS[e.key]||e.key.toUpperCase()); } }
+    return map;
+  }
   function buildPiano(){
     const pno=$('mapPiano'); if(!pno) return; pno.innerHTML=''; pianoCell.clear();
     const {lo,hi,slices,anchors}=windowAndSlices();
+    const legend=legendMap(slices,anchors);
+    const addLegend=(el,m)=>{ if(legend[m]){ const lg=document.createElement('span'); lg.className='mapKeyLegend'; lg.textContent=legend[m].join(' '); el.appendChild(lg); } };
     const whites=[]; for(let m=lo;m<=hi;m++){ if(![1,3,6,8,10].includes(m%12)) whites.push(m); }
     const wW=100/Math.max(1,whites.length);
     whites.forEach((m,idx)=>{
@@ -3296,6 +3328,7 @@ const MapView = (()=>{
       if(p) el.style.background='linear-gradient(180deg,'+p.keyTop+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=(idx*wW)+'%'; el.style.width=wW+'%';
       if(m%12===0){ const lab=document.createElement('span'); lab.className='mapClab'; lab.textContent='C'+(Math.floor(m/12)-1); el.appendChild(lab); }
+      addLegend(el,m);
       el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
     });
@@ -3305,6 +3338,7 @@ const MapView = (()=>{
       const s=sliceAtMidi(m,slices,anchors), p=s?palOf(s.id):null;
       if(p) el.style.background='linear-gradient(180deg,'+p.fillBright+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=((wi+1)*wW - wW*0.3)+'%'; el.style.width=(wW*0.6)+'%';
+      addLegend(el,m);
       el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
     }
@@ -3334,10 +3368,12 @@ const MapView = (()=>{
     disarm(); armed=k; const c=keyCell.get(k); if(c) c.classList.add('armed'); setHint(); }
   function onPiano(m){ if(!editMode || !armed) return; const k=armed; disarm();
     remapKey(k,m,_focusedSlice); setHint(); flash('Mapped '+(LABELS[k]||k.toUpperCase())+' -> '+noteName(m)+octaveOf(m)); }
+  function unmapArmed(){ if(!armed){ flash('Arm a key first (click it), then UNMAP'); return; }
+    const k=armed; disarm(); if(unmapKey(k)) flash('Unmapped '+(LABELS[k]||k.toUpperCase())); setHint(); }
   function setHint(){ const h=$('mapHint'); if(!h) return;
     h.textContent = editMode
-      ? (armed ? 'Now click a piano note to map "'+(LABELS[armed]||armed.toUpperCase())+'" to it. (Click the key again to cancel.)'
-               : 'EDIT is ON — click a key, then click a piano note to remap it. Key colors show the slices.')
+      ? (armed ? 'Click a piano note to map "'+(LABELS[armed]||armed.toUpperCase())+'" to it — or UNMAP to remove it. (Click the key again to cancel.)'
+               : 'EDIT is ON — click a key, then a piano note to remap it (or UNMAP to remove). Letters on the piano show which key plays each note.')
       : 'Press any key to light it. Tap EDIT to remap keys; RESET restores the preset.'; }
   function setEdit(on){ editMode=on; const b=$('mapEditBtn'); if(b) b.classList.toggle('sel',on);
     const pnl=$('mapPanel'); if(pnl) pnl.classList.toggle('editing',on); if(!on){ disarm(); _focusedSlice=null; } setHint(); }
@@ -3352,6 +3388,7 @@ const MapView = (()=>{
     show(){ rebuild(); setHint(); $('mapOverlay').classList.add('open'); this.open=true; },
     hide(){ setEdit(false); $('mapOverlay').classList.remove('open'); this.open=false; },
     light,
+    unmapArmed,
     toggleLines(){ linesOn=!linesOn; $('mapLinesBtn').classList.toggle('sel',linesOn); drawLines(); },
     edit(on){ setEdit(on===undefined?!editMode:on); },
   };
@@ -3359,6 +3396,7 @@ const MapView = (()=>{
 $('mapClose').onclick=()=>MapView.hide();
 $('mapLinesBtn').onclick=()=>MapView.toggleLines();
 if($('mapEditBtn'))  $('mapEditBtn').onclick=()=>MapView.edit();
+if($('mapUnmapBtn')) $('mapUnmapBtn').onclick=()=>MapView.unmapArmed();
 if($('mapResetBtn')) $('mapResetBtn').onclick=()=>{ if(typeof applyPreset==='function') applyPreset(_basePreset||'standard'); MapView.show(); flash('Layout reset to '+_basePreset); };
 $('mapOverlay').addEventListener('click',e=>{ if(e.target.id==='mapOverlay') MapView.hide(); });
 if($('editMapBtn')) $('editMapBtn').onclick=()=>{ if(typeof Teklet!=='undefined') Teklet.hide(); MapView.show(); MapView.edit(true); };
@@ -3568,9 +3606,11 @@ function normalizeSlices(config, _depth){
       if(minA > maxA){ const t=minA; minA=maxA; maxA=t; }
       const order = Number.isFinite(raw.order) ? raw.order : i;
       const slice = makeSlice(id, keys, { step, minAnchor:minA, maxAnchor:maxA, order });
-      // runtime metadata
+      // runtime metadata. The anchor is the slice's BASE; the shift grid is relative
+      // to it (slices.js anchorsFor), so we DON'T re-snap it onto the step grid —
+      // that snap is what slid every key onto a new note when step changed.
       let ia = Number.isFinite(raw.initialAnchor) ? raw.initialAnchor : (minA+maxA)/2;
-      slice.initialAnchor = clamp(Math.round(ia/step)*step, minA, maxA);
+      slice.initialAnchor = clamp(Math.round(ia), minA, maxA);
       slice.label = (typeof raw.label==='string' && raw.label) ? raw.label.slice(0,2)
                   : id.slice(0,2).toUpperCase();
       slice.color = (typeof raw.color==='string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw.color)) ? raw.color : null;
@@ -3598,11 +3638,16 @@ function normalizeSlices(config, _depth){
   };
   for(const slice of out){
     const rs = slice._rawShift || {};
-    const sk = {};
+    const sk = {};   // { up:[codes], down:[codes] } — a direction may have several keys
     for(const dir of ['up','down']){
-      const code = rs[dir];
-      if(validShift(code)){ sk[dir] = code; takenShift.add(code); }
-      else if(code){ try{ console.warn('TKG: shift key "'+code+'" for slice '+slice.id+' ('+dir+') dropped (collision/reserved)'); }catch(_){ } }
+      const raw = rs[dir];
+      const codes = Array.isArray(raw) ? raw : (raw!=null ? [raw] : []);
+      const valid = [];
+      for(const code of codes){
+        if(validShift(code)){ valid.push(code); takenShift.add(code); }
+        else if(code){ try{ console.warn('TKG: shift key "'+code+'" for slice '+slice.id+' ('+dir+') dropped (collision/reserved)'); }catch(_){ } }
+      }
+      if(valid.length) sk[dir] = valid;
     }
     slice.shiftKeys = sk;
     delete slice._rawShift;
@@ -3680,8 +3725,8 @@ function applyConfig(c){
     for(const s of SLICES){
       for(const e of s.keys) KEY_SLICE[e.key] = s.id;
       const sk = s.shiftKeys || {};
-      if(sk.up)   SHIFT_BY_CODE[sk.up]   = { sliceId:s.id, dir:+1 };
-      if(sk.down) SHIFT_BY_CODE[sk.down] = { sliceId:s.id, dir:-1 };
+      for(const code of (sk.up   || [])) SHIFT_BY_CODE[code] = { sliceId:s.id, dir:+1 };
+      for(const code of (sk.down || [])) SHIFT_BY_CODE[code] = { sliceId:s.id, dir:-1 };
     }
     // physical-code -> note key legend (for robust e.code matching in input.js)
     for(const code in STD_CODE_LEGEND){

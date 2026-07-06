@@ -81,7 +81,8 @@ function solvePlan(notes){
                                  key:e.key, midi:e.midi, startSec:e.startSec, durationSec:e.durationSec };
     if(e.type==='shift'){
       const sk=(byId[e.slice] && byId[e.slice].shiftKeys) || {};
-      const code = e.dir>0 ? sk.up : sk.down;
+      const arr = e.dir>0 ? sk.up : sk.down;
+      const code = Array.isArray(arr) ? arr[0] : arr;
       return { type:'shift', slice:e.slice, hand:e.slice, dir:e.dir, timeSec:e.timeSec,
                key: code||null, glyph: e.dir>0?'⭡':'⭣', tag: code?cueLabel(code):(e.dir>0?'▲':'▼') };
     }

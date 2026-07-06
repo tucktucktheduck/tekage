@@ -44,7 +44,7 @@ test('save-as-preset: names a layout, shows in the picker, persists + selectable
   await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
 
   const s = await page.evaluate(() => {
-    sliceSetShift('left','up','CapsLock');          // a non-colliding shift key
+    sliceSetShift('left','up','Backslash');          // a non-colliding shift key
     const shift = currentSlices().find(x=>x.id==='left').shiftKeys.up;
     const ok = saveAsPreset('MyLayout');
     return { ok, hasPreset: !!(TKGConfig.presets && TKGConfig.presets['MyLayout']),
@@ -53,7 +53,7 @@ test('save-as-preset: names a layout, shows in the picker, persists + selectable
   expect(s.ok).toBe(true);
   expect(s.hasPreset).toBe(true);
   expect(s.preset).toBe('MyLayout');
-  expect(s.shift).toBe('CapsLock');
+  expect(s.shift).toContain('Backslash');   // shift keys are arrays (multi-key support)
   await expect(page.locator('#presetPicker button[data-preset="MyLayout"]')).toHaveCount(1);
 
   // survives a reload and can be re-selected

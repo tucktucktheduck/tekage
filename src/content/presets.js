@@ -19,7 +19,7 @@ const SLICE_PRESETS = {
     label: 'TKG Standard',
     list: [
       { id:'left', label:'L', order:0, step:12, minAnchor:12, maxAnchor:96, initialAnchor:60,
-        shiftKeys:{ up:'Tab', down:'ShiftLeft' }, color:null,
+        shiftKeys:{ up:['Tab','CapsLock'], down:'ShiftLeft' }, color:null,
         keys:{ q:1, w:3, e:6, r:8, t:10, a:0, s:2, d:4, f:5, x:7, c:9, v:11 } },
       { id:'right', label:'R', order:1, step:12, minAnchor:12, maxAnchor:96, initialAnchor:72,
         shiftKeys:{ up:'Enter', down:'ShiftRight' }, color:null,
@@ -37,7 +37,7 @@ const SLICE_PRESETS = {
     label: 'Keyboard Game',
     list: [
       { id:'left', label:'L', order:0, step:12, minAnchor:12, maxAnchor:84, initialAnchor:48,
-        shiftKeys:{ up:'CapsLock', down:'ShiftLeft' }, color:null,
+        shiftKeys:{ up:['CapsLock','Tab'], down:'ShiftLeft' }, color:null,
         keys:{ q:-7, '2':-6, a:-5, w:-4, z:-3, '3':-2, x:-1,
                s:0, e:1, c:2, '4':3, d:4, v:5, r:6, f:7, '5':8, b:9, t:10, g:11 } },
       { id:'right', label:'R', order:1, step:12, minAnchor:24, maxAnchor:84, initialAnchor:72,
