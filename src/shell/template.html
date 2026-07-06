@@ -116,6 +116,20 @@ button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
 .mapKey.armed{border-color:#fff;box-shadow:0 0 0 2px #fff,0 0 14px rgba(255,255,255,.6);}
 #mapPanel.editing .mapKey,#mapPanel.editing .mapWhite,#mapPanel.editing .mapBlack{cursor:pointer;}
 #mapEditBtn.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,138,43,.10);}
+#mapManager{display:none;margin-top:16px;border-top:1px solid #1c2740;padding-top:12px;}
+#mapPanel.editing #mapManager{display:block;}
+.mapMgrHead{display:flex;align-items:center;justify-content:space-between;font-family:'Orbitron';font-size:11px;letter-spacing:2px;color:#8aa2c2;margin-bottom:8px;}
+.sliceRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:7px;border:1px solid #1c2740;margin-bottom:5px;background:#0c1220;}
+.sliceRow.focus{border-color:var(--sc,#ff8a2b);box-shadow:0 0 0 1px var(--sc,#ff8a2b) inset;}
+.sliceTag{min-width:30px;height:26px;border-radius:6px;border:1px solid var(--sc,#2a3a5e);background:var(--sc,#16203a);color:#05070b;font-weight:700;font-family:'Orbitron';font-size:11px;cursor:pointer;}
+.sliceInfo{flex:1;font-family:'Rajdhani';font-weight:600;font-size:11.5px;color:#9fb0cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sliceStep{width:42px;height:24px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:5px;color:#dce8fb;text-align:center;font-family:'Share Tech Mono';}
+.sliceColor{width:26px;height:24px;padding:0;border:1px solid #2a3a5e;border-radius:5px;background:none;cursor:pointer;}
+.sliceShift{padding:3px 6px;font-size:10px;min-width:40px;}
+.sliceShift.capturing{border-color:#fff;color:#fff;}
+.sliceMini{padding:3px 7px;font-size:11px;}
+.mapSaveRow{display:flex;gap:6px;margin-top:10px;}
+#presetName{flex:1;height:30px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:6px;color:#dce8fb;padding:0 10px;font-family:'Rajdhani';font-weight:600;}
 #mapPiano{position:relative;height:96px;margin-top:18px;border-radius:0 0 8px 8px;overflow:hidden;
   background:#05070b;border:1px solid #1a2030;border-top:3px solid #1a0e0e;}
 .mapWhite{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#e7edf6,#aeb8c8);
@@ -353,6 +367,15 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
       <div id="mapKb"></div>
       <div id="mapPiano"></div>
       <svg id="mapSvg" preserveAspectRatio="none"></svg>
+    </div>
+    <div id="mapManager">
+      <div class="mapMgrHead"><span>SLICES</span>
+        <button class="tk" id="addSliceBtn" title="Add a new slice">+ ADD SLICE</button></div>
+      <div id="sliceList"></div>
+      <div class="mapSaveRow">
+        <input id="presetName" type="text" placeholder="name this layout…" maxlength="24">
+        <button class="tk" id="savePresetBtn" title="Save the current layout as a preset">SAVE AS PRESET</button>
+      </div>
     </div>
   </div>
 </div>

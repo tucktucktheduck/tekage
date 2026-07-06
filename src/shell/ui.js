@@ -103,18 +103,22 @@ function applyEditedList(list){
   if(typeof draw==='function') draw();
   if(typeof syncPresetUI==='function') syncPresetUI();
   persistSettings(true);
+  if(typeof MapView!=='undefined' && MapView.open) MapView.refresh();
 }
 function _anchorOfSlice(s, anchors){ const a=anchors&&anchors[s.id]; return (a!=null)?a:(s.initialAnchor!=null?s.initialAnchor:60); }
-// Assign computer key `key` to sound `midi`: put it in the slice whose window
-// covers that pitch (else keep its current slice / first). Offset = midi - anchor.
-function remapKey(key, midi){
+// Assign computer key `key` to sound `midi`. If `forceId` is given (a slice is
+// "focused" in the manager), put it there; else the slice whose window covers the
+// pitch (else its current slice / first). Offset = midi - that slice's anchor.
+function remapKey(key, midi, forceId){
   if(typeof currentSlices!=='function') return;
   const anchors=(typeof currentAnchors==='function')?currentAnchors():{};
   const slices=currentSlices();
-  let target=null;
-  for(const s of slices){ const offs=s.offs; if(!offs||!offs.length) continue;
-    const a=_anchorOfSlice(s,anchors);
-    if(midi>=a+offs[0] && midi<=a+offs[offs.length-1]){ target=s; break; } }
+  let target = forceId ? slices.find(s=>s.id===forceId) : null;
+  if(!target){
+    for(const s of slices){ const offs=s.offs; if(!offs||!offs.length) continue;
+      const a=_anchorOfSlice(s,anchors);
+      if(midi>=a+offs[0] && midi<=a+offs[offs.length-1]){ target=s; break; } }
+  }
   if(!target){ const cur=(typeof KEY_SLICE!=='undefined')?KEY_SLICE[key]:null; target=slices.find(s=>s.id===cur)||slices[0]; }
   if(!target) return;
   const off=midi - _anchorOfSlice(target,anchors);
@@ -122,6 +126,65 @@ function remapKey(key, midi){
   for(const s of list){ if(s.keys && (key in s.keys)) delete s.keys[key]; }
   const tl=list.find(s=>s.id===target.id); if(!tl) return; tl.keys[key]=off;
   applyEditedList(list);
+}
+
+/* ── Slice manager ops (docs/14 §4.4-4.6). Each mutates the serialized list and
+   re-applies it as a 'custom' layout via applyEditedList. ── */
+function _uniqueSliceId(list){ let i=1, id; do{ id='s'+i++; }while(list.some(s=>s.id===id)); return id; }
+function sliceSetProp(id, prop, value){
+  const list=slicesToList(); const s=list.find(x=>x.id===id); if(!s) return;
+  if(prop==='label') s.label=String(value).slice(0,2)||s.label;
+  else if(prop==='step'){ const n=parseInt(value,10); if(Number.isFinite(n)&&n>=1) s.step=n; }
+  else if(prop==='color'){ s.color=/^#[0-9a-f]{6}$/i.test(value)?value:s.color; }
+  applyEditedList(list);
+}
+function sliceAdd(){
+  const list=slicesToList(); const id=_uniqueSliceId(list);
+  const maxOrder=list.reduce((m,s)=>Math.max(m, s.order||0), -1);
+  list.push({ id, label:id.toUpperCase().slice(0,2), order:maxOrder+1, step:12,
+    minAnchor:12, maxAnchor:96, initialAnchor:60, keys:{} });
+  applyEditedList(list);
+  return id;
+}
+function sliceDelete(id){
+  const list=slicesToList();
+  if(list.length<=1){ flash('A layout needs at least one slice'); return false; }
+  const next=list.filter(s=>s.id!==id); applyEditedList(next); return true;
+}
+function sliceReorder(id, dir){
+  const list=slicesToList().sort((a,b)=>(a.order||0)-(b.order||0));
+  const i=list.findIndex(s=>s.id===id); const j=i+dir;
+  if(i<0 || j<0 || j>=list.length) return;
+  const t=list[i]; list[i]=list[j]; list[j]=t;
+  list.forEach((s,k)=>{ s.order=k; });
+  applyEditedList(list);
+}
+function sliceSetShift(id, dir, code){
+  const list=slicesToList(); const s=list.find(x=>x.id===id); if(!s) return;
+  s.shiftKeys=s.shiftKeys||{}; s.shiftKeys[dir]=code;
+  applyEditedList(list);
+  // normalizeSlices strips a colliding/reserved shift key — warn if it didn't stick
+  const applied=(typeof currentSlices==='function')?currentSlices().find(x=>x.id===id):null;
+  if(applied && (!applied.shiftKeys || applied.shiftKeys[dir]!==code))
+    flash('That key collides with a note key or is reserved — pick another');
+}
+// Save the current layout as a named preset (persists; appears in the picker).
+function saveAsPreset(name){
+  name=String(name||'').trim().slice(0,24);
+  if(!name){ flash('Type a name for your layout first'); return false; }
+  if(typeof TKGConfig==='undefined') return false;
+  TKGConfig.presets=TKGConfig.presets||{};
+  TKGConfig.presets[name]=slicesToList();
+  _basePreset=name;
+  // reload so this preset is the selected one, then persist + refresh the picker
+  const c=liveConfig(); c.presets=TKGConfig.presets; c.slices={ preset:name, list:null, mapping:null };
+  loadConfig(c);
+  if(typeof Song!=='undefined' && Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
+  persistSettings(true);
+  if(typeof buildPresetPicker==='function') buildPresetPicker();
+  if(typeof draw==='function') draw();
+  flash('Saved layout: '+name);
+  return true;
 }
 function buildPresetPicker(){
   const host=$('presetPicker'); if(!host) return;
@@ -132,6 +195,13 @@ function buildPresetPicker(){
     const b=document.createElement('button'); b.className='tk preset'; b.dataset.preset=id;
     b.textContent=p.label||id; b.title='Switch to the '+(p.label||id)+' layout';
     b.onclick=()=>applyPreset(id); host.appendChild(b);
+  }
+  // user-saved named layouts (docs/14 §4.6)
+  const saved=(typeof TKGConfig!=='undefined' && TKGConfig.presets) ? TKGConfig.presets : {};
+  for(const name in saved){
+    const b=document.createElement('button'); b.className='tk preset'; b.dataset.preset=name;
+    b.textContent=name; b.title='Your saved layout: '+name;
+    b.onclick=()=>applyPreset(name); host.appendChild(b);
   }
   // Legacy — reserved slot, disabled until the founder supplies the map (§3.3)
   const leg=document.createElement('button'); leg.className='tk preset'; leg.dataset.preset='legacy';
@@ -301,6 +371,7 @@ function _settingsSnapshot(){
     assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
     skin: (typeof Skin!=='undefined') ? { primary:_hex6(Skin.primary,'#ff8a2b'), secondary:_hex6(Skin.secondary,'#1a8fff'), bg:_hex6(Skin.bg,'#05060a') } : undefined,
     slices: (typeof TKGConfig!=='undefined' && TKGConfig.slices) ? { preset:TKGConfig.slices.preset||'standard', list:TKGConfig.slices.list||null } : undefined,
+    presets: (typeof TKGConfig!=='undefined' && TKGConfig.presets) ? TKGConfig.presets : undefined,
   };
 }
 // Debounced by default (slider drags). Pass true to flush NOW — deliberate,
@@ -329,13 +400,17 @@ function applyPersistedSettings(){
     if(typeof TKGConfig!=='undefined') TKGConfig.skin=Skin.toConfig();
     syncSkinUI();
   }
-  // restore a non-default keyboard layout BEFORE the version so the re-chart uses it
-  if(s.slices && (Array.isArray(s.slices.list) || (s.slices.preset && s.slices.preset!=='standard'))){
+  // restore saved presets + a non-default keyboard layout BEFORE the version re-chart
+  const hasSavedPresets = s.presets && typeof s.presets==='object' && Object.keys(s.presets).length;
+  const hasCustomLayout = s.slices && (Array.isArray(s.slices.list) || (s.slices.preset && s.slices.preset!=='standard'));
+  if(hasSavedPresets || hasCustomLayout){
     const c=liveConfig();
-    c.slices={ preset:s.slices.preset||'custom', list:s.slices.list||null, mapping:null };
+    if(hasSavedPresets) c.presets=s.presets;
+    if(hasCustomLayout) c.slices={ preset:s.slices.preset||'custom', list:s.slices.list||null, mapping:null };
     loadConfig(c);
     if(Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
   }
+  if(typeof buildPresetPicker==='function') buildPresetPicker();   // include restored saved presets
   if(typeof syncPresetUI==='function') syncPresetUI();
   if(s.versionId && Song.versions.some(v=>v.id===s.versionId)){
     selectVersion(s.versionId);
@@ -420,11 +495,56 @@ function _hex6(v, fallback){
 }
 syncAssistUI();
 
+/* Slice being "focused" in the manager (new key clicks land here) + a pending
+   shift-key capture. The capture listener runs in the CAPTURE phase so it beats
+   the game's own keydown, and swallows the next key as that slice's shift key. */
+let _focusedSlice=null, _shiftCapture=null;
+function captureShift(sliceId, dir, btn){ _shiftCapture={sliceId,dir}; if(btn) btn.classList.add('capturing');
+  flash('Press a key to shift "'+sliceId+'" '+dir+' · Esc to cancel'); }
+window.addEventListener('keydown', e=>{
+  if(!_shiftCapture) return;
+  e.preventDefault(); e.stopPropagation();
+  const cap=_shiftCapture; _shiftCapture=null;
+  if(e.code!=='Escape') sliceSetShift(cap.sliceId, cap.dir, e.code);
+  if(typeof MapView!=='undefined' && MapView.open) MapView.refresh();
+}, true);
+
+/* Slice manager rows (docs/14 §4.4): focus · info · step · color · shift-up/down
+   capture · reorder · delete. Rebuilt with the map on every edit. */
+function renderSliceList(){
+  const host=$('sliceList'); if(!host) return; host.innerHTML='';
+  const slices=(typeof currentSlices==='function')?currentSlices().slice().sort((a,b)=>(a.order||0)-(b.order||0)):[];
+  const anchors=(typeof currentAnchors==='function')?currentAnchors():{};
+  slices.forEach((s,idx)=>{
+    const p=(typeof Skin!=='undefined'&&Skin.sliceColor)?Skin.sliceColor(s):null;
+    const row=document.createElement('div'); row.className='sliceRow'+(_focusedSlice===s.id?' focus':'');
+    if(p) row.style.setProperty('--sc', p.fill);
+    const tag=document.createElement('button'); tag.className='sliceTag'; tag.textContent=s.label||s.id;
+    tag.title='Focus — new key clicks go to this slice'; tag.onclick=()=>{ _focusedSlice=(_focusedSlice===s.id?null:s.id); renderSliceList(); };
+    row.appendChild(tag);
+    const a=_anchorOfSlice(s,anchors);
+    const span = (s.offs&&s.offs.length) ? (noteName(a+s.offs[0])+octaveOf(a+s.offs[0])+'-'+noteName(a+s.offs[s.offs.length-1])+octaveOf(a+s.offs[s.offs.length-1])) : 'empty';
+    const info=document.createElement('span'); info.className='sliceInfo'; info.textContent=s.keys.length+' keys · '+span; row.appendChild(info);
+    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='24'; step.value=s.step; step.className='sliceStep'; step.title='Shift step (semitones)';
+    step.onchange=()=>sliceSetProp(s.id,'step',step.value); row.appendChild(step);
+    const col=document.createElement('input'); col.type='color'; col.className='sliceColor'; col.value=(p?_hex6(p.hex,'#1a8fff'):'#1a8fff'); col.title='Slice color';
+    col.oninput=()=>sliceSetProp(s.id,'color',col.value); row.appendChild(col);
+    const su=document.createElement('button'); su.className='tk sliceShift'; su.textContent='↑'+((s.shiftKeys&&s.shiftKeys.up)?codeLabel(s.shiftKeys.up):'—'); su.title='Set the shift-UP key';
+    su.onclick=()=>captureShift(s.id,'up',su); row.appendChild(su);
+    const sd=document.createElement('button'); sd.className='tk sliceShift'; sd.textContent='↓'+((s.shiftKeys&&s.shiftKeys.down)?codeLabel(s.shiftKeys.down):'—'); sd.title='Set the shift-DOWN key';
+    sd.onclick=()=>captureShift(s.id,'down',sd); row.appendChild(sd);
+    const up=document.createElement('button'); up.className='tk sliceMini'; up.textContent='▲'; up.disabled=idx===0; up.onclick=()=>sliceReorder(s.id,-1); row.appendChild(up);
+    const dn=document.createElement('button'); dn.className='tk sliceMini'; dn.textContent='▼'; dn.disabled=idx===slices.length-1; dn.onclick=()=>sliceReorder(s.id,1); row.appendChild(dn);
+    const del=document.createElement('button'); del.className='tk sliceMini'; del.textContent='✕'; del.title='Delete slice'; del.onclick=()=>{ if(sliceDelete(s.id) && _focusedSlice===s.id) _focusedSlice=null; }; row.appendChild(del);
+    host.appendChild(row);
+  });
+}
+
 /* ── Keyboard-map viewer ──────────────────────────────────────
    Computer keyboard on top, piano beneath. Mapped keys are fully
-   opaque & hand-coloured; unmapped keys are dimmed. Press a letter
-   and it lights BOTH the letter and its piano key. A separate toggle
-   draws simple straight lines for the whole mapping. */
+   opaque & slice-coloured; unmapped keys are dimmed. Press a letter
+   and it lights BOTH the letter and its piano key. EDIT mode remaps;
+   the slice manager below adds/edits/saves layouts. */
 const MapView = (()=>{
   // full keyboard so every layout (incl. the versell number-row + punctuation keys) renders
   const KB_ROWS = [
@@ -519,19 +639,21 @@ const MapView = (()=>{
   function onKey(k){ if(!editMode) return; if(armed===k){ disarm(); setHint(); return; }
     disarm(); armed=k; const c=keyCell.get(k); if(c) c.classList.add('armed'); setHint(); }
   function onPiano(m){ if(!editMode || !armed) return; const k=armed; disarm();
-    remapKey(k,m); rebuild(); setHint(); flash('Mapped '+(LABELS[k]||k.toUpperCase())+' -> '+noteName(m)+octaveOf(m)); }
+    remapKey(k,m,_focusedSlice); setHint(); flash('Mapped '+(LABELS[k]||k.toUpperCase())+' -> '+noteName(m)+octaveOf(m)); }
   function setHint(){ const h=$('mapHint'); if(!h) return;
     h.textContent = editMode
       ? (armed ? 'Now click a piano note to map "'+(LABELS[armed]||armed.toUpperCase())+'" to it. (Click the key again to cancel.)'
                : 'EDIT is ON — click a key, then click a piano note to remap it. Key colors show the slices.')
       : 'Press any key to light it. Tap EDIT to remap keys; RESET restores the preset.'; }
   function setEdit(on){ editMode=on; const b=$('mapEditBtn'); if(b) b.classList.toggle('sel',on);
-    const pnl=$('mapPanel'); if(pnl) pnl.classList.toggle('editing',on); if(!on) disarm(); setHint(); }
-  function rebuild(){ build(); buildPiano(); }
+    const pnl=$('mapPanel'); if(pnl) pnl.classList.toggle('editing',on); if(!on){ disarm(); _focusedSlice=null; } setHint(); }
+  function rebuild(){ build(); buildPiano(); renderSliceList(); }
 
   return {
     open:false,
     get editing(){ return editMode; },
+    focus(id){ _focusedSlice=id; renderSliceList(); },
+    refresh(){ rebuild(); setHint(); },
     toggle(){ this.open?this.hide():this.show(); },
     show(){ rebuild(); setHint(); $('mapOverlay').classList.add('open'); this.open=true; },
     hide(){ setEdit(false); $('mapOverlay').classList.remove('open'); this.open=false; },
@@ -546,6 +668,8 @@ if($('mapEditBtn'))  $('mapEditBtn').onclick=()=>MapView.edit();
 if($('mapResetBtn')) $('mapResetBtn').onclick=()=>{ if(typeof applyPreset==='function') applyPreset(_basePreset||'standard'); MapView.show(); flash('Layout reset to '+_basePreset); };
 $('mapOverlay').addEventListener('click',e=>{ if(e.target.id==='mapOverlay') MapView.hide(); });
 if($('editMapBtn')) $('editMapBtn').onclick=()=>{ if(typeof Teklet!=='undefined') Teklet.hide(); MapView.show(); MapView.edit(true); };
+if($('addSliceBtn')) $('addSliceBtn').onclick=()=>{ const id=sliceAdd(); MapView.focus(id); flash('Added slice "'+id+'" · focus it and click keys+notes to fill it'); };
+if($('savePresetBtn')) $('savePresetBtn').onclick=()=>{ const el=$('presetName'); if(saveAsPreset(el?el.value:'')){ if(el) el.value=''; } };
 
 // drag-drop
 const wrap=document.getElementById('stageWrap');

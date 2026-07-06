@@ -39,6 +39,7 @@ function defaultProfile(){
                 assists:{ keyNames:true, autoSlow:false, autoShift:false },
                 skin:{ primary:'#ff8a2b', secondary:'#1a8fff', bg:'#05060a' },
                 slices:{ preset:'standard', list:null },   // active keyboard layout (docs/14)
+                presets:{},                                 // user-saved named layouts { name: sliceList }
                 hideParseWarning:false },
     stars:  {},   // levelId -> best stars (0..5)
     best:   {},   // levelId -> best accuracy (0..1)
@@ -68,6 +69,9 @@ function mergeProfile(loaded){
       if(s.slices && typeof s.slices==='object'){
         if(typeof s.slices.preset==='string') p.settings.slices.preset=s.slices.preset;
         if(Array.isArray(s.slices.list))      p.settings.slices.list=s.slices.list;
+      }
+      if(s.presets && typeof s.presets==='object'){
+        for(const name in s.presets){ if(Array.isArray(s.presets[name])) p.settings.presets[name]=s.presets[name]; }
       }
       p.settings.hideParseWarning = !!s.hideParseWarning;
     }
