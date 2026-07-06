@@ -64,3 +64,16 @@ test('unmap removes a key; both Tab and CapsLock shift the left slice up', async
   expect(r.tab).toEqual({ sliceId:'left', dir:1 });
   expect(r.caps).toEqual({ sliceId:'left', dir:1 });   // both keys shift left up
 });
+
+test('changing a slice step keeps each key on its exact note (no drift, no teleport)', async ({ page }) => {
+  await page.goto(tkgUrl);
+  await expect.poll(() => page.locator('#verRow > *').count(), { timeout: 5000 }).toBeGreaterThan(0);
+  const r = await page.evaluate(() => {
+    UI.mode='play';
+    const before = midiForGameKey('a').midi;          // 'a' is in the left slice
+    sliceSetProp('left','step',24);                   // 2-octave step
+    return { before, after: midiForGameKey('a').midi, step: currentSlices().find(s=>s.id==='left').step };
+  });
+  expect(r.step).toBe(24);
+  expect(r.after).toBe(r.before);                     // key 'a' did not move off its note
+});

@@ -135,7 +135,8 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } if(typeof Teklet!=='undefined' && Teklet.open){ Teklet.hide(); } return; }
   // shift keys (per-slice, from config — always live so you can position before play)
   const sh = (typeof SHIFT_BY_CODE!=='undefined') ? SHIFT_BY_CODE[e.code] : null;
-  if(sh){ e.preventDefault(); if(!e.repeat) shiftSlice(sh.sliceId, sh.dir); return; }
+  if(sh){ e.preventDefault(); if(!e.repeat){ shiftSlice(sh.sliceId, sh.dir);
+    if(typeof MapView!=='undefined' && MapView.open && MapView.refresh) MapView.refresh(); } return; }
   if(e.repeat) return;
   // match note keys by physical code first (robust to shifted punctuation /
   // non-US layouts / CapsLock-as-shift), falling back to the printed key.

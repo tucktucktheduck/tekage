@@ -113,7 +113,10 @@ function normalizeSlices(config, _depth){
           continue; }
         usedKeys.add(k); keys[k] = off;
       }
-      const step = (Number.isFinite(raw.step) && raw.step>=1) ? Math.floor(raw.step) : 12;
+      // step is a WHOLE-OCTAVE jump (multiple of 12): a shift moves the slice by
+      // octaves only, so a key always keeps its note name — it just changes octave
+      // (founder's model). Any non-octave value is snapped to the nearest octave.
+      const step = Number.isFinite(raw.step) ? Math.max(12, Math.round(raw.step/12)*12) : 12;
       const cA = v => clamp(Math.round(v), 0, 108);
       let minA = Number.isFinite(raw.minAnchor) ? cA(raw.minAnchor) : 12;
       let maxA = Number.isFinite(raw.maxAnchor) ? cA(raw.maxAnchor) : 96;

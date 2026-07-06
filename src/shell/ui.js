@@ -97,9 +97,15 @@ function slicesToList(){
   });
 }
 function applyEditedList(list){
+  // snapshot where the player has each slice positioned; a layout edit must not
+  // teleport a slice they've shifted (resolvePlan re-seeds anchors from the plan).
+  const saved = (typeof userAnchors!=='undefined' && userAnchors) ? Object.assign({}, userAnchors) : {};
   const c=liveConfig(); c.slices={ preset:'custom', list, mapping:null };
   loadConfig(c);
   if(typeof Song!=='undefined' && Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
+  if(typeof userAnchors!=='undefined' && typeof currentSlices==='function'){
+    for(const s of currentSlices()){ if(saved[s.id]!=null) userAnchors[s.id]=clamp(saved[s.id], s.minAnchor, s.maxAnchor); }
+  }
   if(typeof draw==='function') draw();
   if(typeof syncPresetUI==='function') syncPresetUI();
   persistSettings(true);
@@ -534,8 +540,10 @@ function renderSliceList(){
     const a=_anchorOfSlice(s,anchors);
     const span = (s.offs&&s.offs.length) ? (noteName(a+s.offs[0])+octaveOf(a+s.offs[0])+'-'+noteName(a+s.offs[s.offs.length-1])+octaveOf(a+s.offs[s.offs.length-1])) : 'empty';
     const info=document.createElement('span'); info.className='sliceInfo'; info.textContent=s.keys.length+' keys · '+span; row.appendChild(info);
-    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='24'; step.value=s.step; step.className='sliceStep'; step.title='Shift step (semitones)';
-    step.onchange=()=>sliceSetProp(s.id,'step',step.value); row.appendChild(step);
+    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='4'; step.value=Math.max(1,Math.round(s.step/12)); step.className='sliceStep';
+    step.title='Octaves per shift — a shift moves this slice by whole octaves, so each key always keeps its note (only the octave changes)';
+    step.onchange=()=>sliceSetProp(s.id,'step',(parseInt(step.value,10)||1)*12); row.appendChild(step);
+    const unit=document.createElement('span'); unit.className='sliceUnit'; unit.textContent='oct'; row.appendChild(unit);
     const col=document.createElement('input'); col.type='color'; col.className='sliceColor'; col.value=(p?_hex6(p.hex,'#1a8fff'):'#1a8fff'); col.title='Slice color';
     col.oninput=()=>sliceSetProp(s.id,'color',col.value); row.appendChild(col);
     const shLbl=arr=> Array.isArray(arr)&&arr.length ? arr.map(codeLabel).join('/') : (arr?codeLabel(arr):'—');

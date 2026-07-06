@@ -123,7 +123,8 @@ button.tk.preset:disabled{opacity:.4;cursor:not-allowed;}
 .sliceRow.focus{border-color:var(--sc,#ff8a2b);box-shadow:0 0 0 1px var(--sc,#ff8a2b) inset;}
 .sliceTag{min-width:30px;height:26px;border-radius:6px;border:1px solid var(--sc,#2a3a5e);background:var(--sc,#16203a);color:#05070b;font-weight:700;font-family:'Orbitron';font-size:11px;cursor:pointer;}
 .sliceInfo{flex:1;font-family:'Rajdhani';font-weight:600;font-size:11.5px;color:#9fb0cc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.sliceStep{width:42px;height:24px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:5px;color:#dce8fb;text-align:center;font-family:'Share Tech Mono';}
+.sliceStep{width:38px;height:24px;background:#0a0f1a;border:1px solid #2a3a5e;border-radius:5px;color:#dce8fb;text-align:center;font-family:'Share Tech Mono';}
+.sliceUnit{font-family:'Rajdhani';font-weight:600;font-size:10px;color:#7f8aa3;margin-left:-2px;}
 .sliceColor{width:26px;height:24px;padding:0;border:1px solid #2a3a5e;border-radius:5px;background:none;cursor:pointer;}
 .sliceShift{padding:3px 6px;font-size:10px;min-width:40px;}
 .sliceShift.capturing{border-color:#fff;color:#fff;}
@@ -2604,7 +2605,8 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Escape'){ if(MapView.open){ MapView.hide(); } if(typeof Teklet!=='undefined' && Teklet.open){ Teklet.hide(); } return; }
   // shift keys (per-slice, from config — always live so you can position before play)
   const sh = (typeof SHIFT_BY_CODE!=='undefined') ? SHIFT_BY_CODE[e.code] : null;
-  if(sh){ e.preventDefault(); if(!e.repeat) shiftSlice(sh.sliceId, sh.dir); return; }
+  if(sh){ e.preventDefault(); if(!e.repeat){ shiftSlice(sh.sliceId, sh.dir);
+    if(typeof MapView!=='undefined' && MapView.open && MapView.refresh) MapView.refresh(); } return; }
   if(e.repeat) return;
   // match note keys by physical code first (robust to shifted punctuation /
   // non-US layouts / CapsLock-as-shift), falling back to the printed key.
@@ -2805,9 +2807,15 @@ function slicesToList(){
   });
 }
 function applyEditedList(list){
+  // snapshot where the player has each slice positioned; a layout edit must not
+  // teleport a slice they've shifted (resolvePlan re-seeds anchors from the plan).
+  const saved = (typeof userAnchors!=='undefined' && userAnchors) ? Object.assign({}, userAnchors) : {};
   const c=liveConfig(); c.slices={ preset:'custom', list, mapping:null };
   loadConfig(c);
   if(typeof Song!=='undefined' && Song.notes && Song.notes.length && typeof resolvePlan==='function') resolvePlan();
+  if(typeof userAnchors!=='undefined' && typeof currentSlices==='function'){
+    for(const s of currentSlices()){ if(saved[s.id]!=null) userAnchors[s.id]=clamp(saved[s.id], s.minAnchor, s.maxAnchor); }
+  }
   if(typeof draw==='function') draw();
   if(typeof syncPresetUI==='function') syncPresetUI();
   persistSettings(true);
@@ -3242,8 +3250,10 @@ function renderSliceList(){
     const a=_anchorOfSlice(s,anchors);
     const span = (s.offs&&s.offs.length) ? (noteName(a+s.offs[0])+octaveOf(a+s.offs[0])+'-'+noteName(a+s.offs[s.offs.length-1])+octaveOf(a+s.offs[s.offs.length-1])) : 'empty';
     const info=document.createElement('span'); info.className='sliceInfo'; info.textContent=s.keys.length+' keys · '+span; row.appendChild(info);
-    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='24'; step.value=s.step; step.className='sliceStep'; step.title='Shift step (semitones)';
-    step.onchange=()=>sliceSetProp(s.id,'step',step.value); row.appendChild(step);
+    const step=document.createElement('input'); step.type='number'; step.min='1'; step.max='4'; step.value=Math.max(1,Math.round(s.step/12)); step.className='sliceStep';
+    step.title='Octaves per shift — a shift moves this slice by whole octaves, so each key always keeps its note (only the octave changes)';
+    step.onchange=()=>sliceSetProp(s.id,'step',(parseInt(step.value,10)||1)*12); row.appendChild(step);
+    const unit=document.createElement('span'); unit.className='sliceUnit'; unit.textContent='oct'; row.appendChild(unit);
     const col=document.createElement('input'); col.type='color'; col.className='sliceColor'; col.value=(p?_hex6(p.hex,'#1a8fff'):'#1a8fff'); col.title='Slice color';
     col.oninput=()=>sliceSetProp(s.id,'color',col.value); row.appendChild(col);
     const shLbl=arr=> Array.isArray(arr)&&arr.length ? arr.map(codeLabel).join('/') : (arr?codeLabel(arr):'—');
@@ -3600,7 +3610,10 @@ function normalizeSlices(config, _depth){
           continue; }
         usedKeys.add(k); keys[k] = off;
       }
-      const step = (Number.isFinite(raw.step) && raw.step>=1) ? Math.floor(raw.step) : 12;
+      // step is a WHOLE-OCTAVE jump (multiple of 12): a shift moves the slice by
+      // octaves only, so a key always keeps its note name — it just changes octave
+      // (founder's model). Any non-octave value is snapped to the nearest octave.
+      const step = Number.isFinite(raw.step) ? Math.max(12, Math.round(raw.step/12)*12) : 12;
       const cA = v => clamp(Math.round(v), 0, 108);
       let minA = Number.isFinite(raw.minAnchor) ? cA(raw.minAnchor) : 12;
       let maxA = Number.isFinite(raw.maxAnchor) ? cA(raw.maxAnchor) : 96;
