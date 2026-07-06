@@ -589,12 +589,9 @@ const MapView = (()=>{
   function windowAndSlices(){
     const slices=(typeof currentSlices==='function')?currentSlices():[];
     const anchors=(typeof currentAnchors==='function')?currentAnchors():{};
-    let lo=200,hi=0;
-    for(const s of slices){ if(!s.offs||!s.offs.length) continue; const a=_anchorOfSlice(s,anchors);
-      lo=Math.min(lo,a+s.offs[0]); hi=Math.max(hi,a+s.offs[s.offs.length-1]); }
-    if(lo>hi){ lo=48; hi=72; }
-    lo=clamp(lo,21,108); hi=clamp(hi,21,108); if(hi-lo<11) hi=Math.min(108,lo+11);
-    return {lo,hi,slices,anchors};
+    // Show the WHOLE 88-key piano (A0..C8) so any computer key can be remapped to
+    // ANY note. The slices are tinted in place so you still see their ranges.
+    return { lo:21, hi:108, slices, anchors };
   }
   function sliceAtMidi(m, slices, anchors){
     for(const s of slices){ if(!s.offs||!s.offs.length) continue; const a=_anchorOfSlice(s,anchors);
