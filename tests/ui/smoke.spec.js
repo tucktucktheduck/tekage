@@ -57,6 +57,9 @@ test('keyboard-map viewer: states, press-to-light, lines toggle', async ({ page 
   await expect.poll(() => page.locator('.mapKey.mapped').count()).toBeGreaterThan(0);
   await expect.poll(() => page.locator('.mapKey.dim').count()).toBeGreaterThan(0);
 
+  // every piano key is labelled with its note name (C4, D, E, F, G, A, B, sharps…)
+  await expect.poll(() => page.locator('#mapPiano .mapNote').count()).toBeGreaterThan(10);
+
   // lines are OFF by default (no <line> drawn yet)
   expect(await page.locator('#mapSvg line').count()).toBe(0);
 

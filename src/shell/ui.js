@@ -622,7 +622,7 @@ const MapView = (()=>{
       const s=sliceAtMidi(m,slices,anchors), p=s?palOf(s.id):null;
       if(p) el.style.background='linear-gradient(180deg,'+p.keyTop+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=(idx*wW)+'%'; el.style.width=wW+'%';
-      if(m%12===0){ const lab=document.createElement('span'); lab.className='mapClab'; lab.textContent='C'+(Math.floor(m/12)-1); el.appendChild(lab); }
+      const nn=document.createElement('span'); nn.className='mapNote'; nn.textContent=noteName(m)+(noteName(m)==='C'?octaveOf(m):''); el.appendChild(nn);
       addLegend(el,m);
       el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
@@ -633,6 +633,7 @@ const MapView = (()=>{
       const s=sliceAtMidi(m,slices,anchors), p=s?palOf(s.id):null;
       if(p) el.style.background='linear-gradient(180deg,'+p.fillBright+','+p.fill+')'; else el.classList.add('dim');
       el.style.left=((wi+1)*wW - wW*0.3)+'%'; el.style.width=(wW*0.6)+'%';
+      const nn=document.createElement('span'); nn.className='mapNote'; nn.textContent=noteName(m); el.appendChild(nn);
       addLegend(el,m);
       el.dataset.m=m; el.onclick=()=>onPiano(m);
       pno.appendChild(el); pianoCell.set(m,el);
