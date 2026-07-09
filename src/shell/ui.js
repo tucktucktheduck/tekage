@@ -384,6 +384,7 @@ function _settingsSnapshot(){
     mode: UI.mode,
     versionId: Song.version ? Song.version.id : null,
     assists: { keyNames:UI.keyNames, autoSlow:UI.autoSlow, autoShift:UI.autoShift },
+    voice: (typeof Audio!=='undefined' && Audio.currentVoice) ? Audio.currentVoice() : undefined,
     skin: (typeof Skin!=='undefined') ? { primary:_hex6(Skin.primary,'#ff8a2b'), secondary:_hex6(Skin.secondary,'#1a8fff'), bg:_hex6(Skin.bg,'#05060a') } : undefined,
     slices: (typeof TKGConfig!=='undefined' && TKGConfig.slices) ? { preset:TKGConfig.slices.preset||'standard', list:TKGConfig.slices.list||null } : undefined,
     presets: (typeof TKGConfig!=='undefined' && TKGConfig.presets) ? TKGConfig.presets : undefined,
@@ -409,6 +410,7 @@ function applyPersistedSettings(){
   UI.keyNames=s.assists.keyNames; UI.autoSlow=s.assists.autoSlow; UI.autoShift=s.assists.autoShift;
   Transport.autoSlow=UI.autoSlow;
   const nc=$('namesChk'); if(nc) nc.checked=UI.keyNames;
+  if(s.voice && typeof Audio!=='undefined' && Audio.setVoice && Audio.setVoice(s.voice)) setActiveVoice(s.voice);
   syncAssistUI();
   if(typeof Skin!=='undefined' && s.skin){
     Skin.apply({ colors:{ primary:s.skin.primary, secondary:s.skin.secondary }, background:{ mode:'color', asset:s.skin.bg } });
@@ -483,6 +485,19 @@ function setSf2UI(name){
 }
 if($('sf2Btn'))  $('sf2Btn').onclick=()=>$('sf2Input') && $('sf2Input').click();
 if($('synthBtn'))$('synthBtn').onclick=()=>{ if(typeof Audio!=='undefined') Audio.useSynth(); setSf2UI(null); flash('Back to the built-in synth'); };
+
+/* Core piano voice picker — swaps the built-in synth timbre (Grand/Bright/Mellow).
+   Choosing a voice also drops any loaded SF2 back to the synth (the picker only
+   drives the built-in piano). Persisted so it survives a reload. */
+function setActiveVoice(key){
+  document.querySelectorAll('.voiceBtn').forEach(b=>b.classList.toggle('on', b.dataset.voice===key));
+}
+document.querySelectorAll('.voiceBtn').forEach(b=> b.onclick=()=>{
+  const key=b.dataset.voice; if(typeof Audio==='undefined') return;
+  if(Audio.instrumentName && Audio.instrumentName()){ Audio.useSynth(); setSf2UI(null); }
+  const name=Audio.setVoice(key); if(!name) return;
+  setActiveVoice(key); persistSettings(true); flash('Piano voice: '+name);
+});
 if($('sf2Input')) $('sf2Input').onchange=e=>{
   const f=e.target.files && e.target.files[0]; if(!f) return;
   flash('Reading '+f.name+' …');
@@ -758,16 +773,50 @@ function showLowConfidenceDialog(parsed, title, onProceed){
    low-confidence warning as an upload. */
 function loadFromUrl(url, title){
   if(typeof flash==='function') flash('Loading from the library…');
-  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); })
+  let hdrTitle=null;
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status);
+      // our OnlineSequencer proxy returns the sequence name in a header
+      try{ const h=r.headers.get('X-Sequence-Title'); if(h) hdrTitle=decodeURIComponent(h); }catch(e){}
+      return r.arrayBuffer(); })
     .then(buf=>{
       const parsed=parseMidi(buf);
       if(!parsed.notes.length){ flash('No playable notes in that file'); return; }
-      const t=title || decodeURIComponent(url.split('/').pop().replace(/\.midi?$/i,'')).replace(/[-_]/g,' ');
+      const t=title || hdrTitle || decodeURIComponent(url.split('/').pop().replace(/\.midi?$/i,'')).replace(/[-_]/g,' ');
       const conf=(typeof parseConfidence==='function') ? parseConfidence(parsed) : {score:1};
       if(conf.score < 0.55) showLowConfidenceDialog(parsed, t, ()=>_commitLoadedSong(parsed, t));
       else _commitLoadedSong(parsed, t);
     })
     .catch(e=>flash('Could not load that song: '+e.message));
+}
+/* Load an OnlineSequencer sequence by id via our same-origin proxy (which turns
+   the sequence's embedded note data into a real MIDI). Charts it exactly like any
+   other MIDI. Reached from the library page as tkg.html?song=os:<id>. */
+function loadFromOnlineSequencer(id, title){
+  loadFromUrl('/api/midi?id='+encodeURIComponent(id), title);
+}
+/* Chart an already-in-memory MIDI (ArrayBuffer). Shared by upload paths. */
+function loadArrayBuffer(buf, title){
+  try{
+    const parsed=parseMidi(buf);
+    if(!parsed.notes.length){ flash('No playable notes found in that file'); return; }
+    const t=title||'Your MIDI';
+    const conf=(typeof parseConfidence==='function') ? parseConfidence(parsed) : {score:1};
+    if(conf.score < 0.55) showLowConfidenceDialog(parsed, t, ()=>_commitLoadedSong(parsed, t));
+    else _commitLoadedSong(parsed, t);
+  }catch(err){ flash('Could not read MIDI: '+err.message); }
+}
+/* A MIDI uploaded on the library page is stashed in sessionStorage, then the game
+   opens with ?upload=1 and reads it back here (same-origin, survives the nav). */
+function loadUploadFromSession(){
+  let raw=null; try{ raw=sessionStorage.getItem('tkg_upload'); }catch(e){}
+  if(!raw){ if(typeof Onboarding!=='undefined') Onboarding.maybeStart(); return; }
+  try{ sessionStorage.removeItem('tkg_upload'); }catch(e){}
+  try{
+    const {name,data}=JSON.parse(raw);
+    const bin=atob(data), arr=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    loadArrayBuffer(arr.buffer, (name||'Your MIDI').replace(/\.midi?$/i,'').replace(/[-_]/g,' '));
+  }catch(e){ flash('Could not load the uploaded file'); }
 }
 function loadFile(file){
   const reader=new FileReader();

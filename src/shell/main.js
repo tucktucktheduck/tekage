@@ -22,9 +22,11 @@ if(typeof ProgressStore!=='undefined'){
 frame();
 // A song requested from the library page: tkg.html?song=<id> (baked, offline) or
 // ?mutopia=<midi-url> (online). Load it and skip the first-visit landing.
-let _songReq=null, _mutopiaReq=null;
-try{ const p=new URLSearchParams(location.search||''); _songReq=p.get('song'); _mutopiaReq=p.get('mutopia'); }catch(e){}
-if(_songReq && _songReq.indexOf('lib:')===0 && typeof loadLibrarySong==='function') loadLibrarySong(_songReq.slice(4));
+let _songReq=null, _mutopiaReq=null, _uploadReq=null;
+try{ const p=new URLSearchParams(location.search||''); _songReq=p.get('song'); _mutopiaReq=p.get('mutopia'); _uploadReq=p.get('upload'); }catch(e){}
+if(_uploadReq && typeof loadUploadFromSession==='function') loadUploadFromSession();
+else if(_songReq && _songReq.indexOf('os:')===0 && typeof loadFromOnlineSequencer==='function') loadFromOnlineSequencer(_songReq.slice(3));
+else if(_songReq && _songReq.indexOf('lib:')===0 && typeof loadLibrarySong==='function') loadLibrarySong(_songReq.slice(4));
 else if(_songReq && typeof loadBakedSong==='function') loadBakedSong(_songReq);
 else if(_mutopiaReq && typeof loadFromUrl==='function') loadFromUrl(_mutopiaReq);
 else if(typeof Onboarding!=='undefined') Onboarding.maybeStart();   // T25: first-visit landing + Blurt walkthrough

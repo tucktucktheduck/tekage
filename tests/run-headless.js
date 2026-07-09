@@ -21,7 +21,7 @@ function fakeParam(){ return {value:0,setValueAtTime:noop,linearRampToValueAtTim
 function fakeNode(){ return {connect:()=>fakeNode(),disconnect:noop,start:noop,stop:noop,gain:fakeParam(),frequency:fakeParam(),playbackRate:fakeParam(),loop:false,loopStart:0,loopEnd:0,type:'',buffer:null}; }
 function FakeAudioContext(){ this.state='running'; this.sampleRate=44100;
   this.destination={}; this.createGain=fakeNode; this.createOscillator=fakeNode; this.createConvolver=fakeNode;
-  this.createBufferSource=fakeNode;
+  this.createBufferSource=fakeNode; this.createBiquadFilter=fakeNode;
   this.createDynamicsCompressor=fakeNode; this.createBuffer=(c,l)=>({getChannelData:()=>new Float32Array(l)});
   this.resume=noop; Object.defineProperty(this,'currentTime',{get:()=>CTXTIME}); }
 

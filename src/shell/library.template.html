@@ -27,6 +27,14 @@ input#q:focus{outline:none;border-color:var(--blue);}
 .fil button{font-family:'Orbitron';font-weight:700;font-size:11px;letter-spacing:1px;color:var(--dim);background:#0a0e1a;
   border:1px solid var(--border);border-radius:7px;padding:9px 12px;cursor:pointer;}
 .fil button.on{color:var(--orange);border-color:var(--orange);background:rgba(255,138,43,.10);}
+.src{display:flex;gap:0;}
+.src button{font-family:'Orbitron';font-weight:700;font-size:11px;letter-spacing:1px;color:var(--dim);background:#0a0e1a;
+  border:1px solid var(--border);padding:9px 13px;cursor:pointer;}
+.src button:first-child{border-radius:7px 0 0 7px;} .src button:last-child{border-radius:0 7px 7px 0;border-left:0;}
+.src button.on{color:var(--blue);border-color:var(--blue);background:rgba(26,143,255,.12);}
+.up{font-family:'Orbitron';font-weight:700;font-size:11px;letter-spacing:1px;color:var(--ok);background:#0a0e1a;
+  border:1px solid rgba(34,204,102,.45);border-radius:7px;padding:9px 13px;cursor:pointer;}
+.up:hover{background:rgba(34,204,102,.10);}
 .count{color:var(--dim);font-size:12px;padding:0 22px 8px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:8px 22px 40px;}
 .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;
@@ -60,6 +68,10 @@ footer a{color:var(--blue);}
   <a class="back" href="tkg.html">▸ BACK TO GAME</a>
 </header>
 <div class="controls">
+  <div class="src" id="src">
+    <button data-src="mutopia" class="on">MUTOPIA</button>
+    <button data-src="os">ONLINE SEQ</button>
+  </div>
   <input id="q" placeholder="Search by title or composer…" autocomplete="off">
   <div class="fil" id="fil">
     <button data-min="0" class="on">All</button>
@@ -67,19 +79,28 @@ footer a{color:var(--blue);}
     <button data-min="3">★★★ medium</button>
     <button data-min="4">★★★★ hard</button>
   </div>
+  <button class="up" id="uploadBtn" title="Play your own MIDI file">&#8593; UPLOAD MIDI</button>
+  <input type="file" id="uploadInput" accept=".mid,.midi,audio/midi" style="display:none">
 </div>
 <div class="count" id="count"></div>
 <div class="grid" id="grid"></div>
 <footer>
-  Songs stream from the <a href="https://www.mutopiaproject.org" target="_blank" rel="noopener">Mutopia Project</a>
+  <span id="footMutopia">Songs from the <a href="https://www.mutopiaproject.org" target="_blank" rel="noopener">Mutopia Project</a>
   (public-domain). TKG charts them on the fly — melody extraction, difficulty tiers, and the file's own
-  hand assignment when it has one. Clicking a song opens it in the game.
+  hand assignment when it has one. Clicking a song opens it in the game.</span>
+  <span id="footOS" style="display:none">Results come from <a href="https://onlinesequencer.net" target="_blank" rel="noopener">Online Sequencer</a>,
+  a community sequencer. These sequences are made by users and <b>may include arrangements of copyrighted songs</b> —
+  they are not public-domain. Use them for personal practice. TKG charts each on the fly. ·
+  <b>UPLOAD MIDI</b> plays any <code>.mid</code> file from your computer.</span>
 </footer>
 <script>
 const CATALOG = /*__CATALOG__*/;
 const grid=document.getElementById('grid'), countEl=document.getElementById('count'), q=document.getElementById('q');
-let minStars=0;
+let minStars=0, source='mutopia', osResults=[], osTimer=null, osToken=0;
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+// scraped Online Sequencer titles are user-generated -> escape before injecting.
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 function tierBox(t){ const cls=t.id==='core'?'core':t.id==='2voice'?'tv':'full';
   const label=t.id==='core'?'EASY':t.id==='2voice'?'MEDIUM':'HARD';
   return `<div class="tier ${cls}"><div class="tn">${label}</div><div class="tc">${t.notes} notes</div><div class="ts">${stars(t.stars)}</div></div>`; }
@@ -94,7 +115,15 @@ function card(s){
     <a class="play" href="tkg.html?song=${encodeURIComponent(s.id)}">▶ PLAY</a>
   </div>`;
 }
-function render(){
+// Online Sequencer results aren't pre-charted, so no stars/tiers (they'd be fiction).
+function osCard(s){
+  return `<div class="card">
+    <div><div class="ctitle">${esc(s.title)}</div><div class="ccomp">Online Sequencer</div></div>
+    <div class="meta"><span>${(s.notes||0).toLocaleString()} notes</span><span class="tag">community</span></div>
+    <a class="play" href="tkg.html?song=os:${encodeURIComponent(s.id)}">▶ PLAY</a>
+  </div>`;
+}
+function renderMutopia(){
   const term=q.value.trim().toLowerCase();
   const list=CATALOG.filter(s=> s.stars>=minStars &&
     (!term || (s.title+' '+s.composer).toLowerCase().includes(term)));
@@ -102,10 +131,55 @@ function render(){
   grid.innerHTML = list.length ? list.map(card).join('') :
     '<div class="empty">No songs match. Try a different search or difficulty.</div>';
 }
+function renderOS(){
+  const term=q.value.trim();
+  if(!term){ countEl.textContent=''; grid.innerHTML='<div class="empty">Search millions of community sequences on Online Sequencer.</div>'; return; }
+  countEl.textContent = osResults.length ? osResults.length+' results from Online Sequencer' : 'No matches — try another search';
+  grid.innerHTML = osResults.length ? osResults.map(osCard).join('') : '<div class="empty">Nothing found for that search.</div>';
+}
+function render(){ source==='os' ? renderOS() : renderMutopia(); }
+function doOsSearch(){
+  const term=q.value.trim();
+  clearTimeout(osTimer);
+  if(!term){ osResults=[]; renderOS(); return; }
+  countEl.textContent='Searching Online Sequencer…';
+  const tok=++osToken;
+  osTimer=setTimeout(()=>{
+    fetch('/api/search?q='+encodeURIComponent(term)).then(r=>r.json()).then(d=>{
+      if(tok!==osToken) return;                       // ignore stale responses
+      osResults=(d && d.results) || []; renderOS();
+    }).catch(()=>{ if(tok===osToken) countEl.textContent='Search unavailable (needs the deployed site).'; });
+  }, 350);
+}
+document.getElementById('src').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
+  document.querySelectorAll('#src button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  source=b.dataset.src;
+  document.getElementById('fil').style.display = source==='os'?'none':'';
+  document.getElementById('footMutopia').style.display = source==='os'?'none':'';
+  document.getElementById('footOS').style.display = source==='os'?'':'none';
+  q.placeholder = source==='os' ? 'Search Online Sequencer…' : 'Search by title or composer…';
+  render(); if(source==='os') doOsSearch();
+});
 document.getElementById('fil').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return;
   document.querySelectorAll('#fil button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   minStars=+b.dataset.min; render(); });
-q.addEventListener('input', render);
+q.addEventListener('input', ()=>{ source==='os' ? doOsSearch() : render(); });
+
+// UPLOAD MIDI — stash the file (base64) and open the game, which reads it back.
+document.getElementById('uploadBtn').addEventListener('click',()=>document.getElementById('uploadInput').click());
+document.getElementById('uploadInput').addEventListener('change',e=>{
+  const f=e.target.files && e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const bytes=new Uint8Array(rd.result); let bin='';
+    for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i]);
+    sessionStorage.setItem('tkg_upload', JSON.stringify({ name:f.name, data:btoa(bin) }));
+    location.href='tkg.html?upload=1';
+  }catch(err){ alert('Could not read that MIDI file.'); } };
+  rd.onerror=()=>alert('Could not read that file.');
+  rd.readAsArrayBuffer(f);
+  e.target.value='';
+});
 render();
 </script>
 </body>

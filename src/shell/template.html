@@ -321,6 +321,12 @@ input[type=color].swatch::-webkit-color-swatch{border:none;border-radius:3px;}
         <span class="lbl">Vol</span>
         <input type="range" class="vol" id="vol" min="0" max="100" value="75">
       </div>
+      <div class="grp" id="voiceGrp" title="Pick the built-in piano voice">
+        <span class="lbl">Piano</span>
+        <button class="tk voiceBtn on" data-voice="grand" title="Warm concert grand">GRAND</button>
+        <button class="tk voiceBtn" data-voice="bright" title="Brighter, more attack">BRIGHT</button>
+        <button class="tk voiceBtn" data-voice="mellow" title="Soft and round">MELLOW</button>
+      </div>
       <div class="grp">
         <button class="tk" id="sf2Btn" title="Load a piano sample pack (.sf2 SoundFont) as the instrument">&#127929; UPLOAD PIANO (SF2)</button>
         <button class="tk" id="synthBtn" title="Use the built-in synth" style="display:none">RESET SYNTH</button>

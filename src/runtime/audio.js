@@ -114,6 +114,24 @@ const Audio = (()=>{
   const MAX_VOICE_SEC=12;         // absolute ceiling — nothing rings longer
   let instrument=null;            // loaded SoundFont { name, zones:[...,.buffer] } or null (synth)
 
+  // ── Core piano VOICES (built-in synth flavours) ────────────────────
+  // The default sound is an additive, inharmonic, per-partial-decaying piano
+  // model (see voiceSources). A "voice" is just the timbre knobs:
+  //   N=partial count, tilt=spectral roll-off exponent, inharm=string stretch,
+  //   decay=base ring time, decaySpread=how much faster high partials fade,
+  //   attack=onset (s), body=overall loudness-decay time constant,
+  //   sustainFloor=how far a partial fades toward while ringing,
+  //   hammer=felt-thunk level, hammerCut=hammer low-pass (Hz).
+  const VOICES={
+    grand:  {name:'Grand',  N:8, tilt:1.15, inharm:0.0007, decay:2.8, decaySpread:0.55, attack:0.006, body:2.4, sustainFloor:0.06, hammer:0.16, hammerCut:3800},
+    bright: {name:'Bright', N:9, tilt:0.95, inharm:0.0009, decay:2.4, decaySpread:0.42, attack:0.005, body:2.0, sustainFloor:0.05, hammer:0.24, hammerCut:5400},
+    mellow: {name:'Mellow', N:6, tilt:1.45, inharm:0.0005, decay:3.4, decaySpread:0.70, attack:0.009, body:2.8, sustainFloor:0.07, hammer:0.09, hammerCut:2400},
+  };
+  let voiceKey='grand', VOICE=VOICES.grand;
+  function setVoice(key){ if(VOICES[key]){ voiceKey=key; VOICE=VOICES[key]; return VOICES[key].name; } return null; }
+  function voiceName(){ return VOICE.name; }
+  function currentVoice(){ return voiceKey; }
+
   function ensure(){
     if(ctx) return;
     ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -153,8 +171,12 @@ const Audio = (()=>{
   function zoneFor(midi){ if(!instrument) return null; for(const z of instrument.zones){ if(midi>=z.lo && midi<=z.hi && z.buffer) return z; } return null; }
 
   // Create (but DON'T start) the source nodes for one voice, connected to `g`.
-  // Sampler when a SoundFont covers this note; otherwise the 3-oscillator synth.
-  function voiceSources(midi, g){
+  // Sampler when a SoundFont covers this note; otherwise the built-in piano model:
+  // an inharmonic partial stack where every partial has its OWN decay (brightness
+  // fades as the note rings — the essence of a real piano) plus a short low-passed
+  // noise burst for the felt-hammer thunk. `t`=start, `vel`=0..1. Every source node
+  // is returned in `srcs`, so teardown/watchdog stay source-agnostic.
+  function voiceSources(midi, g, t, vel){
     const z=zoneFor(midi);
     if(z){
       const src=ctx.createBufferSource(); src.buffer=z.buffer;
@@ -162,23 +184,47 @@ const Audio = (()=>{
       if(z.loop && z.loopEnd>z.loopStart){ src.loop=true; src.loopStart=z.loopStart; src.loopEnd=z.loopEnd; }
       src.connect(g); return [src];
     }
-    const f=midiToFreq(midi);
-    const o1=ctx.createOscillator(),o2=ctx.createOscillator(),o3=ctx.createOscillator();
-    o1.type='triangle';o2.type='sine';o3.type='sine';
-    o1.frequency.value=f;o2.frequency.value=f*2;o3.frequency.value=f*3;
-    const g2=ctx.createGain();g2.gain.value=0.30;const g3=ctx.createGain();g3.gain.value=0.13;
-    o1.connect(g);o2.connect(g2).connect(g);o3.connect(g3).connect(g);
-    return [o1,o2,o3];
+    const V=VOICE, f=midiToFreq(midi), v=clamp(vel,0.05,1), srcs=[];
+    const lowFactor=clamp(Math.pow(2,(60-midi)/24),0.4,2.6);   // bass rings longer
+    const bright=0.55+0.45*v;                                  // harder hits are brighter
+    const amps=[]; let sum=0;
+    for(let n=1;n<=V.N;n++){ let a=1/Math.pow(n,V.tilt); if(n>=3) a*=Math.pow(bright,n-2); amps.push(a); sum+=a; }
+    for(let n=1;n<=V.N;n++){
+      const partial=amps[n-1]/sum;
+      const o=ctx.createOscillator(); o.type='sine';
+      o.frequency.value=f*n*Math.sqrt(1+V.inharm*n*n);         // inharmonic (stretched) partial
+      const pg=ctx.createGain(), tau=Math.max(0.05, V.decay*lowFactor/(1+V.decaySpread*(n-1)));
+      pg.gain.setValueAtTime(0,t);
+      pg.gain.linearRampToValueAtTime(partial, t+V.attack);
+      pg.gain.setTargetAtTime(partial*V.sustainFloor, t+V.attack, tau);   // per-partial decay
+      o.connect(pg).connect(g); srcs.push(o);
+    }
+    if(V.hammer>0){                                            // felt-hammer transient
+      const len=Math.max(1,Math.ceil(ctx.sampleRate*0.03));
+      const nb=ctx.createBuffer(1,len,ctx.sampleRate), d=nb.getChannelData(0);
+      for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+      const ns=ctx.createBufferSource(); ns.buffer=nb;
+      const lp=ctx.createBiquadFilter(); lp.type='lowpass';
+      lp.frequency.value=clamp(V.hammerCut*(0.5+0.7*v),300,12000);
+      const ng=ctx.createGain();
+      ng.gain.setValueAtTime(0,t);
+      ng.gain.linearRampToValueAtTime(V.hammer*v, t+0.002);
+      ng.gain.setTargetAtTime(0.0001, t+0.004, 0.012);
+      ns.connect(lp).connect(ng).connect(g); srcs.push(ns);
+    }
+    return srcs;
   }
 
   // build the voice for a LIVE held note
   function build(midi, vel){
     const t=ctx.currentTime;
-    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    // fade-in (~12ms) so the onset doesn't click, then settle to sustain
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+0.012);
-    g.gain.linearRampToValueAtTime(a*0.75,t+0.12);
-    const srcs=voiceSources(midi, g); g.connect(master);
+    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.30;
+    // click-free onset (ramp from ~0), then a slow body decay as a real piano fades
+    // even while the key is held; the per-partial decays add the brightness falloff.
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(a,t+VOICE.attack);
+    g.gain.setTargetAtTime(a*0.32, t+VOICE.attack, VOICE.body);
+    const srcs=voiceSources(midi, g, t, vel); g.connect(master);
     for(const s of srcs) s.start(t);
     return {srcs,g};
   }
@@ -199,23 +245,24 @@ const Audio = (()=>{
   function strike(midi, when, dur, vel=0.8){
     ensure();
     const t=Math.max(when, ctx.currentTime);
-    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.32;
-    // click-free envelope: ~12ms fade-in, then a sustain hold that ALWAYS ends
-    // before the release starts (short notes used to overlap the two ramps -> a
-    // pop on note-out), then an exponential fade-out.
-    const atk=0.012, rel=Math.max(dur,0.10), hold=Math.min(0.10, Math.max(dur,0.03));
-    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(a,t+atk);
-    g.gain.linearRampToValueAtTime(a*0.7,t+hold);
-    g.gain.setTargetAtTime(0.0001, t+rel, 0.14);
-    const srcs=voiceSources(midi, g); g.connect(master);
+    const g=ctx.createGain(); const a=clamp(vel,0.05,1)*0.30;
+    // click-free onset (ramp from ~0) + slow body decay; all decays use
+    // setTargetAtTime (smooth exponentials) so nothing pops. The release begins
+    // after the note's own length and lets the tail ring out naturally.
+    const rel=Math.max(dur,0.10);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.linearRampToValueAtTime(a,t+VOICE.attack);
+    g.gain.setTargetAtTime(a*0.32, t+VOICE.attack, VOICE.body);
+    g.gain.setTargetAtTime(0.00008, t+rel, 0.12);
+    const srcs=voiceSources(midi, g, t, vel); g.connect(master);
     for(const s of srcs){ try{ s.start(t); }catch(e){} }
-    const id=nextId++; const v={srcs,g,key:null,held:false,endByCtx:t+rel+1.2,bornCtx:ctx.currentTime};
+    const id=nextId++; const v={srcs,g,key:null,held:false,endByCtx:t+rel+1.6,bornCtx:ctx.currentTime};
     voices.set(id,v);
     // Schedule an absolute safety stop, but DON'T disconnect now: hardStop()
     // disconnects synchronously, which would rip the just-started nodes out of the
     // graph before any sound reaches master (silent playback). The per-frame
     // watchdog + release() free the nodes after the note has finished.
-    try{ const s=t+rel+1.2; for(const n of srcs) n.stop(s); }catch(e){}
+    try{ const s=t+rel+1.6; for(const n of srcs) n.stop(s); }catch(e){}
     return id;
   }
 
@@ -244,5 +291,5 @@ const Audio = (()=>{
   }
   function liveCount(){ return voices.size; }
   return {resume,now,setVolume,strike,noteOn,noteOff,allNotesOff,tick,liveCount,
-          loadSoundfont,useSynth,instrumentName};
+          loadSoundfont,useSynth,instrumentName,setVoice,voiceName,currentVoice,VOICES};
 })();
