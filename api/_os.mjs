@@ -9,29 +9,42 @@
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
-// OnlineSequencer sits behind Cloudflare, which 403s requests that don't look like
-// a real browser (bare User-Agent from a datacenter IP gets flagged). Present the
-// full modern-Chrome header fingerprint so a plain server-side fetch passes. We omit
-// Accept-Encoding on purpose — undici negotiates + decodes compression itself, and
-// forcing `br` here risks handing back an undecoded body.
+const BROWSER_HEADERS = {
+  'User-Agent': UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Upgrade-Insecure-Requests': '1',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"Windows"',
+};
+
+// Turn an OnlineSequencer URL into the actual URL we fetch. OnlineSequencer sits
+// behind Cloudflare's "Just a moment..." managed challenge, which 403s any plain
+// server-side fetch from a datacenter IP (e.g. Vercel) no matter how browser-like
+// the headers are — passing it needs a real JS-executing browser. So in production
+// we route through a Cloudflare-solving scraper API, configured entirely via one
+// env var (the API key never lives in the repo):
+//
+//   SCRAPER_PROXY = a URL template with a {url} placeholder, key embedded. e.g.
+//     ZenRows:     https://api.zenrows.com/v1/?apikey=KEY&js_render=true&antibot=true&url={url}
+//     ScrapingBee: https://app.scrapingbee.com/api/v1/?api_key=KEY&stealth_proxy=true&url={url}
+//     ScraperAPI:  https://api.scraperapi.com/?api_key=KEY&render=true&url={url}
+//
+// When SCRAPER_PROXY is unset (local dev on a residential IP, which Cloudflare lets
+// through), we fetch OnlineSequencer directly with a full browser-header fingerprint.
+const SCRAPER_PROXY = process.env.SCRAPER_PROXY || '';
+
 export function osFetch(url, extra = {}) {
-  return fetch(url, {
-    redirect: 'follow',
-    headers: {
-      'User-Agent': UA,
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"Windows"',
-      ...extra,
-    },
-  });
+  if (SCRAPER_PROXY) {
+    // The proxy handles the browser fingerprint + CF challenge; just hand it the URL.
+    return fetch(SCRAPER_PROXY.replace('{url}', encodeURIComponent(url)), { redirect: 'follow' });
+  }
+  return fetch(url, { redirect: 'follow', headers: { ...BROWSER_HEADERS, ...extra } });
 }
 
 // Fetch a sequence page and pull out the base64 protobuf blob.

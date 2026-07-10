@@ -56,6 +56,36 @@ and stays unescaped/byte-identical.
 → `loadFromUrl('/api/midi?id='+id)` → the existing `parseMidi` → chart pipeline. The
 fetch is impure runtime; charting stays pure engine (respects `DECISIONS.md`).
 
+### Cloudflare — REQUIRED for OnlineSequencer to work in production
+
+OnlineSequencer now sits behind **Cloudflare's "Just a moment…" managed challenge**.
+It waves through residential IPs (so local dev fetches OS fine), but **403s any
+server-side fetch from a datacenter IP** — including Vercel's — no matter how
+browser-like the headers are. Defeating it needs a real JS-executing browser, so
+we route the two OS fetches through a **Cloudflare-solving scraper API**.
+
+This is configured with **one Vercel env var** — the API key never lives in the repo:
+
+    SCRAPER_PROXY = a URL template with a {url} placeholder, provider key embedded.
+
+`api/_os.mjs::osFetch` substitutes the (encoded) OnlineSequencer URL into `{url}`.
+Any provider that returns the target page's body works; examples:
+
+    ZenRows      https://api.zenrows.com/v1/?apikey=KEY&js_render=true&antibot=true&url={url}
+    ScrapingBee  https://app.scrapingbee.com/api/v1/?api_key=KEY&stealth_proxy=true&url={url}
+    ScraperAPI   https://api.scraperapi.com/?api_key=KEY&render=true&url={url}
+
+**To turn OnlineSequencer on in production:**
+1. Sign up for a scraper provider (ZenRows handles Cloudflare well; free trials ~1000 req).
+2. Vercel → Project → Settings → Environment Variables → add `SCRAPER_PROXY` (the full
+   template above, with your key) for Production.
+3. Redeploy (or `vercel --prod`). Verify: `curl "https://tekage.vercel.app/api/search?q=fur%20elise"`
+   should return results instead of `{"error":"search failed","detail":"HTTP 403"}`.
+
+When `SCRAPER_PROXY` is **unset**, `osFetch` fetches OS directly with browser headers —
+correct for local/residential dev, and it simply 403s in production until the var is set.
+Mutopia search + MIDI upload are entirely client-side and need none of this.
+
 ### Licensing — read before promoting this
 
 Unlike Mutopia (public-domain), OnlineSequencer content is **community-made and often

@@ -5,7 +5,7 @@
   "description": "TKG - a piano rhythm game played on the QWERTY keyboard",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/run-headless.js",
+    "test": "node tests/run-headless.js && node tests/os-proxy.test.mjs",
     "test:ui": "playwright test",
     "fixtures": "node scripts/gen-fixtures.mjs"
   },
