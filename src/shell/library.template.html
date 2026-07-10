@@ -142,7 +142,7 @@ function doOsSearch(){
   const term=q.value.trim();
   clearTimeout(osTimer);
   if(!term){ osResults=[]; renderOS(); return; }
-  countEl.textContent='Searching Online Sequencer…';
+  countEl.textContent='Searching Online Sequencer… (first search can take ~20s)';
   const tok=++osToken;
   osTimer=setTimeout(()=>{
     fetch('/api/search?q='+encodeURIComponent(term)).then(r=>r.json()).then(d=>{
