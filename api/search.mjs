@@ -11,13 +11,7 @@ export default async function handler(req, res) {
   try {
     const url = `https://onlinesequencer.net/sequences?search=${encodeURIComponent(q)}&sort=1`;
     const r = await osFetch(url);
-    if (!r.ok) {
-      // TEMP DIAGNOSTIC: surface what Cloudflare actually returns from the Vercel IP.
-      const body = await r.text().catch(() => '');
-      const e = new Error(`HTTP ${r.status}`);
-      e.cf = { ray: r.headers.get('cf-ray'), server: r.headers.get('server'), snippet: body.slice(0, 240) };
-      throw e;
-    }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const html = await r.text();
     const results = [];
     const seen = new Set();
@@ -34,6 +28,6 @@ export default async function handler(req, res) {
     }
     res.status(200).json({ query: q, results });
   } catch (e) {
-    res.status(502).json({ error: 'search failed', detail: String(e.message || e), cf: e.cf || null, results: [] });
+    res.status(502).json({ error: 'search failed', detail: String(e.message || e), results: [] });
   }
 }
