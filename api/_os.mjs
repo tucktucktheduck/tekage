@@ -7,13 +7,36 @@
 // bytes their client-side Download button would produce. The game's existing
 // parseMidi pipeline then charts it like any other MIDI.
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
+// OnlineSequencer sits behind Cloudflare, which 403s requests that don't look like
+// a real browser (bare User-Agent from a datacenter IP gets flagged). Present the
+// full modern-Chrome header fingerprint so a plain server-side fetch passes. We omit
+// Accept-Encoding on purpose — undici negotiates + decodes compression itself, and
+// forcing `br` here risks handing back an undecoded body.
+export function osFetch(url, extra = {}) {
+  return fetch(url, {
+    redirect: 'follow',
+    headers: {
+      'User-Agent': UA,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      ...extra,
+    },
+  });
+}
 
 // Fetch a sequence page and pull out the base64 protobuf blob.
 export async function fetchSequenceData(id) {
-  const res = await fetch(`https://onlinesequencer.net/${id}`, {
-    headers: { 'User-Agent': UA, 'Accept': 'text/html' },
-  });
+  const res = await osFetch(`https://onlinesequencer.net/${id}`);
   if (!res.ok) throw new Error(`sequence ${id}: HTTP ${res.status}`);
   const html = await res.text();
   const m = html.match(/var data = (['"])([A-Za-z0-9+/=]+)\1/);

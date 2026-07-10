@@ -2,7 +2,7 @@
 // Scrapes OnlineSequencer's own browse search (/sequences?search=…) and returns
 // lightweight results. Each result's `midi` points at our same-origin proxy, so
 // the library page and game can pull the chart without hitting OS cross-origin.
-import { UA, decodeEntities } from './_os.mjs';
+import { osFetch, decodeEntities } from './_os.mjs';
 
 export default async function handler(req, res) {
   const q = String((req.query && req.query.q) || '').trim().slice(0, 120);
@@ -10,8 +10,14 @@ export default async function handler(req, res) {
   if (!q) { res.status(200).json({ results: [] }); return; }
   try {
     const url = `https://onlinesequencer.net/sequences?search=${encodeURIComponent(q)}&sort=1`;
-    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'text/html' } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const r = await osFetch(url);
+    if (!r.ok) {
+      // TEMP DIAGNOSTIC: surface what Cloudflare actually returns from the Vercel IP.
+      const body = await r.text().catch(() => '');
+      const e = new Error(`HTTP ${r.status}`);
+      e.cf = { ray: r.headers.get('cf-ray'), server: r.headers.get('server'), snippet: body.slice(0, 240) };
+      throw e;
+    }
     const html = await r.text();
     const results = [];
     const seen = new Set();
@@ -28,6 +34,6 @@ export default async function handler(req, res) {
     }
     res.status(200).json({ query: q, results });
   } catch (e) {
-    res.status(502).json({ error: 'search failed', detail: String(e.message || e), results: [] });
+    res.status(502).json({ error: 'search failed', detail: String(e.message || e), cf: e.cf || null, results: [] });
   }
 }
