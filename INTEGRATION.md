@@ -69,14 +69,19 @@ This is configured with **one Vercel env var** — the API key never lives in th
     SCRAPER_PROXY = a URL template with a {url} placeholder, provider key embedded.
 
 `api/_os.mjs::osFetch` substitutes the (encoded) OnlineSequencer URL into `{url}`.
-Any provider that returns the target page's body works; examples:
+Any provider that returns the target page's body works. Prefer one with a
+**recurring free monthly tier** (not a one-time trial):
 
-    ZenRows      https://api.zenrows.com/v1/?apikey=KEY&js_render=true&antibot=true&url={url}
-    ScrapingBee  https://app.scrapingbee.com/api/v1/?api_key=KEY&stealth_proxy=true&url={url}
-    ScraperAPI   https://api.scraperapi.com/?api_key=KEY&render=true&url={url}
+    ScrapingAnt  https://api.scrapingant.com/v2/general?x-api-key=KEY&browser=true&proxy_type=residential&url={url}   (10k credits/mo free)
+    Scrape.do    https://api.scrape.do/?token=KEY&render=true&super=true&url={url}                                     (1k successful calls/mo free)
+    ScraperAPI   https://api.scraperapi.com/?api_key=KEY&ultra_premium=true&url={url}                                  (1k credits/mo; CF eats ~10-30 each)
+    ZenRows/ScrapingBee — great at Cloudflare but trial-only, no recurring free tier.
+
+Note: Cloudflare-solving requests (JS render + residential proxy) cost several
+credits each, so the effective free request count is well below the headline number.
 
 **To turn OnlineSequencer on in production:**
-1. Sign up for a scraper provider (ZenRows handles Cloudflare well; free trials ~1000 req).
+1. Sign up for a scraper provider (ScrapingAnt recommended — 10k free credits/mo, handles Cloudflare).
 2. Vercel → Project → Settings → Environment Variables → add `SCRAPER_PROXY` (the full
    template above, with your key) for Production.
 3. Redeploy (or `vercel --prod`). Verify: `curl "https://tekage.vercel.app/api/search?q=fur%20elise"`

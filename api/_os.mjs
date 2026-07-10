@@ -30,10 +30,11 @@ const BROWSER_HEADERS = {
 // we route through a Cloudflare-solving scraper API, configured entirely via one
 // env var (the API key never lives in the repo):
 //
-//   SCRAPER_PROXY = a URL template with a {url} placeholder, key embedded. e.g.
-//     ZenRows:     https://api.zenrows.com/v1/?apikey=KEY&js_render=true&antibot=true&url={url}
-//     ScrapingBee: https://app.scrapingbee.com/api/v1/?api_key=KEY&stealth_proxy=true&url={url}
-//     ScraperAPI:  https://api.scraperapi.com/?api_key=KEY&render=true&url={url}
+//   SCRAPER_PROXY = a URL template with a {url} placeholder, key embedded. Prefer a
+//   provider with a recurring free monthly tier (see INTEGRATION.md), e.g.
+//     ScrapingAnt: https://api.scrapingant.com/v2/general?x-api-key=KEY&browser=true&proxy_type=residential&url={url}
+//     Scrape.do:   https://api.scrape.do/?token=KEY&render=true&super=true&url={url}
+//     ScraperAPI:  https://api.scraperapi.com/?api_key=KEY&ultra_premium=true&url={url}
 //
 // When SCRAPER_PROXY is unset (local dev on a residential IP, which Cloudflare lets
 // through), we fetch OnlineSequencer directly with a full browser-header fingerprint.
